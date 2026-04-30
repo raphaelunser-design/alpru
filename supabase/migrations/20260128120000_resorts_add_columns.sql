@@ -1,0 +1,16 @@
+alter table public.resorts
+  add column if not exists openskimap_url text,
+  add column if not exists skimap_url text,
+  add column if not exists piste_km_total double precision,
+  add column if not exists piste_km_easy double precision,
+  add column if not exists piste_km_intermediate double precision,
+  add column if not exists piste_km_advanced double precision,
+  add column if not exists runs_count_total integer,
+  add column if not exists lifts_count_total integer,
+  add column if not exists elevation_min_m double precision,
+  add column if not exists elevation_max_m double precision,
+  add column if not exists vertical_m double precision,
+  add column if not exists wikipedia_url text,
+  add column if not exists notes text,
+  add column if not exists source text,
+  add column if not exists last_checked date;

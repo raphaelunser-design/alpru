@@ -1,0 +1,17 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Alpen Resort">
+  <defs>
+    <linearGradient id="sky3" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#fff7ed"/>
+    </linearGradient>
+    <linearGradient id="ridge3" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky3)"/>
+  <path d="M0 650L260 360L420 560L620 320L860 620L1080 440L1200 520V800H0Z" fill="url(#ridge3)"/>
+  <path d="M260 360L340 480L420 560L320 520Z" fill="#fff7ed"/>
+  <path d="M620 320L710 470L860 620L710 560Z" fill="#fff7ed"/>
+  <circle cx="980" cy="170" r="55" fill="#fb7185" opacity="0.75"/>
+</svg>

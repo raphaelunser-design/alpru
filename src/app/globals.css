@@ -1,0 +1,385 @@
+@import "tailwindcss";
+@import "react-day-picker/style.css";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --background: #08111f;
+  --foreground: #eef6ff;
+  --surface: rgba(8, 17, 31, 0.72);
+  --surface-muted: rgba(15, 23, 42, 0.55);
+  --brand-900: #00265a;
+  --brand-700: #114a7f;
+  --accent: #78d5ff;
+  --accent-strong: #2aa7df;
+  --warm: #f6b24b;
+  --glass-border: rgba(226, 232, 240, 0.18);
+  --glass-shadow: 0 20px 48px rgba(2, 6, 23, 0.36);
+  --glass-bg: rgba(8, 17, 31, 0.58);
+  --muted-text: #a7b7ca;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #08111f;
+    --foreground: #eef6ff;
+  }
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(232, 244, 255, 0.18) 0%, rgba(8, 17, 31, 0.92) 34%, #07101e 100%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+}
+
+* {
+  min-width: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), var(--font-sans), "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.glass-card {
+  border-radius: 0.5rem;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(18px);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(226, 232, 240, 0.28);
+}
+
+.interactive-card:hover {
+  transform: translateY(-4px);
+  background: rgba(12, 26, 46, 0.68);
+  box-shadow: 0 26px 64px rgba(2, 6, 23, 0.42);
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.nav-link:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #00265a;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 767px) {
+  body {
+    background:
+      linear-gradient(180deg, rgba(232, 244, 255, 0.13) 0%, rgba(8, 17, 31, 0.94) 28%, #07101e 100%),
+      var(--background);
+  }
+
+  .glass-card {
+    border-radius: 0.85rem;
+    box-shadow: 0 16px 44px rgba(2, 6, 23, 0.34);
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .button-lift:hover,
+  .nav-link:hover {
+    transform: none;
+  }
+}
+
+.nav-scroll {
+  scrollbar-width: none;
+}
+
+.nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.button-lift {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.button-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(2, 6, 23, 0.28);
+}
+
+.hero-shell {
+  isolation: isolate;
+}
+
+.hero-media {
+  transform: scale(1.035);
+  animation: heroDrift 24s ease-in-out infinite alternate;
+}
+
+.hero-content {
+  animation: heroContentIn 520ms ease both;
+}
+
+.animate-rise {
+  animation: riseIn 440ms ease both;
+}
+
+.stagger-children > * {
+  animation: riseIn 420ms ease both;
+}
+
+.stagger-children > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.stagger-children > *:nth-child(3) {
+  animation-delay: 150ms;
+}
+
+.stagger-children > *:nth-child(4) {
+  animation-delay: 220ms;
+}
+
+@keyframes heroDrift {
+  from {
+    transform: scale(1.035) translate3d(-0.8%, -0.4%, 0);
+  }
+
+  to {
+    transform: scale(1.075) translate3d(0.8%, 0.4%, 0);
+  }
+}
+
+@keyframes heroContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .hero-media,
+  .hero-content,
+  .animate-rise,
+  .stagger-children > * {
+    animation: none !important;
+  }
+
+  .button-lift:hover,
+  .interactive-card:hover,
+  .nav-link:hover {
+    transform: none;
+  }
+}
+
+.range-slider {
+  position: relative;
+  height: 22px;
+}
+
+.range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+}
+
+.range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  background: transparent;
+  pointer-events: none;
+}
+
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(56, 189, 248, 0.9);
+  background: #0b1117;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.5);
+}
+
+.range-input::-moz-range-thumb {
+  pointer-events: auto;
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(56, 189, 248, 0.9);
+  background: #0b1117;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.5);
+}
+
+.range-input::-moz-range-track {
+  background: transparent;
+}
+
+.rdp {
+  --rdp-accent-color: #0f172a;
+  --rdp-range_middle-background-color: rgba(15, 23, 42, 0.08);
+  --rdp-range_middle-color: #0f172a;
+  --rdp-selected-border: #0f172a;
+  --rdp-outline: 2px solid #0f172a;
+  --rdp-outline-selected: 2px solid #0f172a;
+  --rdp-today-color: #0f172a;
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+}
+
+.alpivo-calendar {
+  --rdp-accent-color: #bae6fd;
+  --rdp-day_button-width: 2.35rem;
+  --rdp-day_button-height: 2.35rem;
+  width: 100%;
+  position: relative;
+  color: #e5edf7;
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+}
+
+.alpivo-calendar-root {
+  width: 100%;
+}
+
+.alpivo-calendar .alpivo-day-cell {
+  isolation: isolate;
+  position: relative;
+  padding: 0.15rem;
+  text-align: center;
+}
+
+.alpivo-calendar .alpivo-day-button {
+  display: inline-grid;
+  height: 2.35rem;
+  width: 2.35rem;
+  place-items: center;
+  border-radius: 0.55rem;
+  color: #dbe8f6;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.alpivo-calendar .alpivo-day-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.alpivo-calendar .alpivo-day-today .alpivo-day-button {
+  border: 1px solid rgba(186, 230, 253, 0.5);
+  color: #ffffff;
+}
+
+.alpivo-calendar .alpivo-day-selected .alpivo-day-button,
+.alpivo-calendar .alpivo-range-start .alpivo-day-button,
+.alpivo-calendar .alpivo-range-end .alpivo-day-button {
+  background: #bae6fd;
+  color: #07111f;
+  font-weight: 750;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 12px 26px rgba(56, 189, 248, 0.26);
+}
+
+.alpivo-calendar .alpivo-range-middle .alpivo-day-button {
+  border-radius: 0.35rem;
+  background: rgba(125, 211, 252, 0.18);
+  color: #ffffff;
+}
+
+.alpivo-calendar .alpivo-range-start .alpivo-day-button {
+  border-bottom-right-radius: 0.35rem;
+  border-top-right-radius: 0.35rem;
+}
+
+.alpivo-calendar .alpivo-range-end .alpivo-day-button {
+  border-bottom-left-radius: 0.35rem;
+  border-top-left-radius: 0.35rem;
+}
+
+.alpivo-calendar .alpivo-range-middle::before,
+.alpivo-calendar .alpivo-range-start::before,
+.alpivo-calendar .alpivo-range-end::before {
+  position: absolute;
+  inset: 0.35rem 0;
+  z-index: -1;
+  border-radius: 0.25rem;
+  background: rgba(125, 211, 252, 0.08);
+  content: "";
+}
+
+.alpivo-calendar .alpivo-range-start::before {
+  left: 50%;
+}
+
+.alpivo-calendar .alpivo-range-end::before {
+  right: 50%;
+}

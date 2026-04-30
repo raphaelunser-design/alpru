@@ -1,0 +1,64 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local audit artifacts
+/backups/
+/.codex-screens/
+SUPABASETOKEN.txt
+VERCELTOKEN.txt
+tmp_*
+patch.txt
+resorts_bad_links.csv
+resorts_link_overrides.csv
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+.vercel
+
+# local launcher / generated helper files
+.alpivo-launcher/
+
+# logs
+*.log
+tmp*.log
+
+# local backups
+_backup_before_full_access/
+*_backup_before_full_access/

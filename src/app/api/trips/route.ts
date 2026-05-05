@@ -131,7 +131,7 @@ export async function POST(req: Request) {
         label: body.dateOption.label.trim() || "Erstes Zeitfenster",
         start_date: body.dateOption.startDate,
         end_date: body.dateOption.endDate,
-        note: body.dateOption.note.trim() || null,
+        note: body.dateOption.note?.trim() || null,
         created_by: user.id,
       });
 

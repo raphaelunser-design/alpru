@@ -50,8 +50,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       .eq("resort_id", resort.id)
       .maybeSingle();
 
-    const cachedWeather = cache.weather_json as Record<string, unknown> | null | undefined;
-    if (cachedWeather.valley && cachedWeather.mountain && cache.weather_updated_at) {
+    const cachedWeather = cache?.weather_json as Record<string, unknown> | null | undefined;
+    if (cachedWeather?.valley && cachedWeather?.mountain && cache?.weather_updated_at) {
       const updatedAt = new Date(cache.weather_updated_at).getTime();
       if (Number.isFinite(updatedAt) && Date.now() - updatedAt < CACHE_TTL_MS) {
         return NextResponse.json({

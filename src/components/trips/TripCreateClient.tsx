@@ -122,7 +122,7 @@ export default function TripCreateClient() {
   }, []);
 
   const selectedFocus = useMemo(() => new Set(focus), [focus]);
-  const hasIncompleteDateRange = Boolean(dateRange.from) && !dateRange.to;
+  const hasIncompleteDateRange = Boolean(dateRange && dateRange.from) && !(dateRange && dateRange.to);
   const topResortCandidates = resortCandidates.slice(0, 3);
   const moreResortCandidates = resortCandidates.slice(3);
 
@@ -292,7 +292,7 @@ export default function TripCreateClient() {
                       type="button"
                       className={`rounded-xl border p-4 text-left transition ${
                         active
-                          "border-sky-200/35 bg-sky-200/10 shadow-[0_0_24px_rgba(125,211,252,0.12)]"
+                          ? "border-sky-200/35 bg-sky-200/10 shadow-[0_0_24px_rgba(125,211,252,0.12)]"
                           : "border-white/10 bg-white/[0.05] hover:bg-white/[0.08]"
                       }`}
                       onClick={() => toggleSelectedResort(candidate.slug)}
@@ -306,10 +306,10 @@ export default function TripCreateClient() {
                         </div>
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                            active "border-sky-200/35 bg-sky-200/15 text-sky-50" : "border-white/10 bg-slate-950/30 text-slate-300"
+                            active ? "border-sky-200/35 bg-sky-200/15 text-sky-50" : "border-white/10 bg-slate-950/30 text-slate-300"
                           }`}
                         >
-                          {active "ausgewählt" : "hinzufügen"}
+                          {active ? "ausgew?hlt" : "hinzuf?gen"}
                         </span>
                       </div>
                       <p className="mt-3 text-sm leading-relaxed text-slate-300">{getCandidateReason(candidate)}</p>
@@ -326,17 +326,17 @@ export default function TripCreateClient() {
                 })}
               </div>
 
-              {moreResortCandidates.length (
+              {moreResortCandidates.length ? (
                 <div className="mt-4">
                   <button
                     type="button"
                     className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.08]"
                     onClick={() => setShowMoreResorts((current) => !current)}
                   >
-                    {showMoreResorts "Weitere Resorts ausblenden" : `Weitere passende Resorts anzeigen (${moreResortCandidates.length})`}
+                    {showMoreResorts ? "Weitere Resorts ausblenden" : `Weitere passende Resorts anzeigen (${moreResortCandidates.length})`}
                   </button>
 
-                  {showMoreResorts (
+                  {showMoreResorts ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {moreResortCandidates.map((candidate) => {
                         const active = selectedResorts.includes(candidate.slug);
@@ -346,7 +346,7 @@ export default function TripCreateClient() {
                             type="button"
                             className={`rounded-full border px-3 py-2 text-xs transition ${
                               active
-                                "border-sky-200/25 bg-sky-200/10 text-sky-50"
+                                ? "border-sky-200/25 bg-sky-200/10 text-sky-50"
                                 : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.1]"
                             }`}
                             onClick={() => toggleSelectedResort(candidate.slug)}
@@ -399,10 +399,10 @@ export default function TripCreateClient() {
                 onChange={(event) => setDateNote(event.target.value)}
                 placeholder="Optional: z. B. passt wegen Ferien, günstige Preisphase, bessere Verfügbarkeit."
               />
-              {dateRange.from (
+              {dateRange && dateRange.from ? (
                 <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-300">
                   Ausgewählt: {toIsoDate(dateRange.from)}
-                  {dateRange.to ` bis ${toIsoDate(dateRange.to)}` : " - bitte noch ein Enddatum wählen"}
+                  {dateRange.to ? ` bis ${toIsoDate(dateRange.to)}` : " - bitte noch ein Enddatum w?hlen"}
                 </div>
               ) : null}
             </div>
@@ -430,7 +430,7 @@ export default function TripCreateClient() {
                   data: { session },
                 } = await supabase.auth.getSession();
 
-                if (!session.access_token) {
+                if (!session || !session.access_token) {
                   setError("Deine Sitzung ist abgelaufen. Bitte in Alpivo erneut einloggen.");
                   setSubmitting(false);
                   return;
@@ -452,8 +452,8 @@ export default function TripCreateClient() {
                     focus,
                     preferredResortSlugs: selectedResorts,
                     dateOption:
-                      dateRange.from && dateRange.to
-                        {
+                      dateRange && dateRange.from && dateRange.to
+                        ? {
                             label: dateLabel.trim() || "Erstes Zeitfenster",
                             startDate: toIsoDate(dateRange.from),
                             endDate: toIsoDate(dateRange.to),
@@ -465,8 +465,8 @@ export default function TripCreateClient() {
 
                 const result = (await response.json().catch(() => null)) as { error: string; tripId: string } | null;
 
-                if (!response.ok || !result.tripId) {
-                  setError(result.error "Trip konnte nicht angelegt werden.");
+                if (!response.ok || !result || !result.tripId) {
+                  setError(result?.error ?? "Trip konnte nicht angelegt werden.");
                   setSubmitting(false);
                   return;
                 }
@@ -475,7 +475,7 @@ export default function TripCreateClient() {
                 router.push(`/trips/${encodeURIComponent(result.tripId)}`);
               }}
             >
-              {submitting "Trip wird erstellt..." : "Trip anlegen"}
+              {submitting ? "Trip wird erstellt..." : "Trip anlegen"}
             </button>
           </GlassCard>
         </div>

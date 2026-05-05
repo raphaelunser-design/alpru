@@ -20,15 +20,15 @@ export default function TripCard({ bundle }: TripCardProps) {
   const budget = computeBudgetSummary(bundle);
   const joinedCount = bundle.members.filter((member) => member.status === "joined").length;
   const heroResort =
-    bundle.resorts[bundle.favorites.find((favorite) => favorite.isPinned).resortSlug ""] 
-    bundle.resorts[bundle.favorites[0].resortSlug ""] 
+    bundle.resorts[bundle.favorites.find((favorite) => favorite.isPinned)?.resortSlug ?? ""] ??
+    bundle.resorts[bundle.favorites[0]?.resortSlug ?? ""] ??
     null;
-  const imageUrl = heroResort.imageUrl "/bg/skilandschaft.png";
-  const title = repairText(bundle.trip.title) bundle.trip.title;
-  const description = repairText(bundle.trip.description) "Gruppenplanung für Ski, Resorts und Kosten.";
-  const favoriteNames = bundle.favorites.map((favorite) => repairText(bundle.resorts[favorite.resortSlug].name) favorite.resortSlug);
-  const levelLabel = repairText(tripLevelLabels[bundle.trip.skiLevel]) tripLevelLabels[bundle.trip.skiLevel];
-  const bestDateLabel = bestDate repairText(bestDate.fitLabel) bestDate.fitLabel : null;
+  const imageUrl = heroResort?.imageUrl ?? "/bg/skilandschaft.png";
+  const title = repairText(bundle.trip.title) ?? bundle.trip.title;
+  const description = repairText(bundle.trip.description) ?? "Gruppenplanung f?r Ski, Resorts und Kosten.";
+  const favoriteNames = bundle.favorites.map((favorite) => repairText(bundle.resorts[favorite.resortSlug]?.name) ?? favorite.resortSlug);
+  const levelLabel = repairText(tripLevelLabels[bundle.trip.skiLevel]) ?? tripLevelLabels[bundle.trip.skiLevel];
+  const bestDateLabel = bestDate ? repairText(bestDate.fitLabel) ?? bestDate.fitLabel : null;
 
   return (
     <GlassCard className="overflow-hidden">
@@ -41,7 +41,7 @@ export default function TripCard({ bundle }: TripCardProps) {
             Ski Trip
           </span>
           <span className="rounded-full border border-white/15 bg-slate-950/55 px-3 py-1 text-xs text-white/85">
-            {bundle.isDemo "Demo" : "Live"}
+            {bundle.isDemo ? "Demo" : "Live"}
           </span>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
@@ -62,10 +62,10 @@ export default function TripCard({ bundle }: TripCardProps) {
             <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Bestes Fenster</div>
               <div className="mt-2 text-base font-semibold leading-6 text-white">
-                {bestDate formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "Noch offen"}
+                {bestDate ? formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "Noch offen"}
               </div>
               <div className="text-xs leading-5 text-slate-400">
-                {bestDate `${bestDateLabel}, ${bestDate.availableCount}x verfgbar` : "Termine abstimmen"}
+                {bestDate ? `${bestDateLabel}, ${bestDate.availableCount}x verf?gbar` : "Termine abstimmen"}
               </div>
             </div>
             <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">
@@ -87,7 +87,7 @@ export default function TripCard({ bundle }: TripCardProps) {
           </div>
 
           <div className="text-sm text-slate-300">
-            {bundle.favorites.length > 0 (
+            {bundle.favorites.length > 0 ? (
               <span>
                 Aktuelle Resort-Favoriten:{" "}
                 <span className="text-white">{favoriteNames.join(", ")}</span>

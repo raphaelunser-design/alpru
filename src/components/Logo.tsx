@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { brand } from "@/config/brand";
 
-export default function Logo({ href = "/" }: { href: string }) {
+export default function Logo({ href = "/" }: { href?: string }) {
   return (
     <Link href={href} className="group flex min-w-fit items-center gap-2" aria-label={`${brand.name} Startseite`}>
       <span className="relative inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-transform duration-200 group-hover:-translate-y-0.5 md:h-12 md:w-12">

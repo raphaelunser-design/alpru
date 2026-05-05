@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import RoutePreview from "@/components/RoutePreview";
-import type { BudgetStatus, ResortDecision, ResortVibeTag } from "@/lib/resortSignals";
+import type { BudgetStatus, CostEstimate, ResortDecision, ResortVibeTag } from "@/lib/resortSignals";
 
 type CardResort = Partial<ResortDecision> & {
   id: string;
@@ -15,13 +15,13 @@ type CardResort = Partial<ResortDecision> & {
 
 type ResortDecisionCardProps = {
   resort: CardResort;
-  peopleCount: number;
-  distanceKm: number | null;
-  driveHours: number | null;
-  routeSource: "osrm" | "fallback" | null;
-  origin: { lat: number; lon: number; label: string } | null;
-  compact: boolean;
-  priority: boolean;
+  peopleCount?: number;
+  distanceKm?: number | null;
+  driveHours?: number | null;
+  routeSource?: "osrm" | "fallback" | null;
+  origin?: { lat: number; lon: number; label: string } | null;
+  compact?: boolean;
+  priority?: boolean;
 };
 
 const number = new Intl.NumberFormat("de-DE");
@@ -42,6 +42,7 @@ function budgetClass(status: BudgetStatus | undefined) {
 }
 
 function vibeClass(tag: ResortVibeTag | undefined) {
+  if (!tag) return "border-white/10 bg-white/[0.08] text-slate-100";
   if (tag.tone === "amber") return "border-amber-200/25 bg-amber-200/10 text-amber-50";
   if (tag.tone === "green") return "border-emerald-200/25 bg-emerald-200/10 text-emerald-50";
   if (tag.tone === "ice") return "border-sky-200/25 bg-sky-200/10 text-sky-50";
@@ -52,9 +53,14 @@ function cssImage(src: string) {
   return `url(${JSON.stringify(src)})`;
 }
 
+function safeNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function formatCost(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "-";
-  return `${number.format(value)} EUR`;
+  const safe = safeNumber(value);
+  if (safe === null) return "-";
+  return `${number.format(Math.round(safe))} €`;
 }
 
 function scoreDetailLabel(category: string) {
@@ -71,7 +77,7 @@ function scoreDetailLabel(category: string) {
     valueForMoney: "Preis-Leistung",
     tripTypeFit: "Trip-Fit",
   };
-  return labels[category] category;
+  return labels[category] || category;
 }
 
 function confidenceLabel(value: string | undefined) {
@@ -108,26 +114,35 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function fitPercent(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value * 100)));
+  const safe = safeNumber(value);
+  if (safe === null) return 0;
+  return Math.max(0, Math.min(100, Math.round(safe * 100)));
+}
+
+function pickSignal(value: number | null | undefined, fallback?: number | null) {
+  const safe = safeNumber(value);
+  if (safe !== null) return safe;
+  const fallbackSafe = safeNumber(fallback);
+  return fallbackSafe !== null ? fallbackSafe : 0;
 }
 
 function strongestSignal(resort: CardResort) {
+  const fitProfile = (resort.fitProfile || {}) as Partial<ResortDecision["fitProfile"]>;
   const entries = [
-    { label: "Pistenprofil", value: resort.fitProfile.slope 0 },
-    { label: "Vibe", value: resort.fitProfile.vibe 0 },
-    { label: "Schnee", value: resort.fitProfile.snow resort.snowReliability 0 },
-    { label: "Sommer-Gletscher", value: resort.summerGlacierScore resort.fitProfile.summer 0 },
-    { label: "Off-Piste", value: resort.fitProfile.offPiste 0 },
-    { label: "Value", value: resort.fitProfile.value resort.valueScore 0 },
-    { label: "Komfort", value: resort.fitProfile.comfort 0 },
+    { label: "Pistenprofil", value: pickSignal(fitProfile.slope) },
+    { label: "Vibe", value: pickSignal(fitProfile.vibe) },
+    { label: "Schnee", value: pickSignal(fitProfile.snow, resort.snowReliability) },
+    { label: "Sommer-Gletscher", value: pickSignal(fitProfile.summer, resort.summerGlacierScore) },
+    { label: "Off-Piste", value: pickSignal(fitProfile.offPiste) },
+    { label: "Value", value: pickSignal(fitProfile.value, resort.valueScore) },
+    { label: "Komfort", value: pickSignal(fitProfile.comfort) },
   ].sort((a, b) => b.value - a.value);
   return entries[0];
 }
 
 function matchReadout(resort: CardResort) {
   const strongest = strongestSignal(resort);
-  const match = resort.matchPct 0;
+  const match = resort.matchPct || 0;
   if (resort.matchLabel && resort.recommendationType) return `${resort.matchLabel} · ${resort.recommendationType}.`;
   if (resort.matchLabel) return `${resort.matchLabel}, vor allem durch ${strongest.label}.`;
   if (match >= 75) return `Sehr starker Fit, vor allem durch ${strongest.label}.`;
@@ -137,15 +152,18 @@ function matchReadout(resort: CardResort) {
 }
 
 function nextCheck(resort: CardResort) {
+  const fitProfile = (resort.fitProfile || {}) as Partial<ResortDecision["fitProfile"]>;
+  const snowSignal = pickSignal(fitProfile.snow, resort.snowReliability);
+  const comfortSignal = pickSignal(fitProfile.comfort, 0.5);
   if (resort.budgetStatus === "red") return "Budget zuerst prüfen";
-  if (resort.tripStyleHint === "Sommer-Gletscher" && (resort.summerGlacierScore resort.fitProfile.summer 0) >= 0.58) {
+  if (resort.tripStyleHint === "Sommer-Gletscher" && pickSignal(fitProfile.summer, resort.summerGlacierScore) >= 0.58) {
     return "Sommerbetrieb offiziell prüfen";
   }
-  if (resort.tripStyleHint === "Off-Piste Finder" && (resort.fitProfile.offPiste 0) >= 0.58) {
+  if (resort.tripStyleHint === "Off-Piste Finder" && pickSignal(fitProfile.offPiste) >= 0.58) {
     return "Lawinenlage und lokale Regeln prüfen";
   }
-  if ((resort.fitProfile.snow resort.snowReliability 0) < 0.45) return "Schneelage checken";
-  if ((resort.fitProfile.comfort 0.5) < 0.42) return "Stressfaktoren prüfen";
+  if (snowSignal < 0.45) return "Schneelage checken";
+  if (comfortSignal < 0.42) return "Stressfaktoren prüfen";
   if (resort.pisteMapUrl || resort.openskimapUrl) return "Pistenkarte ansehen";
   return "Preise und Verfügbarkeit prüfen";
 }
@@ -160,35 +178,39 @@ export default function ResortDecisionCard({
   compact = false,
 }: ResortDecisionCardProps) {
   const [showRoute, setShowRoute] = useState(false);
-  const image = resort.imageUrl.trim() || fallbackImage;
-  const reasons = resort.reasons.length resort.reasons : ["passt gut zu deinem Kriterienmix"];
-  const drawbacks = resort.drawbacks.length resort.drawbacks : ["Details vor Buchung prüfen"];
-  const vibeTags = resort.vibeTags.length resort.vibeTags : [];
-  const pisteKm = resort.pisteKm resort.slopeProfile.total null;
-  const totalMin = resort.cost.totalMin null;
-  const totalMax = resort.cost.totalMax null;
+  const cost = (resort.cost || {}) as Partial<CostEstimate>;
+  const algorithmCosts = resort.estimatedCosts || (resort.alpivoScore && resort.alpivoScore.estimatedCosts) || null;
+  const image = (resort.imageUrl || "").trim() || fallbackImage;
+  const reasons = resort.reasons && resort.reasons.length ? resort.reasons : ["passt gut zu deinem Kriterienmix"];
+  const drawbacks = resort.drawbacks && resort.drawbacks.length ? resort.drawbacks : ["Details vor Buchung prüfen"];
+  const vibeTags = resort.vibeTags && resort.vibeTags.length ? resort.vibeTags : [];
+  const pisteKm = safeNumber(resort.pisteKm) || (resort.slopeProfile ? safeNumber(resort.slopeProfile.total) : null);
+  const totalMin = safeNumber(cost.totalMin);
+  const totalMax = safeNumber(cost.totalMax);
   const routeFuelPerPerson = estimateFuelPerPerson(distanceKm, peopleCount);
   const adjustedTotalMin =
     typeof totalMin === "number" && typeof routeFuelPerPerson === "number"
-      Math.max(0, totalMin - (resort.cost.travelMin 0) + routeFuelPerPerson)
+      ? Math.max(0, totalMin - (cost.travelMin || 0) + routeFuelPerPerson)
       : totalMin;
   const adjustedTotalMax =
     typeof totalMax === "number" && typeof routeFuelPerPerson === "number"
-      Math.max(adjustedTotalMin 0, totalMax - (resort.cost.travelMax 0) + routeFuelPerPerson)
+      ? Math.max(adjustedTotalMin || 0, totalMax - (cost.travelMax || 0) + routeFuelPerPerson)
       : totalMax;
-  const algorithmCosts = resort.estimatedCosts resort.alpivoScore.estimatedCosts null;
   const routeAdjustedAlgorithmCost =
     algorithmCosts && typeof routeFuelPerPerson === "number"
-      Math.max(0, algorithmCosts.totalPerPerson - algorithmCosts.transportPerPerson + routeFuelPerPerson)
-      : algorithmCosts.totalPerPerson;
-  const displayedCost = routeAdjustedAlgorithmCost adjustedTotalMin;
-  const displayedMaxCost = algorithmCosts (routeAdjustedAlgorithmCost null) : adjustedTotalMax;
-  const totalPeopleMin = typeof displayedCost === "number" displayedCost * Math.max(1, peopleCount) : null;
-  const totalPeopleMax = typeof displayedMaxCost === "number" displayedMaxCost * Math.max(1, peopleCount) : null;
-  const scoreDetails = Object.entries(resort.categoryScores resort.alpivoScore.categoryScores {})
-    .filter(([, value]) => typeof value === "number" && Number.isFinite(value))
+      ? Math.max(0, algorithmCosts.totalPerPerson - algorithmCosts.transportPerPerson + routeFuelPerPerson)
+      : algorithmCosts
+        ? algorithmCosts.totalPerPerson
+        : null;
+  const displayedCost = typeof routeAdjustedAlgorithmCost === "number" ? routeAdjustedAlgorithmCost : adjustedTotalMin;
+  const displayedMaxCost = algorithmCosts ? null : adjustedTotalMax;
+  const totalPeopleMin = typeof displayedCost === "number" ? displayedCost * Math.max(1, peopleCount) : null;
+  const totalPeopleMax = typeof displayedMaxCost === "number" ? displayedMaxCost * Math.max(1, peopleCount) : null;
+  const scoreSource = resort.categoryScores || (resort.alpivoScore && resort.alpivoScore.categoryScores) || {};
+  const scoreDetails = Object.entries(scoreSource)
+    .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]))
     .sort(([, a], [, b]) => b - a)
-    .slice(0, compact 3 : 5);
+    .slice(0, compact ? 3 : 5);
   const strongest = strongestSignal(resort);
   const canShowRoute = Boolean(
     !compact &&
@@ -198,20 +220,21 @@ export default function ResortDecisionCard({
       Number.isFinite(resort.lat) &&
       Number.isFinite(resort.lon)
   );
-  const match = resort.matchPct 0;
+  const match = resort.matchPct || 0;
   const location = [resort.region, resort.country].filter(Boolean).join(", ");
   const routeSummary =
     typeof driveHours === "number"
-      formatDriveHours(driveHours)
+      ? formatDriveHours(driveHours)
       : typeof distanceKm === "number"
-        `${number.format(Math.round(distanceKm))} km`
+        ? `${number.format(Math.round(distanceKm))} km`
         : "-";
-  const compactReasons = reasons.slice(0, compact 1 : 3);
-  const primaryVibeTags = vibeTags.slice(0, compact 2 : 3);
-  const layoutClass = compact "grid" : "grid lg:grid-cols-[minmax(230px,0.34fr)_1fr]";
+  const compactReasons = reasons.slice(0, compact ? 1 : 3);
+  const primaryVibeTags = vibeTags.slice(0, compact ? 2 : 3);
+  const layoutClass = compact ? "grid" : "grid lg:grid-cols-[minmax(230px,0.34fr)_1fr]";
   const imageClass = compact
-    "relative block min-h-[168px] overflow-hidden bg-cover bg-center"
+    ? "relative block min-h-[168px] overflow-hidden bg-cover bg-center"
     : "relative block min-h-[185px] overflow-hidden bg-cover bg-center lg:min-h-full";
+  const firstAssumption = algorithmCosts && algorithmCosts.assumptions ? algorithmCosts.assumptions[0] : null;
 
   return (
     <article className="group overflow-hidden rounded-lg border border-white/10 bg-slate-950/60 shadow-[0_18px_45px_rgba(2,6,23,0.28)] transition duration-200 hover:border-sky-200/30 hover:shadow-[0_22px_55px_rgba(56,189,248,0.12)]">
@@ -231,12 +254,12 @@ export default function ResortDecisionCard({
             <span className={`rounded-lg border px-2.5 py-1 text-[11px] backdrop-blur ${budgetClass(resort.budgetStatus)}`}>
               {budgetLabel(resort.budgetStatus)}
             </span>
-            {resort.tripStyleHint (
+            {resort.tripStyleHint ? (
               <span className="rounded-lg border border-white/15 bg-slate-950/55 px-2.5 py-1 text-[11px] text-white backdrop-blur">
                 {resort.tripStyleHint}
               </span>
             ) : null}
-            {resort.recommendationType (
+            {resort.recommendationType ? (
               <span className="rounded-lg border border-sky-200/25 bg-sky-200/15 px-2.5 py-1 text-[11px] text-sky-50 backdrop-blur">
                 {resort.recommendationType}
               </span>
@@ -244,7 +267,7 @@ export default function ResortDecisionCard({
           </div>
         </Link>
 
-        <div className={compact "space-y-3 p-4" : "space-y-4 p-4 sm:p-5"}>
+        <div className={compact ? "space-y-3 p-4" : "space-y-4 p-4 sm:p-5"}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-wide text-slate-400">{location || resort.country}</div>
@@ -254,7 +277,7 @@ export default function ResortDecisionCard({
                 </h3>
               </Link>
             </div>
-            {primaryVibeTags.length > 0 (
+            {primaryVibeTags.length > 0 ? (
               <div className="flex max-w-full flex-wrap justify-start gap-2 sm:justify-end">
                 {primaryVibeTags.map((tag) => (
                   <span key={tag.label} className={`rounded-full border px-2.5 py-1 text-[11px] ${vibeClass(tag)}`}>
@@ -268,7 +291,7 @@ export default function ResortDecisionCard({
           <div className="rounded-lg border border-sky-200/15 bg-sky-200/[0.07] p-3">
             <div className="flex flex-wrap items-center gap-2 text-xs text-sky-100/80">
               <span className="font-semibold uppercase tracking-wide">Alpivo-Urteil</span>
-              {!compact (
+              {!compact ? (
                 <>
                   <span className="rounded-full border border-sky-100/20 px-2 py-0.5 text-[11px]">
                     stärkstes Signal: {strongest.label} {fitPercent(strongest.value)}%
@@ -280,7 +303,7 @@ export default function ResortDecisionCard({
               ) : null}
             </div>
             <p className="mt-2 text-sm leading-relaxed text-slate-100">{matchReadout(resort)}</p>
-            {scoreDetails.length > 0 (
+            {scoreDetails.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {scoreDetails.map(([key, value]) => (
                   <span key={key} className="rounded-full border border-white/10 bg-slate-950/25 px-2 py-1 text-[11px] text-slate-100">
@@ -291,46 +314,35 @@ export default function ResortDecisionCard({
             ) : null}
           </div>
 
-          <div className={`grid grid-cols-2 gap-2 ${compact "" : "sm:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 gap-2 ${compact ? "" : "sm:grid-cols-4"}`}>
             <Stat label="Kosten p. P." value={formatCost(displayedCost)} />
-            {!compact <Stat label="Route" value={routeSummary} /> : null}
-            <Stat label="Pisten" value={pisteKm `${number.format(pisteKm)} km` : "-"} />
-            <Stat
-              label="Skipass"
-              value={resort.cost.passSource === "stored" "gepflegt" : "geschätzt"}
-            />
+            {!compact ? <Stat label="Route" value={routeSummary} /> : null}
+            <Stat label="Pisten" value={pisteKm ? `${number.format(pisteKm)} km` : "-"} />
+            <Stat label="Skipass" value={cost.passSource === "stored" ? "gepflegt" : "geschätzt"} />
           </div>
 
-          {!compact && (resort.cost || algorithmCosts) (
+          {!compact && (resort.cost || algorithmCosts) ? (
             <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Kostenbreakdown p. P.</div>
                 <div className="text-[11px] text-slate-500">
-                  Essen: {resort.cost.foodLevel === "budget" "sparsam" : resort.cost.foodLevel === "comfort" "Komfort" : "Standard"}
+                  Essen: {cost.foodLevel === "budget" ? "sparsam" : cost.foodLevel === "comfort" ? "Komfort" : "Standard"}
                 </div>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-5">
-                <Stat label="Unterkunft" value={formatCost(algorithmCosts.accommodationPerPerson resort.cost.accommodationMin)} />
-                <Stat label="Skipass" value={formatCost(algorithmCosts.skiPassPerPerson resort.cost.passMin)} />
-                <Stat label="Transport" value={formatCost(routeFuelPerPerson algorithmCosts.transportPerPerson resort.cost.travelMin)} />
-                <Stat label="Essen" value={formatCost(algorithmCosts.foodDrinkPerPerson resort.cost.foodMin)} />
-                <Stat
-                  label="Extras"
-                  value={formatCost(algorithmCosts.extrasPerPerson ((resort.cost.rentalMin 0) + (resort.cost.parkingMin 0)))}
-                />
+                <Stat label="Unterkunft" value={formatCost(algorithmCosts ? algorithmCosts.accommodationPerPerson : cost.accommodationMin)} />
+                <Stat label="Skipass" value={formatCost(algorithmCosts ? algorithmCosts.skiPassPerPerson : cost.passMin)} />
+                <Stat label="Transport" value={formatCost(typeof routeFuelPerPerson === "number" ? routeFuelPerPerson : algorithmCosts ? algorithmCosts.transportPerPerson : cost.travelMin)} />
+                <Stat label="Essen" value={formatCost(algorithmCosts ? algorithmCosts.foodDrinkPerPerson : cost.foodMin)} />
+                <Stat label="Extras" value={formatCost(algorithmCosts ? algorithmCosts.extrasPerPerson : (cost.rentalMin || 0) + (cost.parkingMin || 0))} />
               </div>
               <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                Vertrauen: {confidenceLabel(algorithmCosts.confidence)}.
-                {" "}
-                {algorithmCosts.assumptions.[0] 
-                  `Unterkunft und Essen sind Länder-/Budget-Schätzungen, Skipass ist ${
-                    resort.cost.passSource === "stored" "gepflegt" : "geschätzt"
-                  }.`}
+                Vertrauen: {confidenceLabel(algorithmCosts ? algorithmCosts.confidence : undefined)}. {firstAssumption ? firstAssumption : `Unterkunft und Essen sind Länder-/Budget-Schätzungen, Skipass ist ${cost.passSource === "stored" ? "gepflegt" : "geschätzt"}.`}
               </div>
             </div>
           ) : null}
 
-          <div className={`grid gap-3 text-sm text-slate-200 ${compact "" : "md:grid-cols-[1.15fr_0.85fr]"}`}>
+          <div className={`grid gap-3 text-sm text-slate-200 ${compact ? "" : "md:grid-cols-[1.15fr_0.85fr]"}`}>
             <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
               <div className="text-xs uppercase tracking-wide text-slate-400">Warum passt es</div>
               <ul className="mt-2 space-y-1.5">
@@ -345,7 +357,7 @@ export default function ResortDecisionCard({
             <div className="rounded-lg border border-amber-200/15 bg-amber-200/[0.055] p-3">
               <div className="text-xs uppercase tracking-wide text-amber-100/75">Vor Buchung prüfen</div>
               <p className="mt-2 text-sm leading-relaxed text-slate-200">{drawbacks[0]}</p>
-              {!compact && resort.missingDataNotes.[0] (
+              {!compact && resort.missingDataNotes && resort.missingDataNotes[0] ? (
                 <p className="mt-2 text-xs leading-relaxed text-amber-50/65">{resort.missingDataNotes[0]}</p>
               ) : null}
             </div>
@@ -355,33 +367,29 @@ export default function ResortDecisionCard({
             <div className="text-xs leading-relaxed text-slate-400">
               <div>
                 {formatCost(displayedCost)}
-                {displayedMaxCost && displayedMaxCost !== displayedCost ` bis ${formatCost(displayedMaxCost)}` : ""} p. P.
-                {peopleCount > 1 ` · Gruppe: ${formatCost(totalPeopleMin)}${totalPeopleMax && totalPeopleMax !== totalPeopleMin ` bis ${formatCost(totalPeopleMax)}` : ""}` : ""}
+                {displayedMaxCost && displayedMaxCost !== displayedCost ? ` bis ${formatCost(displayedMaxCost)}` : ""} p. P.
+                {peopleCount > 1 ? ` · Gruppe: ${formatCost(totalPeopleMin)}${totalPeopleMax && totalPeopleMax !== totalPeopleMin ? ` bis ${formatCost(totalPeopleMax)}` : ""}` : ""}
               </div>
-              {typeof routeFuelPerPerson === "number" (
-                <div>
-                  Sprit/Route: ca. {formatCost(routeFuelPerPerson)} p. P. für Hin- und Rückfahrt, 7,2 l/100 km, 1,90 EUR/l.
-                </div>
-              ) : resort.cost.travelSource === "fallback" (
+              {typeof routeFuelPerPerson === "number" ? (
+                <div>Sprit/Route: ca. {formatCost(routeFuelPerPerson)} p. P. für Hin- und Rückfahrt, 7,2 l/100 km, 1,90 €/l.</div>
+              ) : cost.travelSource === "fallback" ? (
                 <div>Anreise ist als Fallback geschätzt, bis ein Startort gesetzt ist.</div>
               ) : null}
-              {resort.cost.passSource === "estimated" (
-                <div>Skipassanteil ist geschätzt, weil kein gepflegter Preis vorliegt.</div>
-              ) : null}
-              {typeof distanceKm === "number" (
+              {cost.passSource === "estimated" ? <div>Skipassanteil ist geschätzt, weil kein gepflegter Preis vorliegt.</div> : null}
+              {typeof distanceKm === "number" ? (
                 <div>
                   {number.format(Math.round(distanceKm))} km Route · {formatDriveHours(driveHours)}
-                  {routeSource === "fallback" " geschätzt" : ""}
+                  {routeSource === "fallback" ? " geschätzt" : ""}
                 </div>
               ) : null}
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-              {canShowRoute (
+              {canShowRoute ? (
                 <button
                   className="button-lift rounded-lg border border-white/15 px-4 py-2 text-center text-sm font-semibold text-white transition hover:border-sky-200/35 hover:bg-sky-200/10"
                   onClick={() => setShowRoute((prev) => !prev)}
                 >
-                  {showRoute "Route schließen" : "Route anzeigen"}
+                  {showRoute ? "Route schließen" : "Route anzeigen"}
                 </button>
               ) : null}
               <Link
@@ -393,7 +401,7 @@ export default function ResortDecisionCard({
             </div>
           </div>
 
-          {showRoute && canShowRoute (
+          {showRoute && canShowRoute ? (
             <RoutePreview
               origin={origin!}
               destination={{ lat: resort.lat as number, lon: resort.lon as number, label: resort.name }}

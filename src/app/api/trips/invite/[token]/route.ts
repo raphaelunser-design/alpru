@@ -7,7 +7,7 @@ function deriveDisplayName(email: string | null | undefined) {
 }
 
 function getAccessToken(req: Request) {
-  return req.headers.get("authorization").replace("Bearer ", "").trim() || "";
+  return req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
 }
 
 export async function GET(_req: Request, context: { params: Promise<{ token: string }> }) {

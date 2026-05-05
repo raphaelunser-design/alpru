@@ -35,20 +35,20 @@ export default function BudgetSummary({ summary, items }: BudgetSummaryProps) {
                 <div className="text-sm font-semibold text-white">{item.description}</div>
                 <div className="mt-1 text-xs text-slate-400">
                   {budgetCategoryLabels[item.category]}
-                  {item.dueDate ` · fällig ${item.dueDate}` : " · kein Fälligkeitsdatum"}
+                  {item.dueDate ? ` · fällig ${item.dueDate}` : " · kein Fälligkeitsdatum"}
                 </div>
-                {item.note <div className="mt-2 text-sm text-slate-300">{item.note}</div> : null}
+                {item.note ? <div className="mt-2 text-sm text-slate-300">{item.note}</div> : null}
               </div>
               <div className="text-right">
                 <div className="text-lg font-semibold text-white">{formatCurrency(item.amount)}</div>
                 <div
                   className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] ${
                     item.isPaid
-                      "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                      ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
                       : "border-amber-300/35 bg-amber-300/10 text-amber-100"
                   }`}
                 >
-                  {item.isPaid "bezahlt" : "offen"}
+                  {item.isPaid ? "bezahlt" : "offen"}
                 </div>
               </div>
             </div>

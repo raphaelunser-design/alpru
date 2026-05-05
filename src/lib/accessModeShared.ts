@@ -15,12 +15,12 @@ export function getEnvAccessMode(): AlpivoAccessMode {
   if (configured) return configured;
 
   // Legacy behavior: an old ALPIVO_ACCESS_TOKEN means the private gate should stay active.
-  if (process.env.ALPIVO_ACCESS_TOKEN.trim()) return "private";
+  if ((process.env.ALPIVO_ACCESS_TOKEN || "").trim()) return "private";
 
   // Local development should not lock itself accidentally; production should fail closed.
   return process.env.NODE_ENV === "production" ? "private" : "public";
 }
 
 export function getAccessPassword() {
-  return process.env.ALPIVO_ACCESS_PASSWORD.trim() || process.env.ALPIVO_ACCESS_TOKEN.trim() || "";
+  return (process.env.ALPIVO_ACCESS_PASSWORD || "").trim() || (process.env.ALPIVO_ACCESS_TOKEN || "").trim() || "";
 }

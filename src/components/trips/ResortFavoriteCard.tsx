@@ -31,17 +31,17 @@ export default function ResortFavoriteCard({
   onPin,
 }: ResortFavoriteCardProps) {
   const [comment, setComment] = useState("");
-  const resort = bundle.resorts[favorite.resortSlug] null;
+  const resort = bundle.resorts[favorite.resortSlug] ?? null;
   const voteSummary = getFavoriteVoteSummary(bundle, favorite.id);
   const comments = getFavoriteComments(bundle, favorite.id);
-  const proposer = bundle.members.find((member) => member.id === favorite.proposedByMemberId) null;
+  const proposer = bundle.members.find((member) => member.id === favorite.proposedByMemberId) ?? null;
 
   return (
     <article className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/55">
       <div
         className="relative min-h-[180px] bg-cover bg-center"
         style={{
-          backgroundImage: `linear-gradient(180deg, rgba(8,17,31,0.15), rgba(8,17,31,0.88)), url("${resort.imageUrl "/bg/skilandschaft.png"}")`,
+          backgroundImage: `linear-gradient(180deg, rgba(8,17,31,0.15), rgba(8,17,31,0.88)), url("${resort?.imageUrl ?? "/bg/skilandschaft.png"}")`,
         }}
       >
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
@@ -51,29 +51,29 @@ export default function ResortFavoriteCard({
           <button
             className={`rounded-full border px-3 py-1 text-xs ${
               favorite.isPinned
-                "border-sky-200/25 bg-sky-200/12 text-sky-50"
+                ? "border-sky-200/25 bg-sky-200/12 text-sky-50"
                 : "border-white/15 bg-slate-950/55 text-white/85"
             }`}
             onClick={() => onPin(favorite.id, !favorite.isPinned)}
           >
-            {favorite.isPinned "angeheftet" : "anpinnen"}
+            {favorite.isPinned ? "angeheftet" : "anpinnen"}
           </button>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
-          <div className="text-xs uppercase tracking-[0.24em] text-white/70">{resort.country "Resort"}</div>
-          <h3 className="mt-2 text-2xl font-semibold text-white">{resort.name favorite.resortSlug}</h3>
+          <div className="text-xs uppercase tracking-[0.24em] text-white/70">{resort?.country ?? "Resort"}</div>
+          <h3 className="mt-2 text-2xl font-semibold text-white">{resort?.name ?? favorite.resortSlug}</h3>
           <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/75">
-            {typeof resort.pisteKm === "number" <span>{Math.round(resort.pisteKm)} km Pisten</span> : null}
-            {typeof resort.elevationMaxM === "number" <span>Top {Math.round(resort.elevationMaxM)} m</span> : null}
-            {typeof resort.skipassPriceFrom === "number" <span>ab {formatCurrency(resort.skipassPriceFrom)}</span> : null}
+            {typeof resort?.pisteKm === "number" ? <span>{Math.round(resort.pisteKm)} km Pisten</span> : null}
+            {typeof resort?.elevationMaxM === "number" ? <span>Top {Math.round(resort.elevationMaxM)} m</span> : null}
+            {typeof resort?.skipassPriceFrom === "number" ? <span>ab {formatCurrency(resort.skipassPriceFrom)}</span> : null}
           </div>
         </div>
       </div>
 
       <div className="space-y-4 p-4">
         <div className="text-sm text-slate-300">
-          {favorite.note "Noch kein Team-Kommentar hinterlegt."}
-          {proposer <div className="mt-2 text-xs text-slate-500">Vorgeschlagen von {getTripMemberName(proposer)}</div> : null}
+          {favorite.note || "Noch kein Team-Kommentar hinterlegt."}
+          {proposer ? <div className="mt-2 text-xs text-slate-500">Vorgeschlagen von {getTripMemberName(proposer)}</div> : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -102,13 +102,13 @@ export default function ResortFavoriteCard({
         <div className="rounded-lg border border-white/10 bg-white/[0.05] p-3">
           <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Team-Kommentare</div>
           <div className="mt-3 grid gap-3">
-            {comments.length > 0 (
+            {comments.length > 0 ? (
               comments.map((entry) => {
-                const author = bundle.members.find((member) => member.id === entry.memberId) null;
+                const author = bundle.members.find((member) => member.id === entry.memberId) ?? null;
                 return (
                   <div key={entry.id} className="rounded-lg border border-white/10 bg-slate-950/45 p-3">
                     <div className="text-sm text-slate-100">{entry.body}</div>
-                    <div className="mt-2 text-xs text-slate-500">{author getTripMemberName(author) : "Mitglied"}</div>
+                    <div className="mt-2 text-xs text-slate-500">{author ? getTripMemberName(author) : "Mitglied"}</div>
                   </div>
                 );
               })
@@ -116,7 +116,7 @@ export default function ResortFavoriteCard({
               <div className="text-sm text-slate-400">Noch keine Kommentare.</div>
             )}
           </div>
-          {currentMember (
+          {currentMember ? (
             <div className="mt-3 grid gap-2">
               <textarea
                 className="min-h-[76px] rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-white placeholder:text-slate-500"

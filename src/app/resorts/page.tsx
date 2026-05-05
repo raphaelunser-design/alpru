@@ -10,7 +10,7 @@ import ResortDecisionCard from "@/components/ResortDecisionCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
 import { supabase } from "@/lib/supabase";
-import { deriveResortDecision, resortSignalSelect, type ResortSignalRow } from "@/lib/resortSignals";
+import { deriveResortDecision, resortSignalSelect, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts, mergeWithMvpResorts } from "@/lib/mvpResorts";
 import { useSiteContent } from "@/lib/useSiteContent";
 
@@ -29,7 +29,14 @@ const styleOptions = [
   { value: "glacier", label: "Gletscher" },
 ];
 
-const libraryPrefs = {
+const libraryPrefs: MatchPreferences = {
+  tripStyle: "balanced",
+  tripStartDate: null,
+  tripEndDate: null,
+  budgetMin: 0,
+  budgetMax: 450,
+  budget: 450,
+  peopleCount: 2,
   apres: 3,
   emptySlopes: 3,
   infrastructure: 4,
@@ -37,7 +44,20 @@ const libraryPrefs = {
   snowpark: 1,
   easyRuns: 3,
   challenging: 3,
-  budgetMax: 450,
+  snowReliability: 3,
+  valueForMoney: 3,
+  family: 0,
+  panorama: 3,
+  summerGlacier: 0,
+  offPiste: 0,
+  foodSpendLevel: "standard",
+  needRental: false,
+  rentalMode: "own",
+  travelMode: "car",
+  excludeCountries: [],
+  excludeGlacier: false,
+  excludePremium: false,
+  excludeFamilyOnly: false,
 };
 
 const number = new Intl.NumberFormat("de-DE");
@@ -171,8 +191,8 @@ export default function ResortsPage() {
   const selectedStyle = styleOptions.find((option) => option.value === styleFilter)?.label ?? "Alle";
   const activeFilterText = [
     countryFilter === "all" ? null : countryFilter,
-    styleFilter === "all" null : selectedStyle,
-    query.trim() `"${query.trim()}"` : null,
+    styleFilter === "all" ? null : selectedStyle,
+    query.trim() ? `"${query.trim()}"` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -224,7 +244,7 @@ export default function ResortsPage() {
               ariaLabel="Land filtern"
               options={countries.map((country) => ({
                 value: country,
-                label: country === "all" "Alle Länder" : country,
+                label: country === "all" ? "Alle L?nder" : country,
               }))}
               onChange={setCountryFilter}
             />
@@ -239,7 +259,7 @@ export default function ResortsPage() {
                   type="button"
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     active
-                      "border-sky-200 bg-sky-200 text-slate-950"
+                      ? "border-sky-200 bg-sky-200 text-slate-950"
                       : "border-white/12 bg-white/[0.045] text-slate-200 hover:border-sky-200/30 hover:bg-sky-200/10"
                   }`}
                   onClick={() => setStyleFilter(option.value)}
@@ -254,19 +274,19 @@ export default function ResortsPage() {
         <div className="flex flex-col justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-slate-300 md:flex-row md:items-center">
           <div>
             <span className="font-semibold text-white">
-              {loading "Resorts werden geladen" : `${number.format(filtered.length)} Treffer`}
+              {loading ? "Resorts werden geladen" : `${number.format(filtered.length)} Treffer`}
             </span>
-            {!loading && activeFilterText <span className="text-slate-400"> · Filter: {activeFilterText}</span> : null}
-            {!loading && usingFallback <span className="text-slate-400"> · kuratierter MVP-Fallback</span> : null}
+            {!loading && activeFilterText ? <span className="text-slate-400"> ? Filter: {activeFilterText}</span> : null}
+            {!loading && usingFallback ? <span className="text-slate-400"> ? kuratierter MVP-Fallback</span> : null}
           </div>
-          {!loading && filtered.length > 0 (
+          {!loading && filtered.length > 0 ? (
             <div className="text-slate-400">
               Zeige {number.format(visibleResorts.length)} von {number.format(filtered.length)}
             </div>
           ) : null}
         </div>
 
-        {error (
+        {error ? (
           <GlassCard className="p-6 text-sm text-amber-100">
             Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Demo-Resorts. Technischer Hinweis: {error}
           </GlassCard>
@@ -274,11 +294,11 @@ export default function ResortsPage() {
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {loading
-            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
             : visibleResorts.map((resort) => <ResortDecisionCard key={resort.id} resort={resort} compact />)}
         </div>
 
-        {!loading && filtered.length > visibleResorts.length (
+        {!loading && filtered.length > visibleResorts.length ? (
           <div className="flex justify-center">
             <button
               type="button"
@@ -290,7 +310,7 @@ export default function ResortsPage() {
           </div>
         ) : null}
 
-        {!loading && filtered.length === 0 && !error (
+        {!loading && filtered.length === 0 && !error ? (
           <GlassCard className="p-6 text-sm text-slate-200">
             Keine Alpen-Resorts zu diesen Filtern gefunden. Suche lockern oder direkt mit einem neutralen Match starten.
             <div className="mt-4 flex flex-wrap gap-3">

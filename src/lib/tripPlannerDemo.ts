@@ -151,7 +151,7 @@ type DemoTripRaw = {
     dateOptionId: string;
     memberId: string;
     status: "available" | "maybe" | "unavailable";
-    note: string;
+    note?: string | null;
   }>;
   favorites: SkiTripFavoriteRecord[];
   votes: SkiTripFavoriteVoteRecord[];
@@ -471,15 +471,15 @@ export function buildDemoBundles(liveResorts: Record<string, TripResortLite> = {
     const resortMap = Object.fromEntries(
       Array.from(
         new Set(bundle.favorites.map((favorite) => favorite.resortSlug).concat(bundle.trip.preferredResortSlugs))
-      ).map((slug) => [slug, liveResorts[slug] demoResortFallbacks[slug]])
+      ).map((slug) => [slug, liveResorts[slug] ?? demoResortFallbacks[slug]])
     );
 
     return {
       ...bundle,
       availability: bundle.availability.map((entry) => ({
         ...entry,
-        userId: bundle.members.find((member) => member.id === entry.memberId).userId null,
-        note: entry.note null,
+        userId: bundle.members.find((member) => member.id === entry.memberId)?.userId ?? null,
+        note: entry.note ?? null,
         updatedAt: null,
       })),
       resorts: resortMap,

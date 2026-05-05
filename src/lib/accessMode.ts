@@ -16,7 +16,7 @@ export async function getAccessModeFromSettings(): Promise<AlpivoAccessMode | nu
       .maybeSingle();
 
     if (error) return null;
-    return normalizeAccessMode(data.value);
+    return data ? normalizeAccessMode(data.value) : null;
   } catch {
     return null;
   }

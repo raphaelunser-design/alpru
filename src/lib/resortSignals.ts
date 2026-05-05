@@ -15,7 +15,7 @@ export type TripStyle =
   | "glacier"
   | "offpiste";
 
-export type MatchPreferences = {
+export type MatchPreferences = Partial<{
   tripStyle: TripStyle;
   tripStartDate: string | null;
   tripEndDate: string | null;
@@ -44,7 +44,7 @@ export type MatchPreferences = {
   excludeGlacier: boolean;
   excludePremium: boolean;
   excludeFamilyOnly: boolean;
-};
+}>;
 
 export type ResortSignalRow = {
   id: string;
@@ -266,7 +266,7 @@ function prefValue(value: number | null | undefined, fallback: number) {
   return clamp(value / 5);
 }
 
-function parseIsoDate(value: string | null) {
+function parseIsoDate(value: string | null | undefined) {
   if (!value) return null;
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return null;
@@ -309,11 +309,11 @@ export function deriveSlopeProfile(resort: ResortSignalRow): SlopeProfile {
 
 export function deriveSnowReliability(resort: ResortSignalRow) {
   const maxElevation = Number(resort.elevation_max_m ?? 0);
-  const minElevation = Number(resort.elevation_min_m 0);
-  const vertical = Number(resort.vertical_m Math.max(0, maxElevation - minElevation));
+  const minElevation = Number(resort.elevation_min_m ?? 0);
+  const vertical = Number(resort.vertical_m ?? Math.max(0, maxElevation - minElevation));
   const highScore = clamp((maxElevation - 950) / 1700);
   const verticalScore = clamp(vertical / 1200);
-  const scaleScore = clamp(Number(pickPisteKm(resort) 0) / 140);
+  const scaleScore = clamp(Number(pickPisteKm(resort) ?? 0) / 140);
   return clamp(highScore * 0.58 + verticalScore * 0.24 + scaleScore * 0.18);
 }
 
@@ -335,15 +335,15 @@ function hasUsefulStoredInfraScore(resort: ResortSignalRow) {
 }
 
 export function deriveInfrastructureProfile(resort: ResortSignalRow): InfrastructureProfile {
-  const pisteKm = Number(pickPisteKm(resort) 0);
-  const lifts = Number(resort.lifts_count_total 0);
-  const runs = Number(resort.runs_count_total 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
+  const lifts = Number(resort.lifts_count_total ?? 0);
+  const runs = Number(resort.runs_count_total ?? 0);
   const maxElevation = Number(resort.elevation_max_m ?? 0);
-  const minElevation = Number(resort.elevation_min_m 0);
-  const vertical = Number(resort.vertical_m Math.max(0, maxElevation - minElevation));
+  const minElevation = Number(resort.elevation_min_m ?? 0);
+  const vertical = Number(resort.vertical_m ?? Math.max(0, maxElevation - minElevation));
 
   const liftScaleScore = clamp(Math.log1p(lifts) / Math.log1p(55));
-  const liftCoverageScore = pisteKm > 0 clamp(lifts / pisteKm / 0.22) : liftScaleScore * 0.72;
+  const liftCoverageScore = pisteKm > 0 ? clamp(lifts / pisteKm / 0.22) : liftScaleScore * 0.72;
   const liftScore = clamp(liftScaleScore * 0.58 + liftCoverageScore * 0.42);
   const terrainScore = clamp(
     clamp(Math.log1p(pisteKm) / Math.log1p(230)) * 0.44 +
@@ -369,21 +369,21 @@ export function deriveInfrastructureProfile(resort: ResortSignalRow): Infrastruc
   const derivedScore = clamp(liftScore * 0.35 + terrainScore * 0.35 + sourceScore * 0.18 + verticalScore * 0.12);
   const storedScore = scoreValue(resort.infra_score);
   const hasStoredScore = hasUsefulStoredInfraScore(resort);
-  const score = hasStoredScore clamp(derivedScore * 0.65 + storedScore * 0.35) : derivedScore;
+  const score = hasStoredScore ? clamp(derivedScore * 0.65 + storedScore * 0.35) : derivedScore;
 
   const summary =
     score >= 0.76
-      "Sehr starke Infrastruktur: Lift- und Gebietsdaten sprechen für ein belastbares, gut erschlossenes Skigebiet."
+      ? "Sehr starke Infrastruktur: Lift- und Gebietsdaten sprechen fuer ein belastbares, gut erschlossenes Skigebiet."
       : score >= 0.6
-        "Gute Infrastruktur: Gebiet, Lifte und Quellenabdeckung wirken solide für die meisten Trips."
+        ? "Gute Infrastruktur: Gebiet, Lifte und Quellenabdeckung wirken solide fuer die meisten Trips."
         : score >= 0.44
-          "Solide Infrastruktur: ausreichend für passende Trips, aber nicht der stärkste Treiber."
-          : "Begrenzte Infrastruktur: eher kompakt oder mit noch dünner Datenlage.";
+          ? "Solide Infrastruktur: ausreichend fuer passende Trips, aber nicht der staerkste Treiber."
+          : "Begrenzte Infrastruktur: eher kompakt oder mit noch duenner Datenlage.";
 
   return {
     score,
-    source: hasStoredScore "combined" : "derived",
-    sourceLabel: hasStoredScore "Datenbankwert plus Gebietsdaten" : "aus Gebietsdaten abgeleitet",
+    source: hasStoredScore ? "combined" : "derived",
+    sourceLabel: hasStoredScore ? "Datenbankwert plus Gebietsdaten" : "aus Gebietsdaten abgeleitet",
     summary,
     signals: [
       {
@@ -416,15 +416,15 @@ export function deriveInfrastructureProfile(resort: ResortSignalRow): Infrastruc
 
 function derivePanoramaScore(resort: ResortSignalRow) {
   const maxElevation = Number(resort.elevation_max_m ?? 0);
-  const vertical = Number(resort.vertical_m 0);
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const vertical = Number(resort.vertical_m ?? 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   return clamp(((maxElevation - 900) / 1900) * 0.48 + clamp(vertical / 1300) * 0.3 + clamp(pisteKm / 160) * 0.22);
 }
 
 export function deriveOffPisteScore(resort: ResortSignalRow) {
   const maxElevation = Number(resort.elevation_max_m ?? 0);
-  const vertical = Number(resort.vertical_m 0);
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const vertical = Number(resort.vertical_m ?? 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   const advanced = scoreValue(resort.advanced_score, 0.42);
   const snow = deriveSnowReliability(resort);
   const quiet = 1 - scoreValue(resort.crowd_score, 0.55);
@@ -475,7 +475,7 @@ const SUMMER_GLACIER_HINTS = [
 ];
 
 function normalizeSearchText(value: string | null | undefined) {
-  return String(value "")
+  return String(value ?? "")
     .toLowerCase()
     .replace(/ä/g, "ae")
     .replace(/ö/g, "oe")
@@ -488,16 +488,16 @@ function normalizeSearchText(value: string | null | undefined) {
 }
 
 export function deriveSummerGlacierScore(resort: ResortSignalRow) {
-  const text = normalizeSearchText(`${resort.name} ${resort.region ""} ${resort.slug ""}`);
+  const text = normalizeSearchText(`${resort.name} ${resort.region ?? ""} ${resort.slug ?? ""}`);
   const hasNamedGlacier = SUMMER_GLACIER_HINTS.some((hint) => text.includes(hint));
   const hasGlacierWord = text.includes("gletscher") || text.includes("glacier") || text.includes("glaciar");
   const maxElevation = Number(resort.elevation_max_m ?? 0);
-  const vertical = Number(resort.vertical_m 0);
+  const vertical = Number(resort.vertical_m ?? 0);
   const snow = deriveSnowReliability(resort);
   const altitudeScore = clamp((maxElevation - 2550) / 950);
   const veryHighScore = clamp((maxElevation - 3000) / 700);
   const verticalScore = clamp(vertical / 1200);
-  const namedScore = hasNamedGlacier 1 : hasGlacierWord 0.82 : 0;
+  const namedScore = hasNamedGlacier ? 1 : hasGlacierWord ? 0.82 : 0;
 
   if (namedScore > 0) {
     return clamp(namedScore * 0.58 + altitudeScore * 0.24 + snow * 0.12 + verticalScore * 0.06);
@@ -514,7 +514,7 @@ function deriveFamilyScore(resort: ResortSignalRow) {
   const beginner = scoreValue(resort.beginner_score);
   const quiet = 1 - scoreValue(resort.crowd_score);
   const infra = deriveInfrastructureProfile(resort).score;
-  const value = 1 - clamp(((resort.skipass_price_from 70) - 45) / 65);
+  const value = 1 - clamp(((resort.skipass_price_from ?? 70) - 45) / 65);
   return clamp(beginner * 0.38 + quiet * 0.25 + infra * 0.22 + value * 0.15);
 }
 
@@ -543,7 +543,7 @@ function deriveVibeFit(prefs: MatchPreferences, resort: ResortSignalRow) {
 }
 
 function deriveTripStyleScore(style: TripStyle | undefined, resort: ResortSignalRow, cost: CostEstimate) {
-  const normalizedStyle = style "balanced";
+  const normalizedStyle = style ?? "balanced";
   const value = deriveValueScore(resort, cost);
   const snow = deriveSnowReliability(resort);
   const summerGlacier = deriveSummerGlacierScore(resort);
@@ -551,12 +551,12 @@ function deriveTripStyleScore(style: TripStyle | undefined, resort: ResortSignal
   const family = deriveFamilyScore(resort);
   const panorama = derivePanoramaScore(resort);
   const quiet = 1 - scoreValue(resort.crowd_score);
-  const pisteKm = clamp(Number(pickPisteKm(resort) 0) / 160);
+  const pisteKm = clamp(Number(pickPisteKm(resort) ?? 0) / 160);
   const apres = scoreValue(resort.apres_score);
   const advanced = scoreValue(resort.advanced_score);
   const infra = deriveInfrastructureProfile(resort).score;
   const huts = scoreValue(resort.hut_score);
-  const km = Number(pickPisteKm(resort) 0);
+  const km = Number(pickPisteKm(resort) ?? 0);
   const sizeSweetSpot = (min: number, max: number, hardMax: number) => {
     if (!km) return 0.45;
     if (km >= min && km <= max) return 1;
@@ -591,9 +591,9 @@ function deriveTripStyleHint(style: TripStyle | undefined) {
   return "Ausgewogener Match";
 }
 
-export function deriveBudgetClass(resort: ResortSignalRow, cost: CostEstimate): BudgetClass {
-  const skipass = resort.skipass_price_from 0;
-  const day = cost.dayTripMax skipass;
+export function deriveBudgetClass(resort: ResortSignalRow, cost: Pick<CostEstimate, "dayTripMax">): BudgetClass {
+  const skipass = resort.skipass_price_from ?? 0;
+  const day = cost.dayTripMax ?? skipass;
   if ((skipass > 0 && skipass <= 58) || day <= 125) return "budget";
   if ((skipass > 0 && skipass >= 82) || day >= 185) return "premium";
   return "mid-range";
@@ -611,12 +611,12 @@ function countryCostFactor(country: string | null | undefined) {
 
 function foodDailyRange(country: string | null | undefined, level: MatchPreferences["foodSpendLevel"]) {
   const factor = countryCostFactor(country);
-  const resolved = level "standard";
+  const resolved = level ?? "standard";
   const base =
     resolved === "budget"
-      { min: 18, max: 34 }
+      ? { min: 18, max: 34 }
       : resolved === "comfort"
-        { min: 48, max: 88 }
+        ? { min: 48, max: 88 }
         : { min: 30, max: 56 };
 
   return {
@@ -630,9 +630,9 @@ function accommodationNightRange(country: string | null | undefined, budgetClass
   const factor = countryCostFactor(country);
   const base =
     budgetClass === "budget"
-      { min: 42, max: 78 }
+      ? { min: 42, max: 78 }
       : budgetClass === "premium"
-        { min: 95, max: 185 }
+        ? { min: 95, max: 185 }
         : { min: 62, max: 125 };
 
   return {
@@ -643,34 +643,36 @@ function accommodationNightRange(country: string | null | undefined, budgetClass
 
 export function estimateResortCost(prefs: MatchPreferences = {}, resort: ResortSignalRow): CostEstimate {
   const days = tripDays(prefs);
-  const needsRental = prefs.rentalMode prefs.rentalMode === "rent" : Boolean(prefs.needRental);
-  const peopleCount = Math.max(1, Math.round(Number(prefs.peopleCount 1)));
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const needsRental = prefs.rentalMode ? prefs.rentalMode === "rent" : Boolean(prefs.needRental);
+  const peopleCount = Math.max(1, Math.round(Number(prefs.peopleCount ?? 1)));
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   const skipass = resort.skipass_price_from;
-  const passSource = typeof skipass === "number" && skipass > 0 "stored" : "estimated";
+  const passSource = typeof skipass === "number" && skipass > 0 ? "stored" : "estimated";
   const basePassMin = Math.max(34, 30 + pisteKm * 0.22);
   const basePassMax = Math.max(52, 44 + pisteKm * 0.34);
-  const passMin = (typeof skipass === "number" && skipass > 0 skipass : basePassMin) * days;
+  const passMin = (typeof skipass === "number" && skipass > 0 ? skipass : basePassMin) * days;
   const passMax =
-    (typeof skipass === "number" && skipass > 0 Math.max(skipass, basePassMax) : basePassMax) * days;
+    (typeof skipass === "number" && skipass > 0 ? Math.max(skipass, basePassMax) : basePassMax) * days;
 
-  const rentalMin = needsRental 24 * days : 0;
-  const rentalMax = needsRental 48 * days : 0;
-  const roughBudgetClass = deriveBudgetClass(resort);
+  const rentalMin = needsRental ? 24 * days : 0;
+  const rentalMax = needsRental ? 48 * days : 0;
+  const roughBudgetClass = deriveBudgetClass(resort, {
+    dayTripMax: typeof skipass === "number" && skipass > 0 ? skipass : basePassMax,
+  });
   const nights = Math.max(0, days - 1);
   const accommodation = accommodationNightRange(resort.country, roughBudgetClass);
   const accommodationMin = nights * accommodation.min;
   const accommodationMax = nights * accommodation.max;
-  const parkingMin = (prefs.travelMode === "train" 0 : 6) * days;
-  const parkingMax = (prefs.travelMode === "train" 0 : 18) * days;
-  const travelMode = prefs.travelMode "car";
+  const parkingMin = (prefs.travelMode === "train" ? 0 : 6) * days;
+  const parkingMax = (prefs.travelMode === "train" ? 0 : 18) * days;
+  const travelMode = prefs.travelMode ?? "car";
   const fallbackTravel =
     travelMode === "train"
-      { min: 38 * days, max: 105 * days, source: "provider" as const }
+      ? { min: 38 * days, max: 105 * days, source: "provider" as const }
       : travelMode === "bus"
-        { min: 24 * days, max: 78 * days, source: "provider" as const }
+        ? { min: 24 * days, max: 78 * days, source: "provider" as const }
         : travelMode === "flight"
-          { min: 120, max: 330, source: "provider" as const }
+          ? { min: 120, max: 330, source: "provider" as const }
           : { min: Math.round(58 / peopleCount), max: Math.round(155 / peopleCount), source: "fallback" as const };
   const travelMin = fallbackTravel.min;
   const travelMax = fallbackTravel.max;
@@ -681,16 +683,16 @@ export function estimateResortCost(prefs: MatchPreferences = {}, resort: ResortS
   const totalMax = Math.round(passMax + rentalMax + accommodationMax + travelMax + parkingMax + foodMax);
 
   const oneDay = {
-    passMin: typeof skipass === "number" && skipass > 0 skipass : basePassMin,
-    passMax: typeof skipass === "number" && skipass > 0 Math.max(skipass, basePassMax) : basePassMax,
+    passMin: typeof skipass === "number" && skipass > 0 ? skipass : basePassMin,
+    passMax: typeof skipass === "number" && skipass > 0 ? Math.max(skipass, basePassMax) : basePassMax,
   };
   const dayTravelMin =
-    travelMode === "car" Math.round(58 / peopleCount) : travelMode === "bus" 24 : travelMode === "train" 38 : 120;
+    travelMode === "car" ? Math.round(58 / peopleCount) : travelMode === "bus" ? 24 : travelMode === "train" ? 38 : 120;
   const dayTravelMax =
-    travelMode === "car" Math.round(155 / peopleCount) : travelMode === "bus" 78 : travelMode === "train" 105 : 330;
+    travelMode === "car" ? Math.round(155 / peopleCount) : travelMode === "bus" ? 78 : travelMode === "train" ? 105 : 330;
   const dayFood = foodDailyRange(resort.country, prefs.foodSpendLevel);
-  const dayTripMin = Math.round(oneDay.passMin + (needsRental 24 : 0) + dayTravelMin + (prefs.travelMode === "train" 0 : 6) + dayFood.min);
-  const dayTripMax = Math.round(oneDay.passMax + (needsRental 48 : 0) + dayTravelMax + (prefs.travelMode === "train" 0 : 18) + dayFood.max);
+  const dayTripMin = Math.round(oneDay.passMin + (needsRental ? 24 : 0) + dayTravelMin + (prefs.travelMode === "train" ? 0 : 6) + dayFood.min);
+  const dayTripMax = Math.round(oneDay.passMax + (needsRental ? 48 : 0) + dayTravelMax + (prefs.travelMode === "train" ? 0 : 18) + dayFood.max);
   const weekendLodging = accommodationNightRange(resort.country, roughBudgetClass);
   const weekLodging = accommodationNightRange(resort.country, roughBudgetClass);
 
@@ -725,13 +727,13 @@ export function estimateResortCost(prefs: MatchPreferences = {}, resort: ResortS
 export function deriveExclusionReasons(prefs: MatchPreferences = {}, resort: ResortSignalRow, cost: CostEstimate) {
   const out: string[] = [];
   const normalizedExcludedCountries = new Set(
-    (prefs.excludeCountries []).map((country) => normalizeSearchText(country)).filter(Boolean)
+    (prefs.excludeCountries ?? []).map((country) => normalizeSearchText(country)).filter(Boolean)
   );
   const country = normalizeSearchText(resort.country);
-  const nextCost = cost estimateResortCost(prefs, resort);
+  const nextCost = cost ?? estimateResortCost(prefs, resort);
   const budgetClass = deriveBudgetClass(resort, nextCost);
   const summerGlacier = deriveSummerGlacierScore(resort);
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   const beginner = scoreValue(resort.beginner_score);
   const advanced = scoreValue(resort.advanced_score);
   const apres = scoreValue(resort.apres_score);
@@ -754,8 +756,8 @@ export function deriveBudgetStatus(budgetCap: number, min: number, max: number):
 }
 
 export function deriveValueScore(resort: ResortSignalRow, cost: CostEstimate) {
-  const pisteKm = Math.max(8, Number(pickPisteKm(resort) 8));
-  const pass = resort.skipass_price_from cost.dayTripMax * 0.55;
+  const pisteKm = Math.max(8, Number(pickPisteKm(resort) ?? 8));
+  const pass = resort.skipass_price_from ?? cost.dayTripMax * 0.55;
   const pricePerKm = pass / pisteKm;
   const efficiency = 1 - clamp((pricePerKm - 0.28) / 1.2);
   const infra = deriveInfrastructureProfile(resort).score;
@@ -774,7 +776,7 @@ export function deriveVibeTags(resort: ResortSignalRow): ResortVibeTag[] {
   const summerGlacier = deriveSummerGlacierScore(resort);
   const offPiste = deriveOffPisteScore(resort);
   const infra = deriveInfrastructureProfile(resort).score;
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
 
   if (apres >= 0.68) tags.push({ label: "Energetischer Après-Ski", score: apres, tone: "amber" });
   if (quiet >= 0.62) tags.push({ label: "Ruhigere Hänge", score: quiet, tone: "green" });
@@ -804,7 +806,7 @@ export function deriveBestFor(resort: ResortSignalRow, budgetClass: BudgetClass)
   const snow = deriveSnowReliability(resort);
   const summerGlacier = deriveSummerGlacierScore(resort);
   const offPiste = deriveOffPisteScore(resort);
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
 
   if (budgetClass === "budget") out.push("Studierende");
   if (apres >= 0.68) out.push("Gruppen");
@@ -822,10 +824,10 @@ export function deriveBestFor(resort: ResortSignalRow, budgetClass: BudgetClass)
 
 export function deriveReasons(prefs: MatchPreferences = {}, resort: ResortSignalRow, cost: CostEstimate) {
   const out: string[] = [];
-  const apresImportance = prefs.apres DEFAULT_PREFS.apres;
-  const quietImportance = prefs.emptySlopes DEFAULT_PREFS.emptySlopes;
-  const easyImportance = prefs.easyRuns DEFAULT_PREFS.easyRuns;
-  const hardImportance = prefs.challenging DEFAULT_PREFS.challenging;
+  const apresImportance = prefs.apres ?? DEFAULT_PREFS.apres;
+  const quietImportance = prefs.emptySlopes ?? DEFAULT_PREFS.emptySlopes;
+  const easyImportance = prefs.easyRuns ?? DEFAULT_PREFS.easyRuns;
+  const hardImportance = prefs.challenging ?? DEFAULT_PREFS.challenging;
   const pisteKm = pickPisteKm(resort);
   const snow = deriveSnowReliability(resort);
   const value = deriveValueScore(resort, cost);
@@ -833,7 +835,7 @@ export function deriveReasons(prefs: MatchPreferences = {}, resort: ResortSignal
   const panorama = derivePanoramaScore(resort);
   const summerGlacier = deriveSummerGlacierScore(resort);
   const offPiste = deriveOffPisteScore(resort);
-  const style = prefs.tripStyle "balanced";
+  const style = prefs.tripStyle ?? "balanced";
 
   if (style === "family" && family >= 0.52) {
     out.push("Familienprofil: ruhiger, einfacher und planbarer als viele Alternativen");
@@ -865,25 +867,25 @@ export function deriveReasons(prefs: MatchPreferences = {}, resort: ResortSignal
 
   if (apresImportance >= 4 && scoreValue(resort.apres_score) >= 0.65) out.push("starke Après-Ski-Signale");
   if (quietImportance >= 4 && 1 - scoreValue(resort.crowd_score) >= 0.6) out.push("wirkt weniger überlaufen");
-  if ((prefs.infrastructure DEFAULT_PREFS.infrastructure) >= 4 && deriveInfrastructureProfile(resort).score >= 0.68) {
+  if ((prefs.infrastructure ?? DEFAULT_PREFS.infrastructure) >= 4 && deriveInfrastructureProfile(resort).score >= 0.68) {
     out.push("gute Lift- und Infrastrukturwerte");
   }
-  if ((prefs.huts DEFAULT_PREFS.huts) >= 4 && scoreValue(resort.hut_score) >= 0.68) {
+  if ((prefs.huts ?? DEFAULT_PREFS.huts) >= 4 && scoreValue(resort.hut_score) >= 0.68) {
     out.push("passt, wenn Hütten wichtig sind");
   }
-  if ((prefs.snowpark DEFAULT_PREFS.snowpark) >= 4 && scoreValue(resort.park_score, 0.35) >= 0.55) {
+  if ((prefs.snowpark ?? DEFAULT_PREFS.snowpark) >= 4 && scoreValue(resort.park_score, 0.35) >= 0.55) {
     out.push("Snowpark ist ein echter Pluspunkt");
   }
   if (easyImportance >= 4 && scoreValue(resort.beginner_score) >= 0.68) out.push("freundlich für einfache Pisten");
   if (hardImportance >= 4 && scoreValue(resort.advanced_score) >= 0.64) out.push("genug sportliche Optionen");
   if (snow >= 0.66) out.push("Höhenlage spricht für bessere Schneesicherheit");
   if (value >= 0.64) out.push("Preis-Leistung wirkt stark");
-  if ((prefs.family DEFAULT_PREFS.family) >= 4 && family >= 0.6) out.push("entspannter Fit für Familien oder Anfänger");
-  if ((prefs.panorama DEFAULT_PREFS.panorama) >= 4 && panorama >= 0.62) out.push("starker Panorama- und Höhenlagen-Faktor");
-  if ((prefs.summerGlacier DEFAULT_PREFS.summerGlacier) >= 4 && summerGlacier >= 0.58) {
+  if ((prefs.family ?? DEFAULT_PREFS.family) >= 4 && family >= 0.6) out.push("entspannter Fit für Familien oder Anfänger");
+  if ((prefs.panorama ?? DEFAULT_PREFS.panorama) >= 4 && panorama >= 0.62) out.push("starker Panorama- und Höhenlagen-Faktor");
+  if ((prefs.summerGlacier ?? DEFAULT_PREFS.summerGlacier) >= 4 && summerGlacier >= 0.58) {
     out.push("relevant, wenn du Sommer-Ski oder Gletscherbetrieb prüfen willst");
   }
-  if ((prefs.offPiste DEFAULT_PREFS.offPiste) >= 4 && offPiste >= 0.58) {
+  if ((prefs.offPiste ?? DEFAULT_PREFS.offPiste) >= 4 && offPiste >= 0.58) {
     out.push("spannend für Off-Piste-orientierte Fahrer");
   }
   if (pisteKm && pisteKm >= 80) out.push(`${number.format(pisteKm)} km Pisten geben viel Auswahl`);
@@ -897,15 +899,15 @@ export function deriveReasons(prefs: MatchPreferences = {}, resort: ResortSignal
 
 export function deriveDrawbacks(resort: ResortSignalRow, budgetClass: BudgetClass, prefs: MatchPreferences = {}) {
   const out: string[] = [];
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   const crowd = scoreValue(resort.crowd_score);
   const snow = deriveSnowReliability(resort);
   const summerGlacier = deriveSummerGlacierScore(resort);
   const offPiste = deriveOffPisteScore(resort);
   const beginner = scoreValue(resort.beginner_score);
   const advanced = scoreValue(resort.advanced_score);
-  const glacierRequested = prefs.tripStyle === "glacier" || (prefs.summerGlacier 0) >= 4;
-  const offPisteRequested = prefs.tripStyle === "offpiste" || (prefs.offPiste 0) >= 4;
+  const glacierRequested = prefs.tripStyle === "glacier" || (prefs.summerGlacier ?? 0) >= 4;
+  const offPisteRequested = prefs.tripStyle === "offpiste" || (prefs.offPiste ?? 0) >= 4;
 
   if (glacierRequested && summerGlacier < 0.5) {
     out.push("Sommer-Gletscherbetrieb ist hier kein starkes Signal");
@@ -957,7 +959,7 @@ export function scoreResort(prefs: MatchPreferences = {}, resort: ResortSignalRo
     offPisteWeight +
     fixedWeight;
 
-  const pisteKm = Number(pickPisteKm(resort) 0);
+  const pisteKm = Number(pickPisteKm(resort) ?? 0);
   const snowScore = deriveSnowReliability(resort);
   const valueScore = deriveValueScore(resort, cost);
   const familyScore = deriveFamilyScore(resort);
@@ -988,7 +990,7 @@ export function scoreResort(prefs: MatchPreferences = {}, resort: ResortSignalRo
     WEIGHTS.scale * scaleScore;
 
   let matchPct = Math.round(clamp(rawScore / Math.max(0.001, maxScore)) * 100);
-  const style = prefs.tripStyle "balanced";
+  const style = prefs.tripStyle ?? "balanced";
   if (style === "family" && pisteKm > 120) matchPct -= Math.min(18, Math.round((pisteKm - 120) / 12));
   if (style === "family" && pisteKm > 240) matchPct -= 8;
   if (style === "quiet" && pisteKm > 130) matchPct -= Math.min(14, Math.round((pisteKm - 130) / 18));
@@ -1023,8 +1025,8 @@ export function deriveFitProfile(prefs: MatchPreferences = {}, resort: ResortSig
 }
 
 export function resolveBudgetCap(prefs: MatchPreferences = {}) {
-  let minBudget = Number(prefs.budgetMin 0);
-  let maxBudget = Number(prefs.budgetMax prefs.budget 0);
+  let minBudget = Number(prefs.budgetMin ?? 0);
+  let maxBudget = Number(prefs.budgetMax ?? prefs.budget ?? 0);
   if (minBudget < 0) minBudget = 0;
   if (maxBudget < 0) maxBudget = 0;
   if (maxBudget > 0 && minBudget > maxBudget) {
@@ -1032,7 +1034,7 @@ export function resolveBudgetCap(prefs: MatchPreferences = {}) {
     minBudget = maxBudget;
     maxBudget = tmp;
   }
-  return maxBudget > 0 maxBudget : minBudget;
+  return maxBudget > 0 ? maxBudget : minBudget;
 }
 
 function deriveTripTypeForAlpivo(prefs: MatchPreferences): UserPreferences["tripType"] {
@@ -1044,9 +1046,9 @@ function deriveTripTypeForAlpivo(prefs: MatchPreferences): UserPreferences["trip
 }
 
 function deriveSkillLevelForAlpivo(prefs: MatchPreferences): UserPreferences["skillLevel"] {
-  const easy = prefs.easyRuns DEFAULT_PREFS.easyRuns;
-  const hard = prefs.challenging DEFAULT_PREFS.challenging;
-  if ((prefs.tripStyle === "offpiste" || (prefs.offPiste 0) >= 4) && hard >= 4) return "expert";
+  const easy = prefs.easyRuns ?? DEFAULT_PREFS.easyRuns;
+  const hard = prefs.challenging ?? DEFAULT_PREFS.challenging;
+  if ((prefs.tripStyle === "offpiste" || (prefs.offPiste ?? 0) >= 4) && hard >= 4) return "expert";
   if (prefs.tripStyle === "sport" || (hard >= 4 && easy <= 2)) return "advanced";
   if (easy >= 4 && hard <= 2) return "beginner";
   if (easy >= 4 && hard >= 4) return "mixed";
@@ -1072,29 +1074,29 @@ function toAlpivoUserPreferences(prefs: MatchPreferences = {}): UserPreferences 
   return {
     tripType,
     days: tripDays(prefs),
-    people: Math.max(1, Math.round(Number(prefs.peopleCount 1))),
-    budgetPerPerson: budget > 0 budget : undefined,
+    people: Math.max(1, Math.round(Number(prefs.peopleCount ?? 1))),
+    budgetPerPerson: budget > 0 ? budget : undefined,
     skillLevel,
     priorities: {
-      budget: prefs.valueForMoney (prefs.tripStyle === "budget" 5 : 3),
-      distance: tripType === "day_trip" 5 : tripType === "weekend" 4 : 2,
-      snow: prefs.snowReliability DEFAULT_PREFS.snowReliability,
-      apresSki: prefs.apres DEFAULT_PREFS.apres,
-      quiet: prefs.emptySlopes DEFAULT_PREFS.emptySlopes,
-      pisteSize: Math.max(prefs.challenging DEFAULT_PREFS.challenging, prefs.infrastructure DEFAULT_PREFS.infrastructure),
-      offPiste: prefs.offPiste DEFAULT_PREFS.offPiste,
-      familyFriendly: prefs.family DEFAULT_PREFS.family,
-      beginnerFriendly: prefs.easyRuns DEFAULT_PREFS.easyRuns,
-      comfort: Math.max(prefs.infrastructure DEFAULT_PREFS.infrastructure, prefs.huts DEFAULT_PREFS.huts),
+      budget: prefs.valueForMoney ?? (prefs.tripStyle === "budget" ? 5 : 3),
+      distance: tripType === "day_trip" ? 5 : tripType === "weekend" ? 4 : 2,
+      snow: prefs.snowReliability ?? DEFAULT_PREFS.snowReliability,
+      apresSki: prefs.apres ?? DEFAULT_PREFS.apres,
+      quiet: prefs.emptySlopes ?? DEFAULT_PREFS.emptySlopes,
+      pisteSize: Math.max(prefs.challenging ?? DEFAULT_PREFS.challenging, prefs.infrastructure ?? DEFAULT_PREFS.infrastructure),
+      offPiste: prefs.offPiste ?? DEFAULT_PREFS.offPiste,
+      familyFriendly: prefs.family ?? DEFAULT_PREFS.family,
+      beginnerFriendly: prefs.easyRuns ?? DEFAULT_PREFS.easyRuns,
+      comfort: Math.max(prefs.infrastructure ?? DEFAULT_PREFS.infrastructure, prefs.huts ?? DEFAULT_PREFS.huts),
     },
     travelMode: mapTravelModeForAlpivo(prefs.travelMode),
-    foodStyle: prefs.foodSpendLevel "standard",
+    foodStyle: prefs.foodSpendLevel ?? "standard",
     accommodationStyle: deriveAccommodationStyleForAlpivo(prefs),
-    wantsApresSki: (prefs.apres 0) >= 4 || prefs.tripStyle === "apres",
-    wantsOffPiste: (prefs.offPiste 0) >= 4 || prefs.tripStyle === "offpiste",
-    wantsQuiet: (prefs.emptySlopes 0) >= 4 || prefs.tripStyle === "quiet",
-    wantsSnowpark: (prefs.snowpark 0) >= 4,
-    wantsFamilyFriendly: (prefs.family 0) >= 4 || prefs.tripStyle === "family" || skillLevel === "beginner",
+    wantsApresSki: (prefs.apres ?? 0) >= 4 || prefs.tripStyle === "apres",
+    wantsOffPiste: (prefs.offPiste ?? 0) >= 4 || prefs.tripStyle === "offpiste",
+    wantsQuiet: (prefs.emptySlopes ?? 0) >= 4 || prefs.tripStyle === "quiet",
+    wantsSnowpark: (prefs.snowpark ?? 0) >= 4,
+    wantsFamilyFriendly: (prefs.family ?? 0) >= 4 || prefs.tripStyle === "family" || skillLevel === "beginner",
   };
 }
 
@@ -1103,24 +1105,24 @@ function toAlpivoResortInput(resort: ResortSignalRow): ResortInput {
     id: resort.id,
     name: resort.name,
     country: resort.country,
-    region: resort.region undefined,
-    lat: resort.lat undefined,
-    lng: resort.lon undefined,
-    pisteKmTotal: pickPisteKm(resort) undefined,
-    pisteKmBlue: resort.piste_km_easy undefined,
-    pisteKmRed: resort.piste_km_intermediate undefined,
-    pisteKmBlack: resort.piste_km_advanced undefined,
-    liftsCountTotal: resort.lifts_count_total undefined,
-    elevationMin: resort.elevation_min_m undefined,
-    elevationMax: resort.elevation_max_m undefined,
-    verticalDrop: resort.vertical_m undefined,
-    adultDayPassPrice: resort.skipass_price_from undefined,
-    apresSkiScore: resort.apres_score undefined,
+    region: resort.region ?? undefined,
+    lat: resort.lat ?? undefined,
+    lng: resort.lon ?? undefined,
+    pisteKmTotal: pickPisteKm(resort) ?? undefined,
+    pisteKmBlue: resort.piste_km_easy ?? undefined,
+    pisteKmRed: resort.piste_km_intermediate ?? undefined,
+    pisteKmBlack: resort.piste_km_advanced ?? undefined,
+    liftsCountTotal: resort.lifts_count_total ?? undefined,
+    elevationMin: resort.elevation_min_m ?? undefined,
+    elevationMax: resort.elevation_max_m ?? undefined,
+    verticalDrop: resort.vertical_m ?? undefined,
+    adultDayPassPrice: resort.skipass_price_from ?? undefined,
+    apresSkiScore: resort.apres_score ?? undefined,
     familyScore: deriveFamilyScore(resort),
-    beginnerScore: resort.beginner_score undefined,
+    beginnerScore: resort.beginner_score ?? undefined,
     offPisteScore: deriveOffPisteScore(resort),
-    snowparkScore: resort.park_score undefined,
-    crowdScore: resort.crowd_score undefined,
+    snowparkScore: resort.park_score ?? undefined,
+    crowdScore: resort.crowd_score ?? undefined,
     snowReliabilityScore: deriveSnowReliability(resort),
   };
 }
@@ -1138,7 +1140,7 @@ export function deriveResortDecision(
   const summerGlacierScore = deriveSummerGlacierScore(resort);
   const infrastructureProfile = deriveInfrastructureProfile(resort);
   const exclusionReasons = deriveExclusionReasons(prefs, resort, cost);
-  const resolvedImageUrl = resort.hero_image_url.trim() || resort.image_url.trim() || null;
+  const resolvedImageUrl = (resort.hero_image_url || "").trim() || (resort.image_url || "").trim() || null;
   const combinedReasons = Array.from(new Set([...alpivoScore.reasons, ...deriveReasons(prefs, resort, cost)]));
   const combinedWarnings = Array.from(new Set([...alpivoScore.warnings, ...deriveDrawbacks(resort, budgetClass, prefs)]));
 
@@ -1148,22 +1150,22 @@ export function deriveResortDecision(
     name: resort.name,
     country: resort.country,
     region: resort.region,
-    lat: resort.lat null,
-    lon: resort.lon null,
+    lat: resort.lat ?? null,
+    lon: resort.lon ?? null,
     pisteKm,
     imageUrl: resolvedImageUrl,
-    imageAlt: resort.hero_image_alt.trim() || (resolvedImageUrl `Winterpanorama im Skigebiet ${resort.name}` : null),
-    imageSource: resort.image_source.trim() || null,
-    imageCredit: resort.image_credit.trim() || null,
-    imageLicense: resort.image_license.trim() || null,
-    officialUrl: resort.official_url null,
-    pisteMapUrl: resort.piste_map_url null,
-    openskimapUrl: resort.openskimap_url null,
-    skipassUrl: resort.skipass_url null,
+    imageAlt: (resort.hero_image_alt || "").trim() || (resolvedImageUrl ? `Winterpanorama im Skigebiet ${resort.name}` : null),
+    imageSource: (resort.image_source || "").trim() || null,
+    imageCredit: (resort.image_credit || "").trim() || null,
+    imageLicense: (resort.image_license || "").trim() || null,
+    officialUrl: resort.official_url ?? null,
+    pisteMapUrl: resort.piste_map_url ?? null,
+    openskimapUrl: resort.openskimap_url ?? null,
+    skipassUrl: resort.skipass_url ?? null,
     rawScore: legacyScored.rawScore,
     matchPct: alpivoScore.totalScore,
-    apresScore: typeof resort.apres_score === "number" resort.apres_score : null,
-    crowdScore: typeof resort.crowd_score === "number" resort.crowd_score : null,
+    apresScore: typeof resort.apres_score === "number" ? resort.apres_score : null,
+    crowdScore: typeof resort.crowd_score === "number" ? resort.crowd_score : null,
     snowReliability: deriveSnowReliability(resort),
     summerGlacierScore,
     infrastructureScore: infrastructureProfile.score,

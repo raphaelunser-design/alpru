@@ -36,7 +36,7 @@ const mojibakeMap: Array<[string, string]> = [
 ];
 
 export function repairText(value: string | null | undefined) {
-  if (!value) return value ?? null;
+  if (!value) return value || null;
   return mojibakeMap.reduce((text, [broken, fixed]) => text.replaceAll(broken, fixed), value);
 }
 
@@ -78,13 +78,13 @@ function resort(input: {
   park: number;
   beginner: number;
   advanced: number;
-  officialUrl: string;
+  officialUrl?: string;
   styles: string[];
-  easyShare: number;
-  advancedShare: number;
+  easyShare?: number;
+  advancedShare?: number;
 }) {
   const slug = slugify(input.name);
-  const split = splitPistes(input.pisteKm, input.easyShare ?? 0.28, input.advancedShare ?? 0.16);
+  const split = splitPistes(input.pisteKm, input.easyShare || 0.28, input.advancedShare || 0.16);
   return {
     id: `demo-${slug}`,
     slug,
@@ -109,9 +109,9 @@ function resort(input: {
     image_source: "Alpivo Fallback",
     image_credit: "Alpivo",
     image_license: "Projektbild",
-    official_url: input.officialUrl ?? null,
+    official_url: input.officialUrl || null,
     piste_map_url: null,
-    skipass_url: input.officialUrl ?? null,
+    skipass_url: input.officialUrl || null,
     openskimap_url: null,
     skipass_price_from: input.skipass,
     apres_score: input.apres,
@@ -167,19 +167,19 @@ export const MVP_RESORTS: MvpResortRow[] = [
 export function sanitizeResortRow<T extends ResortSignalRow>(row: T): T {
   return {
     ...row,
-    slug: repairText(row.slug) ?? row.slug,
-    name: repairText(row.name) ?? row.name,
-    country: repairText(row.country) row.country,
-    region: repairText(row.region) row.region,
-    hero_image_alt: repairText(row.hero_image_alt) row.hero_image_alt,
-    image_source: repairText(row.image_source) row.image_source,
-    image_credit: repairText(row.image_credit) row.image_credit,
-    image_license: repairText(row.image_license) row.image_license,
+    slug: repairText(row.slug) || row.slug,
+    name: repairText(row.name) || row.name,
+    country: repairText(row.country) || row.country,
+    region: repairText(row.region) || row.region,
+    hero_image_alt: repairText(row.hero_image_alt) || row.hero_image_alt,
+    image_source: repairText(row.image_source) || row.image_source,
+    image_credit: repairText(row.image_credit) || row.image_credit,
+    image_license: repairText(row.image_license) || row.image_license,
   };
 }
 
 export function sanitizeResortRows<T extends ResortSignalRow>(rows: T[] | null | undefined): T[] {
-  return (rows []).map((row) => sanitizeResortRow(row));
+  return (rows || []).map((row) => sanitizeResortRow(row));
 }
 
 export function mergeWithMvpResorts<T extends ResortSignalRow>(rows: T[] | null | undefined, minimum = 35): ResortSignalRow[] {
@@ -202,30 +202,30 @@ export function getMvpResorts(limit = MVP_RESORTS.length): ResortSignalRow[] {
 }
 
 export function findMvpResortBySlug(slug: string) {
-  const normalized = slugify(repairText(slug) slug);
-  return MVP_RESORTS.find((resort) => resort.slug === normalized || resort.id === slug) null;
+  const normalized = slugify(repairText(slug) || slug);
+  return MVP_RESORTS.find((resort) => resort.slug === normalized || resort.id === slug) || null;
 }
 
 export function getMvpTripResortLookup(slugs: string[]) {
   const lookup: Record<string, TripResortLite> = {};
   for (const slug of slugs) {
     const resort = findMvpResortBySlug(slug);
-    if (!resort.slug) continue;
+    if (!resort || !resort.slug) continue;
     lookup[resort.slug] = {
       id: resort.id,
       slug: resort.slug,
       name: resort.name,
       country: resort.country,
-      region: resort.region null,
-      imageUrl: resort.hero_image_url resort.image_url fallbackImage,
-      pisteKm: resort.piste_km_total resort.piste_km null,
-      elevationMinM: resort.elevation_min_m null,
-      elevationMaxM: resort.elevation_max_m null,
-      verticalM: resort.vertical_m null,
-      skipassPriceFrom: resort.skipass_price_from null,
-      officialUrl: resort.official_url null,
-      lat: typeof resort.lat === "number" resort.lat : null,
-      lon: typeof resort.lon === "number" resort.lon : null,
+      region: resort.region || null,
+      imageUrl: resort.hero_image_url || resort.image_url || fallbackImage,
+      pisteKm: resort.piste_km_total || resort.piste_km || null,
+      elevationMinM: resort.elevation_min_m || null,
+      elevationMaxM: resort.elevation_max_m || null,
+      verticalM: resort.vertical_m || null,
+      skipassPriceFrom: resort.skipass_price_from || null,
+      officialUrl: resort.official_url || null,
+      lat: typeof resort.lat === "number" ? resort.lat : null,
+      lon: typeof resort.lon === "number" ? resort.lon : null,
       matchPct: null,
     };
   }

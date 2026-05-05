@@ -56,7 +56,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const prefs: Prefs = parsed.data;
+    const rawPrefs: Prefs = parsed.data;
+    const prefs: MatchPreferences = {
+      tripStyle: rawPrefs.tripStyle ?? "balanced",
+      tripStartDate: rawPrefs.tripStartDate ?? null,
+      tripEndDate: rawPrefs.tripEndDate ?? null,
+      budgetMin: rawPrefs.budgetMin ?? 0,
+      budgetMax: rawPrefs.budgetMax ?? rawPrefs.budget ?? 0,
+      budget: rawPrefs.budget ?? rawPrefs.budgetMax ?? 0,
+      peopleCount: rawPrefs.peopleCount ?? 2,
+      apres: rawPrefs.apres,
+      emptySlopes: rawPrefs.emptySlopes,
+      infrastructure: rawPrefs.infrastructure,
+      huts: rawPrefs.huts,
+      snowpark: rawPrefs.snowpark,
+      easyRuns: rawPrefs.easyRuns,
+      challenging: rawPrefs.challenging,
+      snowReliability: rawPrefs.snowReliability ?? 3,
+      valueForMoney: rawPrefs.valueForMoney ?? 3,
+      family: rawPrefs.family ?? 0,
+      panorama: rawPrefs.panorama ?? 3,
+      summerGlacier: rawPrefs.summerGlacier ?? 0,
+      offPiste: rawPrefs.offPiste ?? 0,
+      foodSpendLevel: rawPrefs.foodSpendLevel ?? "standard",
+      needRental: rawPrefs.needRental ?? rawPrefs.rentalMode === "rent",
+      rentalMode: rawPrefs.rentalMode ?? "own",
+      travelMode: rawPrefs.travelMode ?? "car",
+      excludeCountries: rawPrefs.excludeCountries ?? [],
+      excludeGlacier: rawPrefs.excludeGlacier ?? false,
+      excludePremium: rawPrefs.excludePremium ?? false,
+      excludeFamilyOnly: rawPrefs.excludeFamilyOnly ?? false,
+    };
     const budgetCap = resolveBudgetCap(prefs);
 
     const { data: resorts, error } = await supabase
@@ -68,7 +98,7 @@ export async function POST(req: Request) {
     const sourceResorts = error || !resorts?.length ? getMvpResorts(35) : mergeWithMvpResorts(resorts, 35);
 
     const allScored: ResortDecision[] = sourceResorts.map((resort) =>
-      deriveResortDecision(resort, prefs as MatchPreferences, budgetCap)
+      deriveResortDecision(resort, prefs, budgetCap)
     );
     const scored = allScored.filter((resort) => resort.exclusionReasons.length === 0);
     const excluded = allScored.filter((resort) => resort.exclusionReasons.length > 0);

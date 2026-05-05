@@ -117,7 +117,7 @@ function roundOne(value: number | null) {
 }
 
 function sumNext(values: Array<number | undefined> | undefined, count: number) {
-  if (!values.length) return null;
+  if (!values || !values.length) return null;
   const total = values
     .slice(0, count)
     .reduce<number>((sum, value) => sum + (Number.isFinite(value) ? Number(value) : 0), 0);
@@ -139,7 +139,7 @@ function buildSkiHint(label: "Tal" | "Berg", current: CompactWeatherPoint["curre
 }
 
 function pickHourlyStart(times: string[] | undefined, currentTime: string | undefined) {
-  if (!times.length || !currentTime) return 0;
+  if (!times || !times.length || !currentTime) return 0;
   const index = times.findIndex((time) => time >= currentTime);
   return index >= 0 ? index : 0;
 }
@@ -150,13 +150,13 @@ function compactPoint(
   requestedElevationM: number | null,
   dataQuality: CompactWeatherPoint["data_quality"]
 ): CompactWeatherPoint {
-  const hourly = data.hourly {};
-  const daily = data.daily {};
-  const current = data.current {};
+  const hourly = data.hourly ?? {};
+  const daily = data.daily ?? {};
+  const current = data.current ?? {};
   const start = pickHourlyStart(hourly.time, current.time);
 
   const currentOut: CompactWeatherPoint["current"] = {
-    time: current.time null,
+    time: current.time ?? null,
     temperature_c: roundOne(toMaybeNumber(current.temperature_2m)),
     apparent_temperature_c: roundOne(toMaybeNumber(current.apparent_temperature)),
     wind_kph: roundOne(toMaybeNumber(current.wind_speed_10m)),
@@ -169,32 +169,32 @@ function compactPoint(
   };
   currentOut.ski_hint = buildSkiHint(label, currentOut);
 
-  const hourlyOut = Array.from({ length: Math.min(8, (hourly.time.length 0) - start) }).map((_, offset) => {
+  const hourlyOut = Array.from({ length: Math.min(8, (hourly.time?.length ?? 0) - start) }).map((_, offset) => {
     const i = start + offset;
     return {
-      time: hourly.time.[i] "",
-      temperature_c: roundOne(toMaybeNumber(hourly.temperature_2m.[i])),
-      apparent_temperature_c: roundOne(toMaybeNumber(hourly.apparent_temperature.[i])),
-      wind_kph: roundOne(toMaybeNumber(hourly.wind_speed_10m.[i])),
-      precipitation_mm: roundOne(toMaybeNumber(hourly.precipitation.[i])),
-      snowfall_cm: roundOne(toMaybeNumber(hourly.snowfall.[i])),
-      weather_code: toMaybeNumber(hourly.weather_code.[i]),
+      time: hourly.time?.[i] ?? "",
+      temperature_c: roundOne(toMaybeNumber(hourly.temperature_2m?.[i])),
+      apparent_temperature_c: roundOne(toMaybeNumber(hourly.apparent_temperature?.[i])),
+      wind_kph: roundOne(toMaybeNumber(hourly.wind_speed_10m?.[i])),
+      precipitation_mm: roundOne(toMaybeNumber(hourly.precipitation?.[i])),
+      snowfall_cm: roundOne(toMaybeNumber(hourly.snowfall?.[i])),
+      weather_code: toMaybeNumber(hourly.weather_code?.[i]),
     };
   });
 
-  const dates = daily.time [];
+  const dates = daily.time ?? [];
   const dailyOut = Array.from({ length: Math.min(5, dates.length) }).map((_, i) => ({
     date: dates[i],
-    temp_max_c: roundOne(toMaybeNumber(daily.temperature_2m_max.[i])),
-    temp_min_c: roundOne(toMaybeNumber(daily.temperature_2m_min.[i])),
-    snowfall_cm: roundOne(toMaybeNumber(daily.snowfall_sum.[i])),
-    precipitation_mm: roundOne(toMaybeNumber(daily.precipitation_sum.[i])),
-    wind_max_kph: roundOne(toMaybeNumber(daily.wind_speed_10m_max.[i])),
+    temp_max_c: roundOne(toMaybeNumber(daily.temperature_2m_max?.[i])),
+    temp_min_c: roundOne(toMaybeNumber(daily.temperature_2m_min?.[i])),
+    snowfall_cm: roundOne(toMaybeNumber(daily.snowfall_sum?.[i])),
+    precipitation_mm: roundOne(toMaybeNumber(daily.precipitation_sum?.[i])),
+    wind_max_kph: roundOne(toMaybeNumber(daily.wind_speed_10m_max?.[i])),
   }));
 
   return {
     label,
-    elevation_m: requestedElevationM roundOne(toMaybeNumber(data.elevation)),
+    elevation_m: requestedElevationM ?? roundOne(toMaybeNumber(data.elevation)),
     data_quality: dataQuality,
     current: currentOut,
     hourly: hourlyOut,
@@ -221,28 +221,28 @@ async function fetchPoint(lat: number, lon: number, elevationM: number | null) {
 export async function fetchOpenMeteo(
   lat: number,
   lon: number,
-  options: { valleyElevationM: number | null; mountainElevationM: number | null } = {}
+  options: { valleyElevationM?: number | null; mountainElevationM?: number | null } = {}
 ): Promise<CompactWeather> {
-  const valleyElevationM = Number.isFinite(options.valleyElevationM) Number(options.valleyElevationM) : null;
-  const mountainElevationM = Number.isFinite(options.mountainElevationM) Number(options.mountainElevationM) : null;
+  const valleyElevationM = Number.isFinite(options.valleyElevationM) ? Number(options.valleyElevationM) : null;
+  const mountainElevationM = Number.isFinite(options.mountainElevationM) ? Number(options.mountainElevationM) : null;
   const [valleyRaw, mountainRaw] = await Promise.all([
     fetchPoint(lat, lon, valleyElevationM),
-    fetchPoint(lat, lon, mountainElevationM valleyElevationM),
+    fetchPoint(lat, lon, mountainElevationM ?? valleyElevationM),
   ]);
-  const timezone = valleyRaw.timezone "Europe/Berlin";
-  const valley = compactPoint("Tal", valleyRaw, valleyElevationM, valleyElevationM === null "fallback" : "elevation_adjusted");
+  const timezone = valleyRaw.timezone ?? "Europe/Berlin";
+  const valley = compactPoint("Tal", valleyRaw, valleyElevationM, valleyElevationM === null ? "fallback" : "elevation_adjusted");
   const mountain = compactPoint(
     "Berg",
     mountainRaw,
     mountainElevationM,
-    mountainElevationM === null "fallback" : "elevation_adjusted"
+    mountainElevationM === null ? "fallback" : "elevation_adjusted"
   );
 
   return {
     source: "open_meteo",
     updated_at: new Date().toISOString(),
     timezone,
-    timezone_abbreviation: valleyRaw.timezone_abbreviation null,
+    timezone_abbreviation: valleyRaw.timezone_abbreviation ?? null,
     resort_local_time: valley.current.time,
     valley,
     mountain,

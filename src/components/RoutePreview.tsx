@@ -53,7 +53,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
     const initMap = async () => {
       if (!mapElementRef.current || mapRef.current) return;
       const leafletModule = await import("leaflet");
-      const L = (leafletModule as unknown as { default: typeof import("leaflet") }).default leafletModule;
+      const L = (leafletModule as unknown as { default: typeof import("leaflet") }).default ?? leafletModule;
       if (!mounted || !mapElementRef.current) return;
 
       leafletRef.current = L;
@@ -77,9 +77,9 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
 
     return () => {
       mounted = false;
-      layerRef.current.clearLayers();
+      if (layerRef.current) layerRef.current.clearLayers();
       layerRef.current = null;
-      mapRef.current.remove();
+      if (mapRef.current) mapRef.current.remove();
       mapRef.current = null;
     };
   }, [destination.lat, destination.lon]);
@@ -117,14 +117,14 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
     const L = leafletRef.current;
     const map = mapRef.current;
     const layer = layerRef.current;
-    if (!L || !map || !layer || !route.coordinates.length) return;
+    if (!L || !map || !layer || !route || !route.coordinates.length) return;
 
     layer.clearLayers();
     const fallbackCoordinates: Array<[number, number]> = [
       [origin.lat, origin.lon],
       [destination.lat, destination.lon],
     ];
-    const coordinates: Array<[number, number]> = route.coordinates.length >= 2 route.coordinates : fallbackCoordinates;
+    const coordinates: Array<[number, number]> = route.coordinates.length >= 2 ? route.coordinates : fallbackCoordinates;
     const bounds = L.latLngBounds(coordinates);
 
     L.polyline(coordinates, {
@@ -167,12 +167,12 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1">
-            {loading "berechnet..." : formatDuration(route.durationSeconds)}
+            {loading ? "berechnet..." : formatDuration(route?.durationSeconds)}
           </span>
           <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1">
-            {loading "Route lädt" : formatDistance(route.distanceMeters)}
+            {loading ? "Route l?dt" : formatDistance(route?.distanceMeters)}
           </span>
-          {route.source === "fallback" (
+          {route?.source === "fallback" ? (
             <span className="rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-amber-100">
               geschätzt
             </span>
@@ -182,12 +182,12 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
 
       <div className="relative h-[260px]">
         <div ref={mapElementRef} className="h-full w-full" />
-        {loading (
+        {loading ? (
           <div className="absolute inset-0 grid place-items-center bg-slate-950/45 text-sm text-slate-200 backdrop-blur-sm">
             Straßenroute wird berechnet...
           </div>
         ) : null}
-        {error (
+        {error ? (
           <div className="absolute inset-x-4 bottom-4 rounded-lg border border-red-300/25 bg-red-950/80 px-3 py-2 text-xs text-red-100">
             {error}
           </div>

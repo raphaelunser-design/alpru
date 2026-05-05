@@ -149,7 +149,7 @@ function readState(): ChecklistState {
       rental: prefs.rentalMode === "rent" || prefs.needRental ? "rent" : "own",
       travel:
         prefs.travelMode === "train" || prefs.travelMode === "bus" || prefs.travelMode === "flight"
-          prefs.travelMode
+          ? prefs.travelMode
           : "car",
       tripType: prefs.tripType === "weekend" ? "overnight" : "day",
     };
@@ -164,10 +164,10 @@ function readState(): ChecklistState {
         travel: parsedSettings.travel ?? fallback.travel,
         tripType: parsedSettings.tripType ?? fallback.tripType,
       },
-      checked: parsed.checked {},
-      customItems: Array.isArray(parsed.customItems) parsed.customItems : [],
-      deletedDefaultKeys: parsed.deletedDefaultKeys {},
-      renamedDefaults: parsed.renamedDefaults {},
+      checked: parsed.checked ?? {},
+      customItems: Array.isArray(parsed.customItems) ? parsed.customItems : [],
+      deletedDefaultKeys: parsed.deletedDefaultKeys ?? {},
+      renamedDefaults: parsed.renamedDefaults ?? {},
     };
   } catch {
     return DEFAULT_STATE;
@@ -218,18 +218,18 @@ function modeLabel(value: TravelMode) {
 function buildSections(settings: ChecklistSettings): ChecklistSection[] {
   const travelItems =
     settings.travel === "car"
-      CAR_ITEMS
+      ? CAR_ITEMS
       : settings.travel === "train"
-        TRAIN_ITEMS
+        ? TRAIN_ITEMS
         : settings.travel === "bus"
-          BUS_ITEMS
+          ? BUS_ITEMS
           : FLIGHT_ITEMS;
 
   return [
     { title: "Basis", kicker: "Immer dabei", items: BASE_ITEMS },
-    { title: "Ski / Board Verleih", kicker: "Nur wenn du leihst", items: settings.rental === "rent" RENTAL_ITEMS : [] },
+    { title: "Ski / Board Verleih", kicker: "Nur wenn du leihst", items: settings.rental === "rent" ? RENTAL_ITEMS : [] },
     { title: "Anreise", kicker: modeLabel(settings.travel), items: travelItems },
-    { title: "Übernachtung", kicker: "Weekend / Skiurlaub", items: settings.tripType === "overnight" OVERNIGHT_ITEMS : [] },
+    { title: "Übernachtung", kicker: "Weekend / Skiurlaub", items: settings.tripType === "overnight" ? OVERNIGHT_ITEMS : [] },
   ];
 }
 
@@ -247,7 +247,7 @@ function ChipButton({ active, children, onClick }: { active: boolean; children: 
       type="button"
       className={`button-lift min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
         active
-          "border-sky-200 bg-sky-200 text-slate-950 shadow-[0_12px_30px_rgba(125,211,252,0.18)]"
+          ? "border-sky-200 bg-sky-200 text-slate-950 shadow-[0_12px_30px_rgba(125,211,252,0.18)]"
           : "border-white/10 bg-white/[0.06] text-slate-200 hover:border-white/20 hover:bg-white/[0.1]"
       }`}
       onClick={onClick}
@@ -274,9 +274,9 @@ export default function ChecklistPage() {
 
   useEffect(() => {
     setTripId(new URLSearchParams(window.location.search).get("tripId"));
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user.id null));
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session.user.id null);
+      setUserId(session?.user?.id ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -296,7 +296,7 @@ export default function ChecklistPage() {
         .select("*")
         .eq("user_id", userId)
         .order("sort_order", { ascending: true });
-      query = tripId query.eq("trip_id", tripId) : query.is("trip_id", null);
+      query = tripId ? query.eq("trip_id", tripId) : query.is("trip_id", null);
 
       const { data, error } = await query;
       if (cancelled) return;
@@ -306,7 +306,7 @@ export default function ChecklistPage() {
         return;
       }
 
-      const rows = ((data []) as ChecklistDbRow[]).map((row) => ({
+      const rows = ((data ?? []) as ChecklistDbRow[]).map((row) => ({
         ...row,
         is_deleted: Boolean(row.is_deleted),
       }));
@@ -333,7 +333,7 @@ export default function ChecklistPage() {
         if (insertError) {
           setToast("Standardpunkte konnten nicht synchronisiert werden.");
         } else if (!cancelled) {
-          setRemoteRows([...rows, ...((inserted []) as ChecklistDbRow[])]);
+          setRemoteRows([...rows, ...((inserted ?? []) as ChecklistDbRow[])]);
         }
       } else {
         setRemoteRows(rows);
@@ -358,7 +358,7 @@ export default function ChecklistPage() {
         ...section,
         items: section.items
           .filter((item) => !state.deletedDefaultKeys[item.id])
-          .map((item) => ({ ...item, label: state.renamedDefaults[item.id] item.label })),
+          .map((item) => ({ ...item, label: state.renamedDefaults[item.id] ?? item.label })),
       }));
     }
 
@@ -366,12 +366,12 @@ export default function ChecklistPage() {
       ...section,
       items: section.items.flatMap((item) => {
         const row = remoteByDefaultKey.get(item.id);
-        if (row.is_deleted) return [];
+        if (row?.is_deleted) return [];
         return [
           {
             id: item.id,
-            label: row.label item.label,
-            detail: row.detail item.detail,
+            label: row?.label ?? item.label,
+            detail: row?.detail ?? item.detail,
           },
         ];
       }),
@@ -383,14 +383,14 @@ export default function ChecklistPage() {
     for (const item of defaultItems) {
       if (remoteMode) {
         const row = remoteByDefaultKey.get(item.id);
-        if (row.is_deleted) continue;
+        if (row?.is_deleted) continue;
         map.set(item.id, {
           id: item.id,
-          rowId: row.id null,
+          rowId: row?.id ?? null,
           defaultKey: item.id,
-          label: row.label item.label,
-          detail: row.detail item.detail,
-          isChecked: Boolean(row.is_checked),
+          label: row?.label ?? item.label,
+          detail: row?.detail ?? item.detail,
+          isChecked: Boolean(row?.is_checked),
           isDefault: true,
           isRemote: true,
         });
@@ -399,7 +399,7 @@ export default function ChecklistPage() {
           id: item.id,
           rowId: null,
           defaultKey: item.id,
-          label: state.renamedDefaults[item.id] item.label,
+          label: state.renamedDefaults[item.id] ?? item.label,
           detail: item.detail,
           isChecked: Boolean(state.checked[item.id]),
           isDefault: true,
@@ -444,7 +444,7 @@ export default function ChecklistPage() {
     ...customItems,
   ];
   const completed = allVisibleItems.filter((item) => item.isChecked).length;
-  const progress = allVisibleItems.length Math.round((completed / allVisibleItems.length) * 100) : 0;
+  const progress = allVisibleItems.length ? Math.round((completed / allVisibleItems.length) * 100) : 0;
   const remaining = Math.max(0, allVisibleItems.length - completed);
 
   const updateSettings = (updates: Partial<ChecklistSettings>) => {
@@ -452,7 +452,7 @@ export default function ChecklistPage() {
   };
 
   async function patchRemoteRow(rowId: string, patch: Partial<ChecklistDbRow>) {
-    setRemoteRows((current) => current.map((row) => (row.id === rowId { ...row, ...patch } : row)));
+    setRemoteRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
     const { error } = await supabase
       .from("ski_trip_checklist_items")
       .update({ ...patch, updated_at: new Date().toISOString() })
@@ -477,7 +477,7 @@ export default function ChecklistPage() {
     }
 
     if (remoteMode && userId) {
-      const maxOrder = Math.max(0, ...remoteRows.map((row) => row.sort_order 0));
+      const maxOrder = Math.max(0, ...remoteRows.map((row) => row.sort_order ?? 0));
       const { data, error } = await supabase
         .from("ski_trip_checklist_items")
         .insert({
@@ -552,7 +552,7 @@ export default function ChecklistPage() {
     } else {
       checklistStore.set({
         ...state,
-        customItems: state.customItems.map((entry) => (entry.id === item.id { ...entry, label } : entry)),
+        customItems: state.customItems.map((entry) => (entry.id === item.id ? { ...entry, label } : entry)),
       });
     }
 
@@ -564,7 +564,7 @@ export default function ChecklistPage() {
   const resetChecks = async () => {
     if (remoteMode) {
       const visibleRemoteIds = allVisibleItems.map((item) => item.rowId).filter(Boolean) as string[];
-      setRemoteRows((current) => current.map((row) => (visibleRemoteIds.includes(row.id) { ...row, is_checked: false } : row)));
+      setRemoteRows((current) => current.map((row) => (visibleRemoteIds.includes(row.id) ? { ...row, is_checked: false } : row)));
       await Promise.all(visibleRemoteIds.map((id) => supabase.from("ski_trip_checklist_items").update({ is_checked: false }).eq("id", id)));
     } else {
       checklistStore.set({ ...state, checked: {} });
@@ -590,10 +590,10 @@ export default function ChecklistPage() {
             </p>
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-relaxed text-slate-400">
               {remoteMode
-                remoteLoading
-                  "Synchronisierung mit deinem Alpivo-Konto läuft..."
+                ? remoteLoading
+                  ? "Synchronisierung mit deinem Alpivo-Konto läuft..."
                   : tripId
-                    "Tripbezogen gespeichert. Entfernte Standardpunkte bleiben für diesen Trip ausgeblendet."
+                    ? "Tripbezogen gespeichert. Entfernte Standardpunkte bleiben für diesen Trip ausgeblendet."
                     : "In deinem Alpivo-Konto gespeichert. Ohne Trip-Link gilt die Liste als persönliche Standardliste."
                 : "Nicht eingeloggt: Änderungen bleiben lokal auf diesem Gerät. Login speichert sie dauerhaft in Alpivo."}
             </div>
@@ -685,7 +685,7 @@ export default function ChecklistPage() {
 
       <div className="grid gap-5">
         {displaySections.map((section) =>
-          section.items.length (
+          section.items.length ? (
             <section
               key={section.title}
               className="animate-rise rounded-2xl border border-white/10 bg-slate-950/48 p-4 shadow-[0_18px_52px_rgba(2,6,23,0.28)] md:p-5"
@@ -696,7 +696,7 @@ export default function ChecklistPage() {
                   <h2 className="mt-1 text-xl font-semibold text-white">{section.title}</h2>
                 </div>
                 <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-slate-300">
-                  {section.items.filter((item) => displayItemsById.get(item.id).isChecked).length}/{section.items.length}
+                  {section.items.filter((item) => displayItemsById.get(item.id)?.isChecked).length}/{section.items.length}
                 </div>
               </div>
 
@@ -724,7 +724,7 @@ export default function ChecklistPage() {
           ) : null
         )}
 
-        {customItems.length (
+        {customItems.length ? (
           <section className="animate-rise rounded-2xl border border-white/10 bg-slate-950/48 p-4 shadow-[0_18px_52px_rgba(2,6,23,0.28)] md:p-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -755,7 +755,7 @@ export default function ChecklistPage() {
         ) : null}
       </div>
 
-      <AnimatePresence>{toast <Toast message={toast} /> : null}</AnimatePresence>
+      <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
     </div>
   );
 }
@@ -785,7 +785,7 @@ function ChecklistRow({
     <div
       className={`group rounded-2xl border px-3 py-3 transition md:px-4 ${
         item.isChecked
-          "border-emerald-200/25 bg-emerald-200/10"
+          ? "border-emerald-200/25 bg-emerald-200/10"
           : "border-white/10 bg-white/[0.045] hover:border-sky-200/25 hover:bg-white/[0.075]"
       }`}
     >
@@ -794,14 +794,14 @@ function ChecklistRow({
           <span
             className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
               item.isChecked
-                "border-emerald-200 bg-emerald-200 text-slate-950"
+                ? "border-emerald-200 bg-emerald-200 text-slate-950"
                 : "border-white/20 bg-slate-950/40 text-transparent group-hover:border-sky-200"
             }`}
           >
             <CheckIcon />
           </span>
           <span className="min-w-0">
-            {editing (
+            {editing ? (
               <input
                 className="min-h-11 w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base font-medium text-white md:text-sm"
                 value={editingLabel}
@@ -810,7 +810,7 @@ function ChecklistRow({
                 onClick={(event) => event.stopPropagation()}
               />
             ) : (
-              <span className={`block text-sm font-semibold leading-snug ${item.isChecked "text-emerald-50" : "text-white"}`}>
+              <span className={`block text-sm font-semibold leading-snug ${item.isChecked ? "text-emerald-50" : "text-white"}`}>
                 {item.label}
               </span>
             )}
@@ -819,7 +819,7 @@ function ChecklistRow({
         </button>
 
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          {editing (
+          {editing ? (
             <>
               <button
                 type="button"

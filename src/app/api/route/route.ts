@@ -85,7 +85,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function POST(req: Request) {
-  const body = asRecord(await req.json().catch(() => null));
+  const body = asRecord(await req.json().catch(() => null)) ?? {};
   const origin = parseCoordinate(body.origin);
   const destination = parseCoordinate(body.destination);
 
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   }
 
   const coordinates = `${origin.lon},${origin.lat};${destination.lon},${destination.lat}`;
-  const url = `${OSRM_BASE_URL}/route/v1/driving/${coordinates}overview=full&geometries=geojson&steps=false&alternatives=false`;
+  const url = `${OSRM_BASE_URL}/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false&alternatives=false`;
 
   try {
     const data = await fetchJson<OsrmRouteResponse>(url);

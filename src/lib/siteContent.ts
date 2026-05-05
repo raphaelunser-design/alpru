@@ -8,7 +8,7 @@ export async function getSiteContent<T extends Record<string, string>>(key: stri
       .select("value")
       .eq("key", key)
       .maybeSingle();
-    if (error || !data.value) return null;
+    if (error || !data || !data.value) return null;
     return data.value as T;
   } catch {
     return null;

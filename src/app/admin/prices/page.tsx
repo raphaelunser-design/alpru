@@ -134,12 +134,12 @@ export default function AdminPricesPage() {
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
-            <span>Angemeldet als Admin: {token "ja" : "nein"}</span>
+            <span>Angemeldet als Admin: {token ? "ja" : "nein"}</span>
             <Link className="underline" href="/resorts">
               Zurück zu Resorts
             </Link>
           </div>
-          {error <div className="text-sm text-red-300">{error}</div> : null}
+          {error ? <div className="text-sm text-red-300">{error}</div> : null}
         </GlassCard>
 
         <div className="space-y-4">
@@ -151,7 +151,7 @@ export default function AdminPricesPage() {
                   <div>
                     <div className="text-sm font-semibold text-white">{formatLabel(row)}</div>
                     <div className="mt-1 text-xs text-slate-400">{row.slug}</div>
-                    {row.skipass_url (
+                    {row.skipass_url ? (
                       <a
                         className="mt-2 inline-block text-xs text-slate-300 underline"
                         href={row.skipass_url}
@@ -164,12 +164,12 @@ export default function AdminPricesPage() {
                   </div>
                   <button
                     className={`rounded-xl px-4 py-2 text-xs font-semibold ${
-                      isDirty "bg-white text-slate-900" : "bg-white/10 text-white"
+                      isDirty ? "bg-white text-slate-900" : "bg-white/10 text-white"
                     }`}
                     onClick={() => saveRow(row)}
                     disabled={!isDirty || loading}
                   >
-                    {isDirty "Speichern" : "Gespeichert"}
+                    {isDirty ? "Speichern" : "Gespeichert"}
                   </button>
                 </div>
 
@@ -180,29 +180,29 @@ export default function AdminPricesPage() {
                     min="0"
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Preis ab"
-                    value={row.skipass_price_from ""}
+                    value={row.skipass_price_from ?? ""}
                     onChange={(event) =>
                       updateRow(row.id, {
-                        skipass_price_from: event.target.value Number(event.target.value) : null,
+                        skipass_price_from: event.target.value ? Number(event.target.value) : null,
                       })
                     }
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Währung (EUR)"
-                    value={row.skipass_price_currency ""}
+                    value={row.skipass_price_currency ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_currency: event.target.value })}
                   />
                   <input
                     type="date"
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-                    value={row.skipass_price_last_checked ""}
+                    value={row.skipass_price_last_checked ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_last_checked: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Notiz (z.B. Erwachsene 1-Tag HS)"
-                    value={row.skipass_price_note ""}
+                    value={row.skipass_price_note ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_note: event.target.value })}
                   />
                 </div>

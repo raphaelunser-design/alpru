@@ -62,7 +62,7 @@ function hasProviderConfig(envKeys: string[]) {
 }
 
 export async function POST(req: Request) {
-  const body = asRecord(await req.json().catch(() => null));
+  const body = asRecord(await req.json().catch(() => null)) ?? {};
   const travelMode = normalizeMode(body.travelMode);
   const tripStartDate = typeof body.tripStartDate === "string" ? body.tripStartDate : null;
 

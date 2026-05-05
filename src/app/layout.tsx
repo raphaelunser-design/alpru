@@ -9,6 +9,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LocaleText from "@/components/LocaleText";
 import Logo from "@/components/Logo";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import PageAnalyticsTracker from "@/components/PageAnalyticsTracker";
 import PageTransition from "@/components/PageTransition";
 import { brand } from "@/config/brand";
 
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="w-full overflow-hidden py-4 md:py-6">
           <PageTransition>{children}</PageTransition>
         </main>
+        <PageAnalyticsTracker />
         <FeedbackButton />
         <MobileBottomNav />
 

@@ -42,9 +42,9 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setState({
         loading: false,
-        isAdmin: Boolean(response.ok && body.isAdmin),
-        email: body.email ?? email,
-        reason: response.ok && body.isAdmin ? "allowed" : "forbidden",
+        isAdmin: Boolean(response.ok && body?.isAdmin),
+        email: body?.email ?? email,
+        reason: response.ok && body?.isAdmin ? "allowed" : "forbidden",
       });
     };
 

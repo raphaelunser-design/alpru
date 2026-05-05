@@ -8,7 +8,7 @@ import type { AlpivoAccessMode } from "@/lib/accessModeShared";
 type AccessModeResponse = {
   mode: AlpivoAccessMode;
   source: "supabase" | "environment" | "default";
-  error: string;
+  error?: string;
 };
 
 function statusLabel(mode: AlpivoAccessMode | null) {
@@ -17,7 +17,7 @@ function statusLabel(mode: AlpivoAccessMode | null) {
   return "Unbekannt";
 }
 
-function sourceLabel(source: AccessModeResponse["source"]) {
+function sourceLabel(source: AccessModeResponse["source"] | undefined) {
   if (source === "supabase") return "Supabase Einstellung";
   if (source === "environment") return "Environment Fallback";
   if (source === "default") return "System-Fallback";
@@ -55,11 +55,11 @@ export default function AccessModeCard() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const body = (await response.json().catch(() => null)) as AccessModeResponse | null;
-      if (!response.ok) throw new Error(body.error || "Access Mode konnte nicht geladen werden.");
-      setMode(body.mode ?? null);
-      setSource(body.source);
+      if (!response.ok) throw new Error(body?.error || "Access Mode konnte nicht geladen werden.");
+      setMode(body?.mode ?? null);
+      setSource(body?.source);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Access Mode konnte nicht geladen werden");
+      setError(err instanceof Error ? err.message : "Access Mode konnte nicht geladen werden.");
     } finally {
       setLoading(false);
     }
@@ -85,16 +85,16 @@ export default function AccessModeCard() {
         body: JSON.stringify({ mode: nextMode }),
       });
       const body = (await response.json().catch(() => null)) as AccessModeResponse | null;
-      if (!response.ok) throw new Error(body.error || "Access Mode konnte nicht gespeichert werden.");
+      if (!response.ok) throw new Error(body?.error || "Access Mode konnte nicht gespeichert werden.");
       setMode(nextMode);
       setSource("supabase");
       setMessage(
         nextMode === "public"
-          "Alpivo ist jetzt öffentlich zugänglich."
+          ? "Alpivo ist jetzt öffentlich zugänglich."
           : "Alpivo ist jetzt wieder privat geschützt."
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Access Mode konnte nicht gespeichert werden");
+      setError(err instanceof Error ? err.message : "Access Mode konnte nicht gespeichert werden.");
     } finally {
       setSaving(false);
     }
@@ -120,18 +120,18 @@ export default function AccessModeCard() {
         <div
           className={`rounded-full border px-3 py-1 text-xs font-semibold ${
             isPublic
-              "border-emerald-200/25 bg-emerald-200/12 text-emerald-100"
+              ? "border-emerald-200/25 bg-emerald-200/12 text-emerald-100"
               : "border-amber-200/25 bg-amber-200/12 text-amber-100"
           }`}
         >
-          {loading "Lade..." : statusLabel(mode)}
+          {loading ? "Lade..." : statusLabel(mode)}
         </div>
       </div>
 
       <div className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/[0.045] p-4 text-sm md:grid-cols-3">
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-500">Aktueller Modus</div>
-          <div className="mt-1 font-semibold text-white">{loading "wird geladen" : statusLabel(mode)}</div>
+          <div className="mt-1 font-semibold text-white">{loading ? "wird geladen" : statusLabel(mode)}</div>
         </div>
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-500">Quelle</div>
@@ -170,8 +170,8 @@ export default function AccessModeCard() {
         </button>
       </div>
 
-      {message <div className="mt-4 rounded-lg border border-emerald-200/20 bg-emerald-200/10 p-3 text-sm text-emerald-100">{message}</div> : null}
-      {error <div className="mt-4 rounded-lg border border-red-200/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
+      {message ? <div className="mt-4 rounded-lg border border-emerald-200/20 bg-emerald-200/10 p-3 text-sm text-emerald-100">{message}</div> : null}
+      {error ? <div className="mt-4 rounded-lg border border-red-200/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
     </GlassCard>
   );
 }

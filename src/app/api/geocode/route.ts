@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       postcodes: string[];
     };
     return {
-      id: result.id `${result.latitude}-${result.longitude}`,
+      id: result.id ?? `${result.latitude}-${result.longitude}`,
       name: result.name,
       lat: result.latitude,
       lon: result.longitude,

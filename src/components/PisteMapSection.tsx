@@ -1,8 +1,8 @@
 type PisteMapSectionProps = {
   resortName: string;
-  pisteMapUrl: string | null;
-  openskimapUrl: string | null;
-  officialUrl: string | null;
+  pisteMapUrl?: string | null;
+  openskimapUrl?: string | null;
+  officialUrl?: string | null;
 };
 
 function isPdf(url: string) {
@@ -60,7 +60,7 @@ function InteractiveSkiMap({ url, resortName }: { url: string; resortName: strin
   );
 }
 
-function PisteMapFallback({ officialUrl }: { officialUrl: string | null }) {
+function PisteMapFallback({ officialUrl }: { officialUrl?: string | null }) {
   return (
     <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.06] p-6">
       <div className="text-sm font-semibold text-white">Pistenplan noch nicht eingebettet</div>
@@ -68,7 +68,7 @@ function PisteMapFallback({ officialUrl }: { officialUrl: string | null }) {
         Für dieses Resort ist aktuell kein verlässlich einbettbarer Pistenplan hinterlegt. Die Komponente ist so gebaut,
         dass ein offizieller PDF-Plan oder eine offene Kartenquelle direkt hier angezeigt werden kann.
       </p>
-      {officialUrl (
+      {officialUrl ? (
         <a className="mt-4 inline-flex rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href={officialUrl} target="_blank" rel="noreferrer">
           Offizielle Seite prüfen
         </a>
@@ -78,10 +78,10 @@ function PisteMapFallback({ officialUrl }: { officialUrl: string | null }) {
 }
 
 export default function PisteMapSection({ resortName, pisteMapUrl, openskimapUrl, officialUrl }: PisteMapSectionProps) {
-  const officialMap = pisteMapUrl.trim() || "";
-  const openMap = openskimapUrl.trim() || "";
-  const canShowOfficialPdf = officialMap && isPdf(officialMap);
-  const mapToEmbed = canShowOfficialPdf officialMap : openMap || officialMap;
+  const officialMap = (pisteMapUrl || "").trim();
+  const openMap = (openskimapUrl || "").trim();
+  const canShowOfficialPdf = Boolean(officialMap && isPdf(officialMap));
+  const mapToEmbed = canShowOfficialPdf ? officialMap : openMap || officialMap;
 
   return (
     <section className="rounded-lg border border-white/10 bg-slate-950/50 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
@@ -96,9 +96,9 @@ export default function PisteMapSection({ resortName, pisteMapUrl, openskimapUrl
         </div>
       </div>
 
-      {canShowOfficialPdf (
+      {canShowOfficialPdf ? (
         <OfficialPistePdfViewer url={officialMap} resortName={resortName} />
-      ) : mapToEmbed (
+      ) : mapToEmbed ? (
         <InteractiveSkiMap url={mapToEmbed} resortName={resortName} />
       ) : (
         <PisteMapFallback officialUrl={officialUrl} />

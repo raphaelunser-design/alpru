@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { getProxyAccessMode } from "@/lib/accessModeProxy";
 import { ACCESS_COOKIE, ACCESS_QUERY, getAccessPassword } from "@/lib/accessModeShared";
 
@@ -25,20 +26,46 @@ function isAuthRedirect(pathname: string, searchParams: URLSearchParams) {
   return authMode === "recovery" || authMode === "magic";
 }
 
+async function nextWithSupabaseSession(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) return response;
+
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+      },
+    },
+  });
+
+  // Required by Supabase SSR auth: this refreshes expired auth cookies without
+  // trusting a stale session object in route/proxy code.
+  await supabase.auth.getUser().catch(() => null);
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   if (isPublicAsset(pathname)) return NextResponse.next();
-  if (isAuthRedirect(pathname, searchParams)) return NextResponse.next();
+  if (isAuthRedirect(pathname, searchParams)) return nextWithSupabaseSession(request);
 
   const accessMode = await getProxyAccessMode();
   const requiredToken = getAccessPassword();
-  if (accessMode === "public") return NextResponse.next();
+  if (accessMode === "public") return nextWithSupabaseSession(request);
 
-  if (pathname === "/private-access" && !requiredToken) return NextResponse.next();
+  if (pathname === "/private-access" && !requiredToken) return nextWithSupabaseSession(request);
   if (!requiredToken) return NextResponse.redirect(new URL("/private-access", request.url));
 
-  const tokenFromQuery = searchParams.get(ACCESS_QUERY).trim();
-  const tokenFromCookie = request.cookies.get(ACCESS_COOKIE).value;
+  const tokenFromQuery = (searchParams.get(ACCESS_QUERY) || "").trim();
+  const tokenFromCookie = request.cookies.get(ACCESS_COOKIE)?.value || "";
   const hasAccess = tokenFromCookie === requiredToken;
   const usesValidAccessLink = tokenFromQuery === requiredToken;
 
@@ -56,19 +83,19 @@ export async function proxy(request: NextRequest) {
     if (pathname === "/private-access") {
       return NextResponse.redirect(new URL("/", request.url));
     }
-    return NextResponse.next();
+    return nextWithSupabaseSession(request);
   }
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Alpivo ist aktuell privat freigeschaltet." }, { status: 401 });
   }
 
-  if (pathname === "/private-access") return NextResponse.next();
+  if (pathname === "/private-access") return nextWithSupabaseSession(request);
 
   const accessUrl = new URL("/private-access", request.url);
   return NextResponse.redirect(accessUrl);
 }
 
 export const config = {
-  matcher: ["/((!_next/static|_next/image).*)"],
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };

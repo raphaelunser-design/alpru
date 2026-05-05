@@ -229,7 +229,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
   }, [bundle, userId]);
 
   const joinedMembers = useMemo(
-    () => (bundle bundle.members.filter((member) => member.status === "joined" || member.role === "admin") : []),
+    () => (bundle ? bundle.members.filter((member) => member.status === "joined" || member.role === "admin") : []),
     [bundle]
   );
 
@@ -237,44 +237,47 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
     const memberIds = joinedMembers.map((member) => member.id);
     setExpenseForm((current) =>
       current.selectedMemberIds.length
-        current
-        : expenseDefaultState(currentMember.id null, memberIds)
+        ? current
+        : expenseDefaultState(currentMember ? currentMember.id : null, memberIds)
     );
   }, [currentMember, joinedMembers]);
 
-  const isAdmin = currentMember.role === "admin";
-  const heroResort =
-    bundle.resorts[bundle.favorites.find((favorite) => favorite.isPinned).resortSlug ""] 
-    bundle.resorts[bundle.favorites[0].resortSlug ""] 
-    null;
-  const comparisonRows = useMemo(() => (bundle buildComparisonRows(bundle) : []), [bundle]);
-  const budgetSummary = useMemo(() => (bundle computeBudgetSummary(bundle) : null), [bundle]);
-  const balances = useMemo(() => (bundle computeExpenseBalances(bundle) : []), [bundle]);
-  const expenseSummary = useMemo(() => (bundle computeExpenseSummary(bundle) : null), [bundle]);
+  const isAdmin = currentMember ? currentMember.role === "admin" : false;
+  const heroResort = bundle
+    ? bundle.resorts[bundle.favorites.find((favorite) => favorite.isPinned)?.resortSlug ?? ""] ??
+      bundle.resorts[bundle.favorites[0]?.resortSlug ?? ""] ??
+      null
+    : null;
+  const comparisonRows = useMemo(() => (bundle ? buildComparisonRows(bundle) : []), [bundle]);
+  const budgetSummary = useMemo(() => (bundle ? computeBudgetSummary(bundle) : null), [bundle]);
+  const balances = useMemo(() => (bundle ? computeExpenseBalances(bundle) : []), [bundle]);
+  const expenseSummary = useMemo(() => (bundle ? computeExpenseSummary(bundle) : null), [bundle]);
 
   useEffect(() => {
     if (!bundle) return;
-    const firstFavoriteId = bundle.favorites[0].id "";
-    const firstDateOptionId = bundle.dateOptions[0].id "";
-    const existingSnapshot = comparisonRows.find((row) => row.favorite.id === firstFavoriteId && row.dateOption.id === firstDateOptionId).snapshot;
+    const firstFavoriteId = bundle.favorites[0]?.id ?? "";
+    const firstDateOptionId = bundle.dateOptions[0]?.id ?? "";
+    const existingRow = comparisonRows.find((row) => row.favorite.id === firstFavoriteId && row.dateOption.id === firstDateOptionId);
+    const existingSnapshot = existingRow ? existingRow.snapshot : null;
     setSnapshotForm({
       favoriteId: firstFavoriteId,
       dateOptionId: firstDateOptionId,
-      skipass: existingSnapshot String(existingSnapshot.skipass || "") : "",
-      accommodation: existingSnapshot String(existingSnapshot.accommodation || "") : "",
-      travel: existingSnapshot String(existingSnapshot.travel || "") : "",
-      rental: existingSnapshot String(existingSnapshot.rental || "") : "",
-      skiSchool: existingSnapshot String(existingSnapshot.skiSchool || "") : "",
-      food: existingSnapshot String(existingSnapshot.food || "") : "",
-      buffer: existingSnapshot String(existingSnapshot.buffer || "") : "",
-      note: existingSnapshot.note "",
+      skipass: existingSnapshot ? String(existingSnapshot.skipass || "") : "",
+      accommodation: existingSnapshot ? String(existingSnapshot.accommodation || "") : "",
+      travel: existingSnapshot ? String(existingSnapshot.travel || "") : "",
+      rental: existingSnapshot ? String(existingSnapshot.rental || "") : "",
+      skiSchool: existingSnapshot ? String(existingSnapshot.skiSchool || "") : "",
+      food: existingSnapshot ? String(existingSnapshot.food || "") : "",
+      buffer: existingSnapshot ? String(existingSnapshot.buffer || "") : "",
+      note: existingSnapshot ? existingSnapshot.note || "" : "",
     });
   }, [bundle, comparisonRows]);
 
   useEffect(() => {
-    const snapshot = comparisonRows.find(
+    const matchingRow = comparisonRows.find(
       (row) => row.favorite.id === snapshotForm.favoriteId && row.dateOption.id === snapshotForm.dateOptionId
-    ).snapshot;
+    );
+    const snapshot = matchingRow ? matchingRow.snapshot : null;
     if (!snapshot) return;
     setSnapshotForm((current) => ({
       ...current,
@@ -285,7 +288,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       skiSchool: String(snapshot.skiSchool || ""),
       food: String(snapshot.food || ""),
       buffer: String(snapshot.buffer || ""),
-      note: snapshot.note "",
+      note: snapshot ? snapshot.note || "" : "",
     }));
   }, [comparisonRows, snapshotForm.favoriteId, snapshotForm.dateOptionId]);
 
@@ -347,22 +350,22 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             members: [
               ...currentBundle.members,
-              ...(data []).map((row): SkiTripMemberRecord => ({
+              ...(data ?? []).map((row): SkiTripMemberRecord => ({
                 id: String(row.id),
                 tripId: String(row.trip_id),
-                userId: typeof row.user_id === "string" row.user_id : null,
+                userId: typeof row.user_id === "string" ? row.user_id : null,
                 displayName: String(row.display_name),
-                email: typeof row.email === "string" row.email : null,
-                role: row.role === "admin" "admin" : "member",
-                status: row.status === "invited" || row.status === "open" row.status : "joined",
+                email: typeof row.email === "string" ? row.email : null,
+                role: row.role === "admin" ? "admin" : "member",
+                status: row.status === "invited" || row.status === "open" ? row.status : "joined",
                 isDemo: Boolean(row.is_demo),
-                demoProfile: row.demo_profile && typeof row.demo_profile === "object" (row.demo_profile as Record<string, unknown>) : {},
-                joinedAt: typeof row.joined_at === "string" row.joined_at : null,
-                createdAt: typeof row.created_at === "string" row.created_at : null,
+                demoProfile: row.demo_profile && typeof row.demo_profile === "object" ? (row.demo_profile as Record<string, unknown>) : {},
+                joinedAt: typeof row.joined_at === "string" ? row.joined_at : null,
+                createdAt: typeof row.created_at === "string" ? row.created_at : null,
               })),
             ],
           }
@@ -386,7 +389,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
               tripId: bundle.trip.id,
               email: payload.email || null,
               role: payload.role,
-              inviteToken: inviteUrl.split("/").pop() crypto.randomUUID(),
+              inviteToken: inviteUrl.split("/").pop() ?? crypto.randomUUID(),
               note: payload.note || null,
               status: "invited",
               expiresAt: null,
@@ -413,26 +416,26 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Invite konnte nicht erzeugt werden.");
+      setError(insertError?.message ?? "Invite konnte nicht erzeugt werden.");
       return null;
     }
 
     setBundle((current) =>
       current
-        {
+        ? {
             ...current,
             invites: [
               ...current.invites,
               {
                 id: String(data.id),
                 tripId: String(data.trip_id),
-                email: typeof data.email === "string" data.email : null,
-                role: data.role === "admin" "admin" : "member",
+                email: typeof data.email === "string" ? data.email : null,
+                role: data.role === "admin" ? "admin" : "member",
                 inviteToken: String(data.invite_token),
-                note: typeof data.note === "string" data.note : null,
-                status: data.status === "joined" || data.status === "open" data.status : "invited",
-                expiresAt: typeof data.expires_at === "string" data.expires_at : null,
-                createdAt: typeof data.created_at === "string" data.created_at : null,
+                note: typeof data.note === "string" ? data.note : null,
+                status: data.status === "joined" || data.status === "open" ? data.status : "invited",
+                expiresAt: typeof data.expires_at === "string" ? data.expires_at : null,
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
               },
             ],
           }
@@ -481,13 +484,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Zeitraum konnte nicht angelegt werden.");
+      setError(insertError?.message ?? "Zeitraum konnte nicht angelegt werden.");
       return;
     }
 
     setBundle((current) =>
       current
-        {
+        ? {
             ...current,
             dateOptions: [
               ...current.dateOptions,
@@ -497,9 +500,9 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 label: String(data.label),
                 startDate: String(data.start_date),
                 endDate: String(data.end_date),
-                note: typeof data.note === "string" data.note : null,
-                createdBy: typeof data.created_by === "string" data.created_by : null,
-                createdAt: typeof data.created_at === "string" data.created_at : null,
+                note: typeof data.note === "string" ? data.note : null,
+                createdBy: typeof data.created_by === "string" ? data.created_by : null,
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
               },
             ].sort((a, b) => a.startDate.localeCompare(b.startDate)),
           }
@@ -510,24 +513,24 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
   async function handleSaveAvailability(dateOptionId: string, status: SkiTripAvailabilityStatus) {
     if (!bundle || !currentMember) return;
-    const current = bundle.availability.find((entry) => entry.dateOptionId === dateOptionId && entry.memberId === currentMember.id) null;
+    const current = bundle.availability.find((entry) => entry.dateOptionId === dateOptionId && entry.memberId === currentMember.id) ?? null;
 
     if (bundle.isDemo) {
       const nextEntry: SkiTripAvailabilityRecord = {
-        id: current.id crypto.randomUUID(),
+        id: current?.id ?? crypto.randomUUID(),
         tripId: bundle.trip.id,
         dateOptionId,
         memberId: currentMember.id,
         userId: currentMember.userId,
         status,
-        note: current.note null,
+        note: current ? current.note || null : null,
         updatedAt: new Date().toISOString(),
       };
       await mutateDemo(
         {
           ...bundle,
           availability: current
-            bundle.availability.map((entry) => (entry.id === current.id nextEntry : entry))
+            ? bundle.availability.map((entry) => (entry.id === current.id ? nextEntry : entry))
             : [...bundle.availability, nextEntry],
         },
         "Verfügbarkeit aktualisiert."
@@ -539,13 +542,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .from("ski_trip_availability")
       .upsert(
         {
-          id: current.id,
+          id: current ? current.id : crypto.randomUUID(),
           trip_id: bundle.trip.id,
           date_option_id: dateOptionId,
           member_id: currentMember.id,
           user_id: userId,
           status,
-          note: current.note null,
+          note: current?.note ?? null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "date_option_id,member_id" }
@@ -554,7 +557,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (upsertError || !data) {
-      setError(upsertError.message "Verfügbarkeit konnte nicht gespeichert werden.");
+      setError(upsertError?.message ?? "Verf?gbarkeit konnte nicht gespeichert werden.");
       return;
     }
 
@@ -563,18 +566,18 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       tripId: String(data.trip_id),
       dateOptionId: String(data.date_option_id),
       memberId: String(data.member_id),
-      userId: typeof data.user_id === "string" data.user_id : null,
-      status: data.status === "available" || data.status === "maybe" data.status : "unavailable",
-      note: typeof data.note === "string" data.note : null,
-      updatedAt: typeof data.updated_at === "string" data.updated_at : null,
+      userId: typeof data.user_id === "string" ? data.user_id : null,
+      status: data.status === "available" || data.status === "maybe" ? data.status : "unavailable",
+      note: typeof data.note === "string" ? data.note : null,
+      updatedAt: typeof data.updated_at === "string" ? data.updated_at : null,
     };
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             availability: current
-              currentBundle.availability.map((entry) => (entry.id === current.id nextEntry : entry))
+              ? currentBundle.availability.map((entry) => (entry.id === current.id ? nextEntry : entry))
               : [...currentBundle.availability, nextEntry],
           }
         : currentBundle
@@ -613,12 +616,12 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
               name: candidate.name,
               country: candidate.country,
               region: candidate.region,
-              imageUrl: candidate.image_url "/bg/skilandschaft.png",
-              pisteKm: candidate.piste_km_total candidate.piste_km null,
+              imageUrl: candidate.image_url ?? "/bg/skilandschaft.png",
+              pisteKm: candidate.piste_km_total ?? candidate.piste_km ?? null,
               elevationMinM: null,
-              elevationMaxM: candidate.elevation_max_m null,
+              elevationMaxM: candidate.elevation_max_m ?? null,
               verticalM: null,
-              skipassPriceFrom: candidate.skipass_price_from null,
+              skipassPriceFrom: candidate.skipass_price_from ?? null,
               officialUrl: null,
               lat: null,
               lon: null,
@@ -645,25 +648,25 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Resort konnte nicht hinzugefügt werden.");
+      setError(insertError?.message ?? "Resort konnte nicht hinzugef?gt werden.");
       return;
     }
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             favorites: [
               ...currentBundle.favorites,
               {
                 id: String(data.id),
                 tripId: String(data.trip_id),
-                resortId: typeof data.resort_id === "string" data.resort_id : null,
+                resortId: typeof data.resort_id === "string" ? data.resort_id : null,
                 resortSlug: String(data.resort_slug),
-                note: typeof data.note === "string" data.note : null,
-                proposedByMemberId: typeof data.proposed_by_member_id === "string" data.proposed_by_member_id : null,
+                note: typeof data.note === "string" ? data.note : null,
+                proposedByMemberId: typeof data.proposed_by_member_id === "string" ? data.proposed_by_member_id : null,
                 isPinned: Boolean(data.is_pinned),
-                createdAt: typeof data.created_at === "string" data.created_at : null,
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
               },
             ],
           }
@@ -683,7 +686,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
         {
           ...bundle,
           votes: existing
-            bundle.votes.filter((entry) => entry.id !== existing.id)
+            ? bundle.votes.filter((entry) => entry.id !== existing.id)
             : [
                 ...bundle.votes,
                 {
@@ -696,7 +699,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 },
               ],
         },
-        existing "Vote entfernt." : "Vote gespeichert."
+        existing ? "Vote entfernt." : "Vote gespeichert."
       );
       return;
     }
@@ -708,7 +711,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
         return;
       }
       setBundle((currentBundle) =>
-        currentBundle { ...currentBundle, votes: currentBundle.votes.filter((entry) => entry.id !== existing.id) } : currentBundle
+        currentBundle ? { ...currentBundle, votes: currentBundle.votes.filter((entry) => entry.id !== existing.id) } : currentBundle
       );
       setToast("Vote entfernt.");
       return;
@@ -726,13 +729,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Vote konnte nicht gespeichert werden.");
+      setError(insertError?.message ?? "Vote konnte nicht gespeichert werden.");
       return;
     }
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             votes: [
               ...currentBundle.votes,
@@ -741,8 +744,8 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 tripId: String(data.trip_id),
                 favoriteId: String(data.favorite_id),
                 memberId: String(data.member_id),
-                voteKind: data.vote_kind === "favorite" "favorite" : "like",
-                createdAt: typeof data.created_at === "string" data.created_at : null,
+                voteKind: data.vote_kind === "favorite" ? "favorite" : "like",
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
               },
             ],
           }
@@ -787,13 +790,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Kommentar konnte nicht gespeichert werden.");
+      setError(insertError?.message ?? "Kommentar konnte nicht gespeichert werden.");
       return;
     }
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             comments: [
               ...currentBundle.comments,
@@ -803,7 +806,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 favoriteId: String(data.favorite_id),
                 memberId: String(data.member_id),
                 body: String(data.body),
-                createdAt: typeof data.created_at === "string" data.created_at : null,
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
               },
             ],
           }
@@ -821,10 +824,10 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           ...bundle,
           favorites: bundle.favorites.map((favorite) => ({
             ...favorite,
-            isPinned: favorite.id === favoriteId nextPinned : nextPinned false : favorite.isPinned && favorite.id !== favoriteId favorite.isPinned : false,
+            isPinned: favorite.id === favoriteId ? nextPinned : nextPinned ? false : favorite.isPinned && favorite.id !== favoriteId ? favorite.isPinned : false,
           })),
         },
-        nextPinned "Favorit angeheftet." : "Anheftung geloest."
+        nextPinned ? "Favorit angeheftet." : "Anheftung gel?st."
       );
       return;
     }
@@ -843,16 +846,16 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
     }
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             favorites: currentBundle.favorites.map((favorite) => ({
               ...favorite,
-              isPinned: favorite.id === favoriteId nextPinned : nextPinned false : favorite.isPinned,
+              isPinned: favorite.id === favoriteId ? nextPinned : nextPinned ? false : favorite.isPinned,
             })),
           }
         : currentBundle
     );
-    setToast(nextPinned "Favorit angeheftet." : "Anheftung geloest.");
+    setToast(nextPinned ? "Favorit angeheftet." : "Anheftung gel?st.");
   }
 
   async function handleSaveSnapshot() {
@@ -863,7 +866,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
     );
 
     const nextSnapshot: SkiTripPriceSnapshotRecord = {
-      id: existing.id crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       tripId: bundle.trip.id,
       favoriteId: snapshotForm.favoriteId,
       dateOptionId: snapshotForm.dateOptionId,
@@ -877,7 +880,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       buffer: toNumber(snapshotForm.buffer),
       totalOverride: null,
       note: snapshotForm.note.trim() || null,
-      sourceKind: bundle.isDemo "seed" : "manual",
+      sourceKind: bundle.isDemo ? "seed" : "manual",
       updatedByMemberId: currentMember.id,
       updatedAt: new Date().toISOString(),
     };
@@ -887,7 +890,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
         {
           ...bundle,
           priceSnapshots: existing
-            bundle.priceSnapshots.map((entry) => (entry.id === existing.id nextSnapshot : entry))
+            ? bundle.priceSnapshots.map((entry) => (entry.id === existing.id ? nextSnapshot : entry))
             : [...bundle.priceSnapshots, nextSnapshot],
         },
         "Preis-Snapshot gespeichert."
@@ -900,7 +903,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .from("ski_trip_price_snapshots")
       .upsert(
         {
-          id: existing.id,
+          id: nextSnapshot.id,
           trip_id: bundle.trip.id,
           favorite_id: snapshotForm.favoriteId,
           date_option_id: snapshotForm.dateOptionId,
@@ -925,7 +928,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
     setBusy(false);
     if (upsertError || !data) {
-      setError(upsertError.message "Preis-Snapshot konnte nicht gespeichert werden.");
+      setError(upsertError?.message ?? "Preis-Snapshot konnte nicht gespeichert werden.");
       return;
     }
 
@@ -934,27 +937,27 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       tripId: String(data.trip_id),
       favoriteId: String(data.favorite_id),
       dateOptionId: String(data.date_option_id),
-      currency: typeof data.currency === "string" data.currency : "EUR",
-      skipass: typeof data.skipass === "number" data.skipass : 0,
-      accommodation: typeof data.accommodation === "number" data.accommodation : 0,
-      travel: typeof data.travel === "number" data.travel : 0,
-      rental: typeof data.rental === "number" data.rental : 0,
-      skiSchool: typeof data.ski_school === "number" data.ski_school : 0,
-      food: typeof data.food === "number" data.food : 0,
-      buffer: typeof data.buffer === "number" data.buffer : 0,
-      totalOverride: typeof data.total_override === "number" data.total_override : null,
-      note: typeof data.note === "string" data.note : null,
-      sourceKind: data.source_kind === "seed" || data.source_kind === "estimate" data.source_kind : "manual",
-      updatedByMemberId: typeof data.updated_by_member_id === "string" data.updated_by_member_id : null,
-      updatedAt: typeof data.updated_at === "string" data.updated_at : null,
+      currency: typeof data.currency === "string" ? data.currency : "EUR",
+      skipass: typeof data.skipass === "number" ? data.skipass : 0,
+      accommodation: typeof data.accommodation === "number" ? data.accommodation : 0,
+      travel: typeof data.travel === "number" ? data.travel : 0,
+      rental: typeof data.rental === "number" ? data.rental : 0,
+      skiSchool: typeof data.ski_school === "number" ? data.ski_school : 0,
+      food: typeof data.food === "number" ? data.food : 0,
+      buffer: typeof data.buffer === "number" ? data.buffer : 0,
+      totalOverride: typeof data.total_override === "number" ? data.total_override : null,
+      note: typeof data.note === "string" ? data.note : null,
+      sourceKind: data.source_kind === "seed" || data.source_kind === "estimate" ? data.source_kind : "manual",
+      updatedByMemberId: typeof data.updated_by_member_id === "string" ? data.updated_by_member_id : null,
+      updatedAt: typeof data.updated_at === "string" ? data.updated_at : null,
     };
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             priceSnapshots: existing
-              currentBundle.priceSnapshots.map((entry) => (entry.id === existing.id normalized : entry))
+              ? currentBundle.priceSnapshots.map((entry) => (entry.id === existing.id ? normalized : entry))
               : [...currentBundle.priceSnapshots, normalized],
           }
         : currentBundle
@@ -1010,13 +1013,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError.message "Budgetposten konnte nicht gespeichert werden.");
+      setError(insertError?.message ?? "Budgetposten konnte nicht gespeichert werden.");
       return;
     }
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             budgetItems: [
               ...currentBundle.budgetItems,
@@ -1025,14 +1028,14 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 tripId: String(data.trip_id),
                 category: data.category as SkiTripBudgetCategory,
                 description: String(data.description),
-                amount: typeof data.amount === "number" data.amount : 0,
-                dueDate: typeof data.due_date === "string" data.due_date : null,
+                amount: typeof data.amount === "number" ? data.amount : 0,
+                dueDate: typeof data.due_date === "string" ? data.due_date : null,
                 isPaid: Boolean(data.is_paid),
-                paidByMemberId: typeof data.paid_by_member_id === "string" data.paid_by_member_id : null,
-                note: typeof data.note === "string" data.note : null,
-                createdByMemberId: typeof data.created_by_member_id === "string" data.created_by_member_id : null,
-                createdAt: typeof data.created_at === "string" data.created_at : null,
-                updatedAt: typeof data.updated_at === "string" data.updated_at : null,
+                paidByMemberId: typeof data.paid_by_member_id === "string" ? data.paid_by_member_id : null,
+                note: typeof data.note === "string" ? data.note : null,
+                createdByMemberId: typeof data.created_by_member_id === "string" ? data.created_by_member_id : null,
+                createdAt: typeof data.created_at === "string" ? data.created_at : null,
+                updatedAt: typeof data.updated_at === "string" ? data.updated_at : null,
               },
             ],
           }
@@ -1050,11 +1053,11 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           ...bundle,
           budgetItems: bundle.budgetItems.map((item) =>
             item.id === itemId
-              { ...item, isPaid: nextPaid, paidByMemberId: nextPaid currentMember.id : null, updatedAt: new Date().toISOString() }
+              ? { ...item, isPaid: nextPaid, paidByMemberId: nextPaid ? currentMember.id : null, updatedAt: new Date().toISOString() }
               : item
           ),
         },
-        nextPaid "Budgetposten als bezahlt markiert." : "Budgetposten wieder offen."
+        nextPaid ? "Budgetposten als bezahlt markiert." : "Budgetposten wieder offen."
       );
       return;
     }
@@ -1063,7 +1066,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .from("ski_trip_budget_items")
       .update({
         is_paid: nextPaid,
-        paid_by_member_id: nextPaid currentMember.id : null,
+        paid_by_member_id: nextPaid ? currentMember.id : null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", itemId);
@@ -1075,15 +1078,15 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             budgetItems: currentBundle.budgetItems.map((item) =>
-              item.id === itemId { ...item, isPaid: nextPaid, paidByMemberId: nextPaid currentMember.id : null } : item
+              item.id === itemId ? { ...item, isPaid: nextPaid, paidByMemberId: nextPaid ? currentMember.id : null } : item
             ),
           }
         : currentBundle
     );
-    setToast(nextPaid "Budgetposten als bezahlt markiert." : "Budgetposten wieder offen.");
+    setToast(nextPaid ? "Budgetposten als bezahlt markiert." : "Budgetposten wieder offen.");
   }
 
   async function handleAddExpense() {
@@ -1101,20 +1104,20 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       setError("Bitte auswählen, wer bezahlt hat.");
       return;
     }
-    const selectedMemberIds = expenseForm.selectedMemberIds.length expenseForm.selectedMemberIds : joinedMembers.map((member) => member.id);
+    const selectedMemberIds = expenseForm.selectedMemberIds.length ? expenseForm.selectedMemberIds : joinedMembers.map((member) => member.id);
     if (!selectedMemberIds.length) {
       setError("Bitte mindestens eine Person auswählen, für die die Ausgabe gilt.");
       return;
     }
     const splitRows =
       expenseForm.splitMode === "custom"
-        selectedMemberIds.map((memberId) => ({
+        ? selectedMemberIds.map((memberId) => ({
             memberId,
-            amount: toNumber(expenseForm.customAmounts[memberId] "0"),
+            amount: toNumber(expenseForm.customAmounts[memberId] ?? "0"),
           }))
         : selectedMemberIds.map((memberId) => ({
             memberId,
-            amount: selectedMemberIds.length amount / selectedMemberIds.length : 0,
+            amount: selectedMemberIds.length ? amount / selectedMemberIds.length : 0,
           }));
     const splitTotal = splitRows.reduce((sum, split) => sum + split.amount, 0);
     if (expenseForm.splitMode === "custom" && Math.abs(splitTotal - amount) > 0.01) {
@@ -1180,7 +1183,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (expenseError || !expenseData) {
-      setError(expenseError.message "Ausgabe konnte nicht gespeichert werden.");
+      setError(expenseError?.message ?? "Ausgabe konnte nicht gespeichert werden.");
       return;
     }
 
@@ -1203,7 +1206,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
     setBundle((currentBundle) =>
       currentBundle
-        {
+        ? {
             ...currentBundle,
             expenses: [
               ...currentBundle.expenses,
@@ -1212,25 +1215,25 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 tripId: String(expenseData.trip_id),
                 category: expenseData.category as SkiTripBudgetCategory,
                 description: String(expenseData.description),
-                amount: typeof expenseData.amount === "number" expenseData.amount : 0,
-                paidByMemberId: typeof expenseData.paid_by_member_id === "string" expenseData.paid_by_member_id : null,
-                incurredOn: typeof expenseData.incurred_on === "string" expenseData.incurred_on : null,
-                dueDate: typeof expenseData.due_date === "string" expenseData.due_date : null,
-                note: typeof expenseData.note === "string" expenseData.note : null,
+                amount: typeof expenseData.amount === "number" ? expenseData.amount : 0,
+                paidByMemberId: typeof expenseData.paid_by_member_id === "string" ? expenseData.paid_by_member_id : null,
+                incurredOn: typeof expenseData.incurred_on === "string" ? expenseData.incurred_on : null,
+                dueDate: typeof expenseData.due_date === "string" ? expenseData.due_date : null,
+                note: typeof expenseData.note === "string" ? expenseData.note : null,
                 isSettled: Boolean(expenseData.is_settled),
-                createdAt: typeof expenseData.created_at === "string" expenseData.created_at : null,
-                updatedAt: typeof expenseData.updated_at === "string" expenseData.updated_at : null,
+                createdAt: typeof expenseData.created_at === "string" ? expenseData.created_at : null,
+                updatedAt: typeof expenseData.updated_at === "string" ? expenseData.updated_at : null,
               },
             ],
             expenseSplits: [
               ...currentBundle.expenseSplits,
-              ...(splitData []).map((split) => ({
+              ...(splitData ?? []).map((split) => ({
                 id: String(split.id),
                 tripId: String(split.trip_id),
                 expenseId: String(split.expense_id),
                 memberId: String(split.member_id),
-                amount: typeof split.amount === "number" split.amount : 0,
-                createdAt: typeof split.created_at === "string" split.created_at : null,
+                amount: typeof split.amount === "number" ? split.amount : 0,
+                createdAt: typeof split.created_at === "string" ? split.created_at : null,
               })),
             ],
           }
@@ -1243,20 +1246,20 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
   const selectedStatusByOptionId = useMemo(() => {
     if (!bundle || !currentMember) return {};
     return Object.fromEntries(
-      bundle.dateOptions.map((dateOption) => [
-        dateOption.id,
-        bundle.availability.find((entry) => entry.dateOptionId === dateOption.id && entry.memberId === currentMember.id).status,
-      ])
+      bundle.dateOptions.map((dateOption) => {
+        const statusEntry = bundle.availability.find((entry) => entry.dateOptionId === dateOption.id && entry.memberId === currentMember.id);
+        return [dateOption.id, statusEntry ? statusEntry.status : undefined];
+      })
     ) as Record<string, SkiTripAvailabilityStatus | undefined>;
   }, [bundle, currentMember]);
 
   const filteredResortCandidates = useMemo(() => {
-    const activeSlugs = new Set(bundle.favorites.map((favorite) => favorite.resortSlug) []);
+    const activeSlugs = new Set((bundle?.favorites ?? []).map((favorite) => favorite.resortSlug));
     const needle = resortSearch.trim().toLowerCase();
     return resortCandidates.filter((candidate) => {
       if (!candidate.slug || activeSlugs.has(candidate.slug)) return false;
       if (!needle) return true;
-      return `${candidate.name} ${candidate.country} ${candidate.region ""}`.toLowerCase().includes(needle);
+      return `${candidate.name} ${candidate.country} ${candidate.region ?? ""}`.toLowerCase().includes(needle);
     });
   }, [bundle, resortCandidates, resortSearch]);
 
@@ -1279,25 +1282,25 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
   return (
     <div className="space-y-8">
       <BackgroundHero
-        imageSrc={heroResort.imageUrl "/bg/skilandschaft.png"}
+        imageSrc={heroResort ? heroResort.imageUrl || "/bg/skilandschaft.png" : "/bg/skilandschaft.png"}
         heightClass="min-h-[360px]"
         imagePosition="center 48%"
       >
         <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full border border-white/15 bg-slate-950/50 px-3 py-1 text-xs uppercase tracking-[0.24em] text-white/80">
-              {bundle.isDemo "Demo Trip" : "Trip Workspace"}
+              {bundle.isDemo ? "Demo Trip" : "Trip Workspace"}
             </div>
             <h1 className="mt-4 text-3xl font-semibold text-white md:text-5xl">{bundle.trip.title}</h1>
             <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
-              {bundle.trip.description "Ski-Trip mit Gruppenlogik, Alpivo-Resorts und transparenter Kostenplanung."}
+              {bundle.trip.description ?? "Ski-Trip mit Gruppenlogik, Alpivo-Resorts und transparenter Kostenplanung."}
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-white/80">
-              {bundle.trip.startRegion <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">{bundle.trip.startRegion}</span> : null}
+              {bundle.trip.startRegion ? <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">{bundle.trip.startRegion}</span> : null}
               <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">
                 {joinedMembers.length} Mitglieder
               </span>
-              {bundle.trip.budgetPerPerson (
+              {bundle.trip.budgetPerPerson ? (
                 <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">
                   {formatCurrency(bundle.trip.budgetPerPerson)} p. P.
                 </span>
@@ -1313,14 +1316,14 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       </BackgroundHero>
 
       <Section className="space-y-6">
-        {bundle.isDemo (
+        {bundle.isDemo ? (
           <TripsStateCard
             title="Demo-Trip"
             text="Diese Ansicht läuft komplett im Frontend und zeigt dir den geplanten Gruppen-Workflow, solange die neue Supabase-Migration remote noch nicht aktiv ist."
             tone="default"
           />
         ) : null}
-        {error <TripsStateCard title="Hinweis" text={error} tone="error" /> : null}
+        {error ? <TripsStateCard title="Hinweis" text={error} tone="error" /> : null}
 
         <TripNavigation tripId={bundle.trip.id} activeView={view} />
 
@@ -1330,12 +1333,12 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           <StatTile label="Favoriten" value={String(bundle.favorites.length)} hint="Resorts im Rennen" />
           <StatTile
             label="Plan-Budget"
-            value={budgetSummary formatCurrency(budgetSummary.total) : "-"}
-            hint={budgetSummary `${formatCurrency(budgetSummary.perPerson)} pro Person` : "noch offen"}
+            value={budgetSummary ? formatCurrency(budgetSummary.total) : "-"}
+            hint={budgetSummary ? `${formatCurrency(budgetSummary.perPerson)} pro Person` : "noch offen"}
           />
         </div>
 
-        {view === "overview" (
+        {view === "overview" ? (
           <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
             <GlassCard className="p-6">
               <div className="flex items-center justify-between gap-3">
@@ -1359,7 +1362,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Team</p>
                     <h2 className="mt-2 text-xl font-semibold text-white">Teilnehmer</h2>
                   </div>
-                  {isAdmin (
+                  {isAdmin ? (
                     <div className="flex flex-wrap gap-2">
                       <button
                         className="rounded-lg border border-sky-200/25 bg-sky-200/10 px-3 py-2 text-xs font-semibold text-sky-50 hover:bg-sky-200/15"
@@ -1373,7 +1376,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                   ) : null}
                 </div>
                 <div className="mt-5">
-                  <ParticipantList members={bundle.members} highlightMemberId={currentMember.id null} />
+                  <ParticipantList members={bundle.members} highlightMemberId={currentMember?.id ?? null} />
                 </div>
               </GlassCard>
 
@@ -1389,22 +1392,22 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 </div>
                 <div className="mt-5 grid gap-3">
                   {bundle.favorites.slice(0, 3).map((favorite) => {
-                    const resort = bundle.resorts[favorite.resortSlug] null;
+                    const resort = bundle.resorts[favorite.resortSlug] ?? null;
                     return (
                       <div key={favorite.id} className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold text-white">{resort.name favorite.resortSlug}</div>
+                            <div className="text-sm font-semibold text-white">{resort?.name ?? favorite.resortSlug}</div>
                             <div className="mt-1 text-xs text-slate-400">
-                              {resort.country "Resort"}
-                              {resort.pisteKm ` · ${Math.round(resort.pisteKm)} km` : ""}
+                              {resort?.country ?? "Resort"}
+                              {resort?.pisteKm ? ` · ${Math.round(resort.pisteKm)} km` : ""}
                             </div>
                           </div>
-                          {favorite.isPinned (
+                          {favorite.isPinned ? (
                             <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs text-sky-50">Lead</span>
                           ) : null}
                         </div>
-                        {favorite.note <div className="mt-2 text-sm text-slate-300">{favorite.note}</div> : null}
+                        {favorite.note ? <div className="mt-2 text-sm text-slate-300">{favorite.note}</div> : null}
                       </div>
                     );
                   })}
@@ -1414,7 +1417,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           </div>
         ) : null}
 
-        {view === "availability" (
+        {view === "availability" ? (
           <div className="grid gap-5">
             <GlassCard className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1423,7 +1426,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                   <h2 className="mt-2 text-2xl font-semibold text-white">Beste gemeinsame Zeiträume finden</h2>
                 </div>
                 <div className="text-sm text-slate-300">
-                  {currentMember `Du planst als ${getTripMemberName(currentMember)}.` : "Nur lesender Zugriff."}
+                  {currentMember ? `Du planst als ${getTripMemberName(currentMember)}.` : "Nur lesender Zugriff."}
                 </div>
               </div>
               <div className="mt-5">
@@ -1449,7 +1452,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Participants</p>
                   <h2 className="mt-2 text-xl font-semibold text-white">Wer kann wann</h2>
                   <div className="mt-5">
-                    <ParticipantList members={bundle.members} highlightMemberId={currentMember.id null} />
+                    <ParticipantList members={bundle.members} highlightMemberId={currentMember?.id ?? null} />
                   </div>
                 </div>
               </div>
@@ -1457,7 +1460,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           </div>
         ) : null}
 
-        {view === "favorites" (
+        {view === "favorites" ? (
           <div className="grid gap-5">
             <GlassCard className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1510,7 +1513,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           </div>
         ) : null}
 
-        {view === "compare" (
+        {view === "compare" ? (
           <div className="grid gap-5">
             <GlassCard className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1536,7 +1539,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                   ariaLabel="Favorit für Snapshot"
                   options={bundle.favorites.map((favorite) => ({
                     value: favorite.id,
-                    label: bundle.resorts[favorite.resortSlug].name favorite.resortSlug,
+                    label: bundle.resorts[favorite.resortSlug]?.name ?? favorite.resortSlug,
                   }))}
                   onChange={(value) => setSnapshotForm((current) => ({ ...current, favoriteId: value }))}
                 />
@@ -1585,13 +1588,13 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 disabled={busy}
                 onClick={handleSaveSnapshot}
               >
-                {busy "Speichert..." : "Snapshot speichern"}
+                {busy ? "Speichert..." : "Snapshot speichern"}
               </button>
             </GlassCard>
           </div>
         ) : null}
 
-        {view === "budget" (
+        {view === "budget" ? (
           <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
             <GlassCard className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Budget Plan</p>
@@ -1607,7 +1610,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                     className="justify-self-start rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10"
                     onClick={() => handleToggleBudgetItemPaid(item.id, !item.isPaid)}
                   >
-                    {item.isPaid "Wieder offen setzen" : "Als bezahlt markieren"} · {item.description}
+                    {item.isPaid ? "Wieder offen setzen" : "Als bezahlt markieren"} · {item.description}
                   </button>
                 ))}
               </div>
@@ -1664,12 +1667,12 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           </div>
         ) : null}
 
-        {view === "expenses" (
+        {view === "expenses" ? (
           <div className="grid gap-5">
             <GlassCard className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Splitwise Layer</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">Zusatzkosten und Ausgleich</h2>
-              {expenseSummary (
+              {expenseSummary ? (
                 <div className="mt-5 grid gap-3 md:grid-cols-4">
                   <StatTile label="Gesamt" value={formatCurrency(expenseSummary.total)} hint="alle erfassten Gruppenausgaben" />
                   <StatTile label="Pro Person" value={formatCurrency(expenseSummary.perPerson)} hint="bei gleichmäßiger Gesamtbetrachtung" />
@@ -1684,8 +1687,8 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                     <div className="mt-2 text-xs text-slate-400">
                       gezahlt {formatCurrency(balance.paid)} · schuldet {formatCurrency(balance.owes)}
                     </div>
-                    <div className={`mt-2 text-xl font-semibold ${balance.balance >= 0 "text-emerald-100" : "text-amber-100"}`}>
-                      {balance.balance >= 0 "+" : ""}
+                    <div className={`mt-2 text-xl font-semibold ${balance.balance >= 0 ? "text-emerald-100" : "text-amber-100"}`}>
+                      {balance.balance >= 0 ? "+" : ""}
                       {formatCurrency(balance.balance)}
                     </div>
                   </div>
@@ -1773,14 +1776,14 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                             type="button"
                             className={`rounded-full border px-3 py-2 text-xs transition ${
                               active
-                                "border-sky-200/25 bg-sky-200/10 text-sky-50"
+                                ? "border-sky-200/25 bg-sky-200/10 text-sky-50"
                                 : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.1]"
                             }`}
                             onClick={() =>
                               setExpenseForm((current) => ({
                                 ...current,
                                 selectedMemberIds: current.selectedMemberIds.includes(member.id)
-                                  current.selectedMemberIds.filter((entry) => entry !== member.id)
+                                  ? current.selectedMemberIds.filter((entry) => entry !== member.id)
                                   : [...current.selectedMemberIds, member.id],
                               }))
                             }
@@ -1790,18 +1793,18 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                         );
                       })}
                     </div>
-                    {expenseForm.splitMode === "custom" (
+                    {expenseForm.splitMode === "custom" ? (
                       <div className="mt-4 grid gap-3">
                         {expenseForm.selectedMemberIds.map((memberId) => {
-                          const member = joinedMembers.find((entry) => entry.id === memberId) null;
+                          const member = joinedMembers.find((entry) => entry.id === memberId) ?? null;
                           return (
                             <label key={memberId} className="grid gap-2 text-sm text-slate-300">
-                              {member getTripMemberName(member) : "Mitglied"}
+                              {member ? getTripMemberName(member) : "Mitglied"}
                               <input
                                 className="rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-white"
                                 type="number"
                                 min={0}
-                                value={expenseForm.customAmounts[memberId] ""}
+                                value={expenseForm.customAmounts[memberId] ?? ""}
                                 onChange={(event) =>
                                   setExpenseForm((current) => ({
                                     ...current,
@@ -1843,7 +1846,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
         ) : null}
       </Section>
 
-      <AnimatePresence>{toast <Toast message={toast} /> : null}</AnimatePresence>
+      <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
     </div>
   );
 }

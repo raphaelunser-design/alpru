@@ -25,7 +25,7 @@ export default function BestDatesPanel({ bundle }: BestDatesPanelProps) {
               <div className="mt-1 text-lg font-semibold text-white">
                 {summary.dateOption.label} · {formatDateRange(summary.dateOption.startDate, summary.dateOption.endDate)}
               </div>
-              {summary.dateOption.note <div className="mt-1 text-sm text-slate-300">{summary.dateOption.note}</div> : null}
+              {summary.dateOption.note ? <div className="mt-1 text-sm text-slate-300">{summary.dateOption.note}</div> : null}
             </div>
             <div className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1 text-xs text-white/85">
               Score {summary.score.toFixed(2)}
@@ -43,9 +43,9 @@ export default function BestDatesPanel({ bundle }: BestDatesPanelProps) {
             {availabilityOptions.map((option) => {
               const value =
                 option.value === "available"
-                  summary.availableCount
+                  ? summary.availableCount
                   : option.value === "maybe"
-                    summary.maybeCount
+                    ? summary.maybeCount
                     : summary.unavailableCount;
               return (
                 <span key={option.value} className={`rounded-full border px-3 py-1 ${option.chipClass}`}>

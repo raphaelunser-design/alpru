@@ -196,7 +196,7 @@ export default function InteractiveHomeHero({
 }: InteractiveHomeHeroProps) {
   const [activeThemeId, setActiveThemeId] = useState("apres");
   const activeTheme = useMemo(
-    () => themes.find((theme) => theme.id === activeThemeId) themes[0],
+    () => themes.find((theme) => theme.id === activeThemeId) || themes[0],
     [activeThemeId]
   );
 
@@ -211,11 +211,11 @@ export default function InteractiveHomeHero({
             alt=""
             fill
             className={`object-cover transition duration-700 ${
-              activeTheme.id === theme.id "scale-[1.045] opacity-100" : "scale-[1.02] opacity-0"
+              activeTheme.id === theme.id ? "scale-[1.045] opacity-100" : "scale-[1.02] opacity-0"
             }`}
             priority={theme.id === "apres"}
             sizes="100vw"
-            style={{ objectPosition: theme.id === "apres" "center 42%" : "center" }}
+            style={{ objectPosition: theme.id === "apres" ? "center 42%" : "center" }}
           />
         ))}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/42 to-slate-950/86" />
@@ -292,7 +292,7 @@ export default function InteractiveHomeHero({
                 href="/quiz"
                 className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold backdrop-blur transition duration-200 ${
                   active
-                    `${theme.accent} shadow-[0_0_28px_var(--theme-glow)]`
+                    ? `${theme.accent} shadow-[0_0_28px_var(--theme-glow)]`
                     : "border-white/18 bg-slate-950/34 text-white/86 hover:border-white/34 hover:bg-white/12"
                 }`}
                 style={{ "--theme-glow": theme.glow } as CSSProperties}

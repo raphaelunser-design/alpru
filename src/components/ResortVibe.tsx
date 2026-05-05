@@ -5,8 +5,8 @@ type ResortVibeProps = {
 };
 
 const meters = [
-  { key: "apres", label: "Après-Ski", get: (d: ResortVibeProps["decision"]) => d.apresScore 0.5 },
-  { key: "quiet", label: "Ruhe", get: (d: ResortVibeProps["decision"]) => (d.crowdScore == null 0.5 : 1 - d.crowdScore) },
+  { key: "apres", label: "Après-Ski", get: (d: ResortVibeProps["decision"]) => d.apresScore ?? 0.5 },
+  { key: "quiet", label: "Ruhe", get: (d: ResortVibeProps["decision"]) => (d.crowdScore == null ? 0.5 : 1 - d.crowdScore) },
   { key: "snow", label: "Schnee", get: (d: ResortVibeProps["decision"]) => d.snowReliability },
   { key: "value", label: "Value", get: (d: ResortVibeProps["decision"]) => d.valueScore },
 ];

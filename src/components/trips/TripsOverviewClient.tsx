@@ -70,7 +70,7 @@ export default function TripsOverviewClient() {
     load();
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session.user?.id ?? null);
+      setUserId(session ? session.user?.id ?? null : null);
     });
 
     return () => {
@@ -149,7 +149,7 @@ export default function TripsOverviewClient() {
           />
         )}
 
-        {userId && demoBundles.length > 0 (
+        {userId && demoBundles.length > 0 ? (
           <div className="space-y-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Demo-Daten</p>

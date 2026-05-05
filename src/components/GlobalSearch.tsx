@@ -10,14 +10,14 @@ type SearchResult = {
   title: string;
   subtitle: string;
   href: string;
-  meta: string | null;
-  price: string | null;
-  imageUrl: string | null;
+  meta?: string | null;
+  price?: string | null;
+  imageUrl?: string | null;
 };
 
 type GlobalSearchProps = {
-  variant: "full" | "compact" | "icon";
-  className: string;
+  variant?: "full" | "compact" | "icon";
+  className?: string;
 };
 
 const staticItems: SearchResult[] = [
@@ -92,7 +92,7 @@ function normalize(value: string) {
     .trim();
 }
 
-function SearchIcon({ className = "h-4 w-4" }: { className: string }) {
+function SearchIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
@@ -126,7 +126,7 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
     const normalizedQuery = normalize(query);
     if (!normalizedQuery) return staticItems.slice(0, 6);
     return staticItems
-      .filter((item) => normalize(`${item.title} ${item.subtitle} ${item.meta ?? ""}`).includes(normalizedQuery))
+      .filter((item) => normalize(`${item.title} ${item.subtitle} ${item.meta || ""}`).includes(normalizedQuery))
       .slice(0, 4);
   }, [query]);
 
@@ -148,14 +148,14 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
 
     setLoading(true);
     const timer = window.setTimeout(() => {
-      fetch(`/api/searchq=${encodeURIComponent(trimmed)}`)
+      fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
         .then(async (res) => {
           if (!res.ok) throw new Error("Suche fehlgeschlagen");
           return res.json() as Promise<{ results: SearchResult[] }>;
         })
         .then((data) => {
           if (cancelled) return;
-          setResortResults(data.results ?? []);
+          setResortResults(data.results || []);
         })
         .catch(() => {
           if (cancelled) return;
@@ -183,7 +183,7 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
 
   useEffect(() => {
     if (!open) return;
-    const timer = window.setTimeout(() => inputRef.current.focus(), 40);
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 40);
     return () => window.clearTimeout(timer);
   }, [open]);
 
@@ -262,7 +262,7 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
     <div className={className}>
       {trigger}
 
-      {open (
+      {open ? (
         <div
           className="fixed inset-0 z-[100] bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8"
           role="dialog"
@@ -302,7 +302,7 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
 
               {!loading && results.length === 0 ? (
                 <div className="px-3 py-5 text-sm text-slate-500">
-                  Kein Treffer. Probiere z. B. "Ischgl", "Karte", "Trip" oder "Checkliste".
+                  Kein Treffer. Probiere z. B. &quot;Ischgl&quot;, &quot;Karte&quot;, &quot;Trip&quot; oder &quot;Checkliste&quot;.
                 </div>
               ) : null}
 
@@ -329,7 +329,7 @@ export default function GlobalSearch({ variant = "full", className = "" }: Globa
                     {item.price ? <span className="mt-1 block text-[11px] text-slate-500">{item.price}</span> : null}
                   </span>
                   <span className="hidden shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 sm:inline-flex">
-                    {item.meta ?? (item.type === "resort" ? "Resort" : "Seite")}
+                    {item.meta || (item.type === "resort" ? "Resort" : "Seite")}
                     <ArrowIcon />
                   </span>
                 </button>

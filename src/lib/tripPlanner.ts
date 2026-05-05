@@ -48,8 +48,8 @@ export type SkiTripMemberRecord = {
   email: string | null;
   role: SkiTripMemberRole;
   status: SkiTripMemberStatus;
-  isDemo: boolean;
-  demoProfile: Record<string, unknown>;
+  isDemo?: boolean;
+  demoProfile?: Record<string, unknown> | null;
   joinedAt: string | null;
   createdAt: string | null;
 };
@@ -378,7 +378,7 @@ export function formatShortDate(value: string | null | undefined) {
 export function formatDateRange(start: string | null | undefined, end: string | null | undefined) {
   if (!start && !end) return "Offen";
   if (start && end) return `${formatShortDate(start)} - ${formatShortDate(end)}`;
-  return formatShortDate(start end);
+  return formatShortDate(start ?? end);
 }
 
 export function getTripMemberName(member: SkiTripMemberRecord | null | undefined) {
@@ -387,8 +387,8 @@ export function getTripMemberName(member: SkiTripMemberRecord | null | undefined
 }
 
 export function getTripDurationDays(dateOption: SkiTripDateOptionRecord | null | undefined) {
-  const start = parseIsoDate(dateOption.startDate);
-  const end = parseIsoDate(dateOption.endDate);
+  const start = parseIsoDate(dateOption?.startDate);
+  const end = parseIsoDate(dateOption?.endDate);
   if (!start || !end) return 1;
   const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
   return Math.max(1, diffDays);
@@ -407,7 +407,7 @@ export function computeAvailabilitySummary(
   const score = availableCount * 1 + maybeCount * 0.45 - unavailableCount * 0.7;
   const joinedMembers = members.filter((member) => member.status === "joined").length || members.length || 1;
   const ratio = clamp((availableCount + maybeCount * 0.5) / joinedMembers, 0, 1);
-  const fitLabel = ratio >= 0.8 "starker Fit" : ratio >= 0.6 "brauchbar" : "kritisch";
+  const fitLabel = ratio >= 0.8 ? "starker Fit" : ratio >= 0.6 ? "brauchbar" : "kritisch";
 
   return {
     dateOption,
@@ -448,11 +448,11 @@ export function buildSeedSnapshot(
   durationDays: number
 ): SkiTripPriceSnapshotRecord {
   const normalizedDays = Math.max(1, durationDays);
-  const pisteFactor = typeof resort.pisteKm === "number" clamp(resort.pisteKm / 140, 0.35, 1.35) : 0.8;
-  const passBase = (resort.skipassPriceFrom 61) * normalizedDays;
+  const pisteFactor = typeof resort?.pisteKm === "number" ? clamp(resort.pisteKm / 140, 0.35, 1.35) : 0.8;
+  const passBase = (resort?.skipassPriceFrom ?? 61) * normalizedDays;
   const accommodation = Math.round(78 * normalizedDays * (0.85 + pisteFactor * 0.35));
   const travel = Math.round((55 + pisteFactor * 28) / Math.max(1, 3));
-  const rental = Math.round(24 * normalizedDays * (resort.skipassPriceFrom 0.85 : 1));
+  const rental = Math.round(24 * normalizedDays * (resort?.skipassPriceFrom ? 0.85 : 1));
   const skiSchool = 0;
   const food = Math.round(32 * normalizedDays);
   const buffer = Math.round((passBase + accommodation + travel + rental + food) * 0.08);
@@ -486,23 +486,23 @@ export function buildComparisonRows(bundle: SkiTripBundle) {
   return bundle.favorites
     .flatMap((favorite) =>
       bundle.dateOptions.map((dateOption) => {
-        const resort = bundle.resorts[favorite.resortSlug] null;
+        const resort = bundle.resorts[favorite.resortSlug] ?? null;
         const snapshot =
-          bundle.priceSnapshots.find((entry) => entry.favoriteId === favorite.id && entry.dateOptionId === dateOption.id) 
+          bundle.priceSnapshots.find((entry) => entry.favoriteId === favorite.id && entry.dateOptionId === dateOption.id) ??
           buildSeedSnapshot(bundle.trip.id, favorite.id, dateOption.id, resort, getTripDurationDays(dateOption));
         const total = computeSnapshotTotal(snapshot);
-        const availability = availabilityByOptionId.get(dateOption.id) computeAvailabilitySummary(dateOption, bundle.availability, bundle.members);
-        const priceScore = total > 0 clamp(1 - total / 1200, 0, 1) : 0.3;
+        const availability = availabilityByOptionId.get(dateOption.id) ?? computeAvailabilitySummary(dateOption, bundle.availability, bundle.members);
+        const priceScore = total > 0 ? clamp(1 - total / 1200, 0, 1) : 0.3;
         const availabilityScore = clamp((availability.availableCount + availability.maybeCount * 0.35) / participantCount, 0, 1);
-        const resortScore = clamp((resort.matchPct 52) / 100, 0, 1);
+        const resortScore = clamp((resort?.matchPct ?? 52) / 100, 0, 1);
         const combinedScore = priceScore * 0.32 + availabilityScore * 0.4 + resortScore * 0.28;
         const decisionReason =
           availabilityScore >= 0.78 && priceScore >= 0.62
-            "starke Gruppenverfügbarkeit bei gutem Kostenrahmen"
+            ? "starke Gruppenverfügbarkeit bei gutem Kostenrahmen"
             : priceScore >= availabilityScore && priceScore >= resortScore
-              "günstigster Kostenhebel"
+              ? "günstigster Kostenhebel"
               : availabilityScore >= resortScore
-                "beste zeitliche Überschneidung"
+                ? "beste zeitliche Überschneidung"
                 : "stärkster Alpivo-Resort-Fit";
 
         return {
@@ -558,18 +558,18 @@ export function computeExpenseBalances(bundle: SkiTripBundle): ExpenseBalance[] 
 
   for (const expense of bundle.expenses) {
     if (expense.paidByMemberId) {
-      paidMap.set(expense.paidByMemberId, (paidMap.get(expense.paidByMemberId) 0) + expense.amount);
+      paidMap.set(expense.paidByMemberId, (paidMap.get(expense.paidByMemberId) ?? 0) + expense.amount);
     }
   }
 
   for (const split of bundle.expenseSplits) {
-    owedMap.set(split.memberId, (owedMap.get(split.memberId) 0) + split.amount);
+    owedMap.set(split.memberId, (owedMap.get(split.memberId) ?? 0) + split.amount);
   }
 
   return members
     .map((member) => {
-      const paid = paidMap.get(member.id) 0;
-      const owes = owedMap.get(member.id) 0;
+      const paid = paidMap.get(member.id) ?? 0;
+      const owes = owedMap.get(member.id) ?? 0;
       return {
         memberId: member.id,
         name: getTripMemberName(member),
@@ -630,7 +630,7 @@ export function getFavoriteVoteSummary(bundle: SkiTripBundle, favoriteId: string
 export function getFavoriteComments(bundle: SkiTripBundle, favoriteId: string) {
   return bundle.comments
     .filter((entry) => entry.favoriteId === favoriteId)
-    .sort((a, b) => (a.createdAt "").localeCompare(b.createdAt ""));
+    .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 }
 
 export function buildTripRoute(tripId: string, view: TripWorkspaceView) {

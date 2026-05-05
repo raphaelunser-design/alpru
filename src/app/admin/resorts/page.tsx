@@ -144,7 +144,7 @@ export default function AdminResortsPage() {
         country: newResort.country.trim() || null,
         region: newResort.region.trim() || null,
         lat: newResort.lat ? Number(newResort.lat) : null,
-        lon: newResort.lon Number(newResort.lon) : null,
+        lon: newResort.lon ? Number(newResort.lon) : null,
       };
       const res = await fetch(`/api/admin/resorts`, {
         method: "POST",
@@ -158,7 +158,7 @@ export default function AdminResortsPage() {
       await loadResorts();
       setNewResort(DEFAULT_NEW);
     } catch (err) {
-      setError(err instanceof Error err.message : "Fehler beim Erstellen");
+      setError(err instanceof Error ? err.message : "Fehler beim Erstellen");
     } finally {
       setLoading(false);
     }
@@ -192,10 +192,10 @@ export default function AdminResortsPage() {
               onClick={() => loadResorts()}
               disabled={loading}
             >
-              {loading "Lade..." : "Resorts laden"}
+              {loading ? "Lade..." : "Resorts laden"}
             </button>
           </div>
-          {error <div className="text-sm text-red-300">{error}</div> : null}
+          {error ? <div className="text-sm text-red-300">{error}</div> : null}
         </GlassCard>
 
         <GlassCard className="p-6 space-y-4">
@@ -261,18 +261,18 @@ export default function AdminResortsPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white hover:bg-white/10"
-                      onClick={() => setExpandedId(expanded null : row.id)}
+                      onClick={() => setExpandedId(expanded ? null : row.id)}
                     >
-                      {expanded "Weniger" : "Erweitert"}
+                      {expanded ? "Weniger" : "Erweitert"}
                     </button>
                     <button
                       className={`rounded-xl px-4 py-2 text-xs font-semibold ${
-                        isDirty "bg-white text-slate-900" : "bg-white/10 text-white"
+                        isDirty ? "bg-white text-slate-900" : "bg-white/10 text-white"
                       }`}
                       onClick={() => saveRow(row)}
                       disabled={!isDirty || loading}
                     >
-                      {isDirty "Speichern" : "Gespeichert"}
+                      {isDirty ? "Speichern" : "Gespeichert"}
                     </button>
                   </div>
                 </div>
@@ -281,85 +281,85 @@ export default function AdminResortsPage() {
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Name"
-                    value={row.name ""}
+                    value={row.name ?? ""}
                     onChange={(event) => updateRow(row.id, { name: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Land"
-                    value={row.country ""}
+                    value={row.country ?? ""}
                     onChange={(event) => updateRow(row.id, { country: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Region"
-                    value={row.region ""}
+                    value={row.region ?? ""}
                     onChange={(event) => updateRow(row.id, { region: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Lat"
-                    value={row.lat ""}
-                    onChange={(event) => updateRow(row.id, { lat: event.target.value Number(event.target.value) : null })}
+                    value={row.lat ?? ""}
+                    onChange={(event) => updateRow(row.id, { lat: event.target.value ? Number(event.target.value) : null })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Lon"
-                    value={row.lon ""}
-                    onChange={(event) => updateRow(row.id, { lon: event.target.value Number(event.target.value) : null })}
+                    value={row.lon ?? ""}
+                    onChange={(event) => updateRow(row.id, { lon: event.target.value ? Number(event.target.value) : null })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Bild URL"
-                    value={row.image_url ""}
+                    value={row.image_url ?? ""}
                     onChange={(event) => updateRow(row.id, { image_url: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-sky-200/20 bg-sky-200/10 px-3 py-2 text-sm text-white placeholder:text-slate-400"
                     placeholder="Hero-Bild URL (rechtlich geprüft)"
-                    value={row.hero_image_url ""}
+                    value={row.hero_image_url ?? ""}
                     onChange={(event) => updateRow(row.id, { hero_image_url: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Hero Alt-Text"
-                    value={row.hero_image_alt ""}
+                    value={row.hero_image_alt ?? ""}
                     onChange={(event) => updateRow(row.id, { hero_image_alt: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Bildquelle URL"
-                    value={row.image_source ""}
+                    value={row.image_source ?? ""}
                     onChange={(event) => updateRow(row.id, { image_source: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Credit"
-                    value={row.image_credit ""}
+                    value={row.image_credit ?? ""}
                     onChange={(event) => updateRow(row.id, { image_credit: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Lizenz"
-                    value={row.image_license ""}
+                    value={row.image_license ?? ""}
                     onChange={(event) => updateRow(row.id, { image_license: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Offizielle URL"
-                    value={row.official_url ""}
+                    value={row.official_url ?? ""}
                     onChange={(event) => updateRow(row.id, { official_url: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Pistenplan URL"
-                    value={row.piste_map_url ""}
+                    value={row.piste_map_url ?? ""}
                     onChange={(event) => updateRow(row.id, { piste_map_url: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Skipass URL"
-                    value={row.skipass_url ""}
+                    value={row.skipass_url ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_url: event.target.value })}
                   />
                 </div>
@@ -371,88 +371,88 @@ export default function AdminResortsPage() {
                     min="0"
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Skipass Preis ab"
-                    value={row.skipass_price_from ""}
+                    value={row.skipass_price_from ?? ""}
                     onChange={(event) =>
                       updateRow(row.id, {
-                        skipass_price_from: event.target.value Number(event.target.value) : null,
+                        skipass_price_from: event.target.value ? Number(event.target.value) : null,
                       })
                     }
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Währung"
-                    value={row.skipass_price_currency ""}
+                    value={row.skipass_price_currency ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_currency: event.target.value })}
                   />
                   <input
                     type="date"
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-                    value={row.skipass_price_last_checked ""}
+                    value={row.skipass_price_last_checked ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_last_checked: event.target.value })}
                   />
                   <input
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                     placeholder="Preis Notiz"
-                    value={row.skipass_price_note ""}
+                    value={row.skipass_price_note ?? ""}
                     onChange={(event) => updateRow(row.id, { skipass_price_note: event.target.value })}
                   />
                 </div>
 
-                {expanded (
+                {expanded ? (
                   <div className="mt-4 space-y-4">
                     <div className="grid gap-3 md:grid-cols-3">
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="OpenSkiMap URL"
-                        value={row.openskimap_url ""}
+                        value={row.openskimap_url ?? ""}
                         onChange={(event) => updateRow(row.id, { openskimap_url: event.target.value })}
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Pisten gesamt (km)"
-                        value={row.piste_km_total row.piste_km ""}
+                        value={row.piste_km_total ?? row.piste_km ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { piste_km_total: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { piste_km_total: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Runs total"
-                        value={row.runs_count_total ""}
+                        value={row.runs_count_total ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { runs_count_total: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { runs_count_total: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Lifte total"
-                        value={row.lifts_count_total ""}
+                        value={row.lifts_count_total ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { lifts_count_total: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { lifts_count_total: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Min Höhe (m)"
-                        value={row.elevation_min_m ""}
+                        value={row.elevation_min_m ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { elevation_min_m: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { elevation_min_m: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Max Höhe (m)"
-                        value={row.elevation_max_m ""}
+                        value={row.elevation_max_m ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { elevation_max_m: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { elevation_max_m: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Vertical (m)"
-                        value={row.vertical_m ""}
+                        value={row.vertical_m ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { vertical_m: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { vertical_m: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                     </div>
@@ -465,9 +465,9 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Après Score"
-                        value={row.apres_score ""}
+                        value={row.apres_score ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { apres_score: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { apres_score: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
@@ -477,9 +477,9 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Andrang Score"
-                        value={row.crowd_score ""}
+                        value={row.crowd_score ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { crowd_score: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { crowd_score: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
@@ -489,9 +489,9 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Infra Score"
-                        value={row.infra_score ""}
+                        value={row.infra_score ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { infra_score: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { infra_score: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
@@ -501,8 +501,8 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Hütten Score"
-                        value={row.hut_score ""}
-                        onChange={(event) => updateRow(row.id, { hut_score: event.target.value Number(event.target.value) : null })}
+                        value={row.hut_score ?? ""}
+                        onChange={(event) => updateRow(row.id, { hut_score: event.target.value ? Number(event.target.value) : null })}
                       />
                       <input
                         type="number"
@@ -511,8 +511,8 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Park Score"
-                        value={row.park_score ""}
-                        onChange={(event) => updateRow(row.id, { park_score: event.target.value Number(event.target.value) : null })}
+                        value={row.park_score ?? ""}
+                        onChange={(event) => updateRow(row.id, { park_score: event.target.value ? Number(event.target.value) : null })}
                       />
                       <input
                         type="number"
@@ -521,9 +521,9 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Beginner Score"
-                        value={row.beginner_score ""}
+                        value={row.beginner_score ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { beginner_score: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { beginner_score: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                       <input
@@ -533,9 +533,9 @@ export default function AdminResortsPage() {
                         max="1"
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                         placeholder="Advanced Score"
-                        value={row.advanced_score ""}
+                        value={row.advanced_score ?? ""}
                         onChange={(event) =>
-                          updateRow(row.id, { advanced_score: event.target.value Number(event.target.value) : null })
+                          updateRow(row.id, { advanced_score: event.target.value ? Number(event.target.value) : null })
                         }
                       />
                     </div>

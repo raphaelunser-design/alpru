@@ -9,7 +9,7 @@ export default function SettlementCard({ bundle }: SettlementCardProps) {
 
   return (
     <div className="grid gap-3">
-      {suggestions.length > 0 (
+      {suggestions.length > 0 ? (
         suggestions.map((suggestion) => (
           <div key={`${suggestion.fromMemberId}-${suggestion.toMemberId}`} className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
             <div className="text-sm text-slate-300">
@@ -26,20 +26,20 @@ export default function SettlementCard({ bundle }: SettlementCardProps) {
         </div>
       )}
 
-      {bundle.settlements.length > 0 (
+      {bundle.settlements.length > 0 ? (
         <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
           <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Hinterlegte Settlements</div>
           <div className="mt-3 grid gap-3">
             {bundle.settlements.map((settlement) => {
-              const from = bundle.members.find((member) => member.id === settlement.fromMemberId) null;
-              const to = bundle.members.find((member) => member.id === settlement.toMemberId) null;
+              const from = bundle.members.find((member) => member.id === settlement.fromMemberId) ?? null;
+              const to = bundle.members.find((member) => member.id === settlement.toMemberId) ?? null;
               return (
                 <div key={settlement.id} className="rounded-lg border border-white/10 bg-slate-950/45 p-3">
                   <div className="text-sm text-slate-100">
                     {getTripMemberName(from)} → {getTripMemberName(to)}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-white">{formatCurrency(settlement.amount)}</div>
-                  <div className="mt-1 text-xs text-slate-500">{settlement.status === "paid" "bezahlt" : "offen"}</div>
+                  <div className="mt-1 text-xs text-slate-500">{settlement.status === "paid" ? "bezahlt" : "offen"}</div>
                 </div>
               );
             })}

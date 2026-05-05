@@ -5,7 +5,7 @@ type RangeSliderProps = {
   valueMin: number;
   valueMax: number;
   onChange: (nextMin: number, nextMax: number) => void;
-  className: string;
+  className?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -27,7 +27,7 @@ export default function RangeSlider({
   const percentMax = ((safeMax - min) / (max - min)) * 100;
 
   return (
-    <div className={`range-slider ${className ""}`.trim()}>
+    <div className={`range-slider ${className ?? ""}`.trim()}>
       <div
         className="range-track"
         style={{

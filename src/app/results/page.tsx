@@ -56,8 +56,11 @@ type GeocodeResult = {
 const FILTER_STORAGE_KEY = "alpivo_results_filters";
 const EXAMPLE_PREFS: MatchPreferences = {
   tripStyle: "balanced",
+  tripStartDate: null,
+  tripEndDate: null,
   budgetMin: 250,
   budgetMax: 500,
+  budget: 500,
   peopleCount: 2,
   apres: 3,
   emptySlopes: 3,
@@ -73,8 +76,13 @@ const EXAMPLE_PREFS: MatchPreferences = {
   summerGlacier: 1,
   offPiste: 1,
   foodSpendLevel: "standard",
+  needRental: false,
   rentalMode: "own",
   travelMode: "car",
+  excludeCountries: [],
+  excludeGlacier: false,
+  excludePremium: false,
+  excludeFamilyOnly: false,
 };
 
 const BUDGET_MIN = 150;
@@ -106,7 +114,7 @@ const profileOptions = [
   { value: "offpiste", label: "Off-Piste" },
 ];
 
-const sortOptions: Array<{ value: SortKey; label: string; description: string }> = [
+const sortOptions: Array<{ value: SortKey; label: string; description?: string }> = [
   { value: "match", label: "Beste Passung", description: "Score, Pistenprofil und Fit" },
   { value: "price_low", label: "Günstigste Schätzung", description: "niedrigster Kostenrahmen" },
   { value: "price_high", label: "Teuerste Schätzung", description: "höchster Kostenrahmen" },
@@ -330,14 +338,14 @@ export default function ResultsPage() {
       if (budgetFilter !== "all" && r.budgetStatus !== budgetFilter) return false;
       if (profileFilter === "snow" && (r.fitProfile.snow ?? r.snowReliability ?? 0) < 0.62) return false;
       if (profileFilter === "value" && (r.fitProfile.value ?? r.valueScore ?? 0) < 0.58) return false;
-      if (profileFilter === "comfort" && (r.fitProfile.comfort 0) < 0.55) return false;
-      if (profileFilter === "sport" && (r.fitProfile.slope 0) < 0.6) return false;
-      if (profileFilter === "vibe" && (r.fitProfile.vibe 0) < 0.6) return false;
-      if (profileFilter === "glacier" && (r.summerGlacierScore r.fitProfile.summer 0) < 0.58) return false;
-      if (profileFilter === "offpiste" && (r.fitProfile.offPiste 0) < 0.58) return false;
+      if (profileFilter === "comfort" && (r.fitProfile.comfort ?? 0) < 0.55) return false;
+      if (profileFilter === "sport" && (r.fitProfile.slope ?? 0) < 0.6) return false;
+      if (profileFilter === "vibe" && (r.fitProfile.vibe ?? 0) < 0.6) return false;
+      if (profileFilter === "glacier" && (r.summerGlacierScore ?? r.fitProfile.summer ?? 0) < 0.58) return false;
+      if (profileFilter === "offpiste" && (r.fitProfile.offPiste ?? 0) < 0.58) return false;
       if (needle) {
         const haystack =
-          `${r.name} ${r.country} ${r.region ""} ${r.vibeTags.map((tag) => tag.label).join(" ") ""} ${r.bestFor.join(" ") ""}`.toLowerCase();
+          `${r.name} ${r.country} ${r.region ?? ""} ${r.vibeTags.map((tag) => tag.label).join(" ") ?? ""} ${r.bestFor.join(" ") ?? ""}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       if (Number.isFinite(driveCapHours) && driveCapHours > 0) {
@@ -360,7 +368,7 @@ export default function ResultsPage() {
         if (r.apresScore == null || r.apresScore < apresThreshold) return false;
       }
       if (quietThreshold > 0) {
-        const quietScore = r.crowdScore == null null : 1 - r.crowdScore;
+        const quietScore = r.crowdScore == null ? null : 1 - r.crowdScore;
         if (quietScore == null || quietScore < quietThreshold) return false;
       }
       return true;
@@ -390,17 +398,17 @@ export default function ResultsPage() {
         const aMatch = a.matchPct -1;
         const bMatch = b.matchPct -1;
         if (bMatch !== aMatch) return bMatch - aMatch;
-        const pisteA = a.pisteKm 0;
-        const pisteB = b.pisteKm 0;
+        const pisteA = a.pisteKm ?? 0;
+        const pisteB = b.pisteKm ?? 0;
         if (pisteB !== pisteA) return pisteB - pisteA;
         return a.name.localeCompare(b.name, "de-DE");
       }
       if (sortBy === "price_low") return a.cost.totalMax - b.cost.totalMax;
       if (sortBy === "price_high") return b.cost.totalMax - a.cost.totalMax;
-      if (sortBy === "snow") return (b.fitProfile.snow b.snowReliability 0) - (a.fitProfile.snow a.snowReliability 0);
-      if (sortBy === "value") return (b.fitProfile.value b.valueScore 0) - (a.fitProfile.value a.valueScore 0);
-      if (sortBy === "summer") return (b.summerGlacierScore b.fitProfile.summer 0) - (a.summerGlacierScore a.fitProfile.summer 0);
-      if (sortBy === "offpiste") return (b.fitProfile.offPiste 0) - (a.fitProfile.offPiste 0);
+      if (sortBy === "snow") return (b.fitProfile.snow ?? b.snowReliability ?? 0) - (a.fitProfile.snow ?? a.snowReliability ?? 0);
+      if (sortBy === "value") return ((b.fitProfile.value ?? b.valueScore ?? 0) - (a.fitProfile.value ?? a.valueScore ?? 0));
+      if (sortBy === "summer") return (b.summerGlacierScore ?? b.fitProfile.summer ?? 0) - (a.summerGlacierScore ?? a.fitProfile.summer ?? 0);
+      if (sortBy === "offpiste") return (b.fitProfile.offPiste ?? 0) - (a.fitProfile.offPiste ?? 0);
       if (sortBy === "drive_time") {
         if (a.routeDurationSeconds === null && b.routeDurationSeconds === null) return 0;
         if (a.routeDurationSeconds === null) return 1;
@@ -412,7 +420,7 @@ export default function ResultsPage() {
     return list;
   }, [filtered, sortBy]);
 
-  const visibleResults = useMemo(() => (showAllResults sorted : sorted.slice(0, 12)), [showAllResults, sorted]);
+  const visibleResults = useMemo(() => (showAllResults ? sorted : sorted.slice(0, 12)), [showAllResults, sorted]);
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -501,9 +509,9 @@ export default function ResultsPage() {
         budgetMax,
         apresMin,
         quietMin,
-        originLat: geo.location.lat "",
-        originLon: geo.location.lon "",
-        originLabel: geo.location.label "",
+        originLat: geo.location?.lat ?? "",
+        originLon: geo.location?.lon ?? "",
+        originLabel: geo.location?.label ?? "",
       })
     );
   }, [
@@ -531,7 +539,7 @@ export default function ResultsPage() {
       setOriginLoading(false);
       return;
     }
-    if (geo.location.label && needle === geo.location.label) {
+    if (geo.location?.label && needle === geo.location.label) {
       setOriginResults([]);
       setOriginLoading(false);
       return;
@@ -540,14 +548,14 @@ export default function ResultsPage() {
     let active = true;
     const handle = window.setTimeout(() => {
       setOriginLoading(true);
-      fetch(`/api/geocodeq=${encodeURIComponent(needle)}`)
+      fetch(`/api/geocode?q=${encodeURIComponent(needle)}`)
         .then(async (res) => {
           if (!res.ok) return { results: [] };
           return res.json();
         })
         .then((data) => {
           if (!active) return;
-          setOriginResults((data.results as GeocodeResult[]) []);
+          setOriginResults((data.results as GeocodeResult[]) ?? []);
         })
         .catch(() => {
           if (!active) return;
@@ -563,7 +571,7 @@ export default function ResultsPage() {
       active = false;
       window.clearTimeout(handle);
     };
-  }, [originQuery, geo.location.label]);
+  }, [originQuery, geo.location?.label]);
 
   useEffect(() => {
     const origin = geo.location;
@@ -609,12 +617,12 @@ export default function ResultsPage() {
       })
       .then((data: { routes: RouteMetric[]; note: string | null }) => {
         const next: Record<string, RouteMetric> = {};
-        for (const route of data.routes []) {
+        for (const route of data.routes ?? []) {
           next[route.id] = route;
         }
         setRouteMetrics(next);
         setRouteStatus("ready");
-        setRouteError(data.note "");
+        setRouteError(data.note ?? "");
       })
       .catch((err: Error) => {
         if (err.name === "AbortError") return;
@@ -654,7 +662,7 @@ export default function ResultsPage() {
       <Section className="space-y-6">
         <AlpivoCompass results={sorted} totalResults={sorted.length} />
 
-        {usingExampleResults (
+        {usingExampleResults ? (
           <GlassCard className="border-sky-200/20 bg-sky-200/[0.08] p-5">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
@@ -687,7 +695,7 @@ export default function ResultsPage() {
                   type="button"
                   onClick={() => setShowAdvancedFilters((current) => !current)}
                 >
-                  {showAdvancedFilters "Filter reduzieren" : "Feinfilter öffnen"}
+                  {showAdvancedFilters ? "Filter reduzieren" : "Feinfilter ?ffnen"}
                 </button>
                 <Link className="rounded-xl border border-white/15 px-4 py-2 text-center text-sm text-white hover:bg-white/10" href="/quiz">
                   Match anpassen
@@ -707,7 +715,7 @@ export default function ResultsPage() {
                 ariaLabel="Land filtern"
                 options={countries.map((country) => ({
                   value: country,
-                  label: country === "all" "Alle Länder" : country,
+                  label: country === "all" ? "Alle L?nder" : country,
                 }))}
                 onChange={setCountryFilter}
               />
@@ -716,7 +724,7 @@ export default function ResultsPage() {
                 ariaLabel="Region filtern"
                 options={regions.map((region) => ({
                   value: region,
-                  label: region === "all" "Alle Regionen" : region,
+                  label: region === "all" ? "Alle Regionen" : region,
                 }))}
                 onChange={setRegionFilter}
               />
@@ -734,7 +742,7 @@ export default function ResultsPage() {
               />
             </div>
 
-            {showAdvancedFilters (
+            {showAdvancedFilters ? (
               <>
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
@@ -846,10 +854,10 @@ export default function ResultsPage() {
                         }
                       }}
                     />
-                    {originLoading (
+                    {originLoading ? (
                       <div className="absolute right-3 top-2 text-xs text-slate-400">Suche...</div>
                     ) : null}
-                    {originResults.length > 0 (
+                    {originResults.length > 0 ? (
                       <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950 text-sm shadow-lg">
                         {originResults.map((result) => (
                           <button
@@ -864,11 +872,11 @@ export default function ResultsPage() {
                       </div>
                     ) : null}
                   </div>
-                  {geo.status === "loading" (
+                  {geo.status === "loading" ? (
                     <div className="mt-2 text-xs text-slate-400">Standort wird geladen...</div>
                   ) : null}
-                  {geo.status === "error" <div className="mt-2 text-xs text-red-300">{geo.error}</div> : null}
-                  {geo.location <div className="mt-2 text-xs text-slate-300">{geo.location.label}</div> : null}
+                  {geo.status === "error" ? <div className="mt-2 text-xs text-red-300">{geo.error}</div> : null}
+                  {geo.location ? <div className="mt-2 text-xs text-slate-300">{geo.location.label}</div> : null}
                 </div>
               </div>
 
@@ -911,7 +919,7 @@ export default function ResultsPage() {
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-500">Sortierung</div>
                   <div className="mt-1 font-semibold text-white">
-                    {sortOptions.find((option) => option.value === sortBy).label "Beste Passung"}
+                    {sortOptions.find((option) => option.value === sortBy)?.label ?? "Beste Passung"}
                   </div>
                 </div>
                 <div>
@@ -920,7 +928,7 @@ export default function ResultsPage() {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-500">Startort</div>
-                  <div className="mt-1 font-semibold text-white">{geo.location.label "offen"}</div>
+                  <div className="mt-1 font-semibold text-white">{geo.location?.label ?? "offen"}</div>
                 </div>
                 <div className="flex items-center md:justify-end">
                   <button
@@ -939,19 +947,19 @@ export default function ResultsPage() {
               <div className="mt-2 text-sm text-slate-200">
                 {sorted.length} Resorts nach Filterung. Sortiert nach{" "}
                 {sortBy === "match"
-                  "bester Passung"
+                  ? "bester Passung"
                   : sortBy === "price_low"
-                    "günstigster Schätzung"
+                    ? "günstigster Schätzung"
                     : sortBy === "price_high"
-                      "teuerster Schätzung"
+                      ? "teuerster Schätzung"
                       : sortBy === "snow"
-                        "bester Schneesicherheit"
+                        ? "bester Schneesicherheit"
                         : sortBy === "value"
-                          "bestem Value"
+                          ? "bestem Value"
                           : sortBy === "summer"
-                            "Sommer-Gletscher-Potenzial"
+                            ? "Sommer-Gletscher-Potenzial"
                             : sortBy === "offpiste"
-                              "Off-Piste-Potenzial"
+                              ? "Off-Piste-Potenzial"
                           : "kürzester Fahrzeit"}
                 .
               </div>
@@ -960,19 +968,19 @@ export default function ResultsPage() {
               </div>
               <div className="mt-1 text-xs text-slate-400">
                 {geo.location
-                  routeStatus === "loading"
-                    "Straßen-Fahrzeiten werden berechnet..."
+                  ? routeStatus === "loading"
+                    ? "Straßen-Fahrzeiten werden berechnet..."
                     : routeStatus === "error"
-                      `Routingfehler: ${routeError}`
+                      ? `Routingfehler: ${routeError}`
                       : routeError || "Fahrzeiten basieren auf berechneten Straßenrouten."
                   : maxDriveHours
-                    "Max-Fahrzeit ist gesetzt, wird aber erst angewendet, sobald ein Startort vorhanden ist."
+                    ? "Max-Fahrzeit ist gesetzt, wird aber erst angewendet, sobald ein Startort vorhanden ist."
                     : "Fahrzeitfilter und Route werden erst nach gesetztem Standort berechnet."}
               </div>
             </div>
         </GlassCard>
 
-        {sorted[0] (
+        {sorted[0] ? (
           <TravelConnectionPanel
             title="Anreise zum Top-Match"
             resortName={sorted[0].name}
@@ -995,19 +1003,19 @@ export default function ResultsPage() {
             <div className="flex flex-col justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.045] p-4 md:flex-row md:items-center">
               <div>
                 <div className="text-sm font-semibold text-white">
-                  {sorted.length === 0 "Keine passenden Resorts" : `${visibleResults.length} von ${sorted.length} Resorts`}
+                  {sorted.length === 0 ? "Keine passenden Resorts" : `${visibleResults.length} von ${sorted.length} Resorts`}
                 </div>
                 <div className="mt-1 text-xs text-slate-400">
                   Alpivo zeigt zuerst die stärksten Kandidaten. Weitere Resorts bleiben abrufbar.
                 </div>
               </div>
-              {sorted.length > 12 (
+              {sorted.length > 12 ? (
                 <button
                   className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
                   type="button"
                   onClick={() => setShowAllResults((current) => !current)}
                 >
-                  {showAllResults "Auf Top 12 reduzieren" : "Alle Ergebnisse zeigen"}
+                  {showAllResults ? "Auf Top 12 reduzieren" : "Alle Ergebnisse zeigen"}
                 </button>
               ) : null}
             </div>
@@ -1024,13 +1032,13 @@ export default function ResultsPage() {
               />
             ))}
 
-            {sorted.length === 0 (
+            {sorted.length === 0 ? (
               <GlassCard className="p-6">
                 {results.length > 0
-                  "Keine Resorts nach den aktuellen Filtern. Bitte Filter lockern oder zurücksetzen."
+                  ? "Keine Resorts nach den aktuellen Filtern. Bitte Filter lockern oder zurücksetzen."
                   : "Keine Ergebnisse gespeichert. Bitte starte den Match neu."}
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {results.length > 0 (
+                  {results.length > 0 ? (
                     <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950" onClick={resetFilters}>
                       Filter zurücksetzen
                     </button>
@@ -1041,7 +1049,7 @@ export default function ResultsPage() {
                 </div>
               </GlassCard>
             ) : null}
-            {excludedResults.length > 0 (
+            {excludedResults.length > 0 ? (
               <GlassCard className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -1072,7 +1080,7 @@ export default function ResultsPage() {
             ) : null}
         </div>
 
-        <AnimatePresence>{toast <Toast message={toast} /> : null}</AnimatePresence>
+        <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
       </Section>
     </div>
   );

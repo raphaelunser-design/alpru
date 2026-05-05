@@ -27,7 +27,7 @@ export default function AvailabilityCalendar({
   const [savingRange, setSavingRange] = useState(false);
 
   const nextLabel = useMemo(() => {
-    if (!dateRange.from || !dateRange.to) return "";
+    if (!dateRange || !dateRange.from || !dateRange.to) return "";
     return `${dateRange.from.toLocaleDateString("de-DE", { month: "short" })} ${dateRange.from.getDate()} - ${dateRange.to.getDate()}.`;
   }, [dateRange]);
 
@@ -39,7 +39,7 @@ export default function AvailabilityCalendar({
             <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Kalender</div>
             <h3 className="mt-2 text-lg font-semibold text-white">Mögliche Reisefenster markieren</h3>
           </div>
-          {canCreateDateOption (
+          {canCreateDateOption ? (
             <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs text-sky-50">editierbar</span>
           ) : (
             <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-slate-300">nur Status</span>
@@ -61,7 +61,7 @@ export default function AvailabilityCalendar({
           />
         </div>
 
-        {canCreateDateOption (
+        {canCreateDateOption ? (
           <div className="mt-4 grid gap-3">
             <input
               className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500"
@@ -77,9 +77,9 @@ export default function AvailabilityCalendar({
             />
             <button
               className="button-lift rounded-lg bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
-              disabled={!dateRange.from || !dateRange.to || savingRange}
+              disabled={!dateRange || !dateRange.from || !dateRange.to || savingRange}
               onClick={async () => {
-                if (!dateRange.from || !dateRange.to) return;
+                if (!dateRange || !dateRange.from || !dateRange.to) return;
                 setSavingRange(true);
                 await onCreateDateOption({
                   label: label.trim() || nextLabel || "Neues Fenster",
@@ -93,7 +93,7 @@ export default function AvailabilityCalendar({
                 setDateRange(undefined);
               }}
             >
-              {savingRange "Speichert..." : "Zeitraum anlegen"}
+              {savingRange ? "Speichert..." : "Zeitraum anlegen"}
             </button>
           </div>
         ) : null}
@@ -108,10 +108,10 @@ export default function AvailabilityCalendar({
                 <div>
                   <div className="text-sm font-semibold text-white">{dateOption.label}</div>
                   <div className="mt-1 text-sm text-slate-300">{formatDateRange(dateOption.startDate, dateOption.endDate)}</div>
-                  {dateOption.note <div className="mt-1 text-xs text-slate-400">{dateOption.note}</div> : null}
+                  {dateOption.note ? <div className="mt-1 text-xs text-slate-400">{dateOption.note}</div> : null}
                 </div>
                 <div className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1 text-xs text-white/80">
-                  {currentStatus availabilityOptions.find((option) => option.value === currentStatus).label : "Status offen"}
+                  {currentStatus ? (availabilityOptions.find((option) => option.value === currentStatus)?.label || "Status offen") : "Status offen"}
                 </div>
               </div>
 
@@ -123,7 +123,7 @@ export default function AvailabilityCalendar({
                       key={option.value}
                       type="button"
                       className={`rounded-full border px-3 py-2 text-xs transition ${
-                        active option.chipClass : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.08]"
+                        active ? option.chipClass : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.08]"
                       }`}
                       disabled={busyDateOptionId === dateOption.id}
                       onClick={async () => {

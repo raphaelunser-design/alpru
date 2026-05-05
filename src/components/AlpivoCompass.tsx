@@ -26,13 +26,13 @@ function compactCost(value: number | null | undefined) {
 function strongestSignal(resort: CompassResort | undefined) {
   if (!resort) return null;
   const entries = [
-    { label: "Pistenprofil", value: resort.fitProfile.slope 0 },
-    { label: "Vibe", value: resort.fitProfile.vibe 0 },
-    { label: "Schnee", value: resort.fitProfile.snow resort.snowReliability 0 },
-    { label: "Sommer-Gletscher", value: resort.fitProfile.summer resort.summerGlacierScore 0 },
-    { label: "Off-Piste", value: resort.fitProfile.offPiste 0 },
-    { label: "Value", value: resort.fitProfile.value resort.valueScore 0 },
-    { label: "Komfort", value: resort.fitProfile.comfort 0 },
+    { label: "Pistenprofil", value: resort.fitProfile.slope ?? 0 },
+    { label: "Vibe", value: resort.fitProfile.vibe ?? 0 },
+    { label: "Schnee", value: resort.fitProfile.snow ?? resort.snowReliability ?? 0 },
+    { label: "Sommer-Gletscher", value: resort.fitProfile.summer ?? resort.summerGlacierScore ?? 0 },
+    { label: "Off-Piste", value: resort.fitProfile.offPiste ?? 0 },
+    { label: "Value", value: resort.fitProfile.value ?? resort.valueScore ?? 0 },
+    { label: "Komfort", value: resort.fitProfile.comfort ?? 0 },
   ].sort((a, b) => b.value - a.value);
   return entries[0];
 }
@@ -67,19 +67,19 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
   const topThree = results.slice(0, 3);
   const profile = top.fitProfile;
   const topSignal = strongestSignal(top);
-  const topReason = top.reasons.[0] "Der Score passt am besten zu deinem aktuellen Profil.";
-  const topDrawback = top.drawbacks.[0] "Preise, Verfügbarkeit und Pistenkarte vor der Buchung prüfen.";
+  const topReason = top.reasons?.[0] ?? "Der Score passt am besten zu deinem aktuellen Profil.";
+  const topDrawback = top.drawbacks?.[0] ?? "Preise, Verf?gbarkeit und Pistenkarte vor der Buchung pr?fen.";
 
   return (
     <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
       <div className="rounded-lg border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_52px_rgba(2,6,23,0.32)]">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Alpivo Compass</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">
-          {top `${top.name} führt dein Ranking an` : "Noch kein Match berechnet"}
+          {top ? `${top.name} f?hrt dein Ranking an` : "Noch kein Match berechnet"}
         </h2>
         <p className="mt-3 text-sm text-slate-300">{coachText(results)}</p>
 
-        {top (
+        {top ? (
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-sky-200/20 bg-sky-200/10 p-3">
               <div className="text-xs text-slate-300">Match</div>
@@ -93,19 +93,19 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
               <div className="text-xs text-slate-300">Profil</div>
-              <div className="mt-1 text-sm font-semibold text-white">{top.tripStyleHint "Ausgewogen"}</div>
+              <div className="mt-1 text-sm font-semibold text-white">{top.tripStyleHint ?? "Ausgewogen"}</div>
             </div>
           </div>
         ) : null}
 
-        {top (
+        {top ? (
           <div className="mt-5 rounded-lg border border-sky-200/20 bg-sky-200/[0.07] p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-100/80">Warum gewinnt dieses Resort</div>
             <p className="mt-2 text-sm leading-relaxed text-slate-100">{topReason}</p>
             <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
               <div className="rounded-md border border-white/10 bg-white/[0.055] px-3 py-2">
-                Stärkster Treiber: <span className="font-semibold text-white">{topSignal.label "Match"}</span>
-                {topSignal ` ${pct(topSignal.value)}%` : ""}
+                Stärkster Treiber: <span className="font-semibold text-white">{topSignal?.label ?? "Match"}</span>
+                {topSignal ? ` ${pct(topSignal.value)}%` : ""}
               </div>
               <div className="rounded-md border border-amber-200/15 bg-amber-200/[0.07] px-3 py-2 text-amber-50">
                 Haken: {topDrawback}
@@ -114,7 +114,7 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
           </div>
         ) : null}
 
-        {profile (
+        {profile ? (
           <div className="mt-5 grid gap-3">
             <Bar label="Pisten-Fit" value={pct(profile.slope)} />
             <Bar label="Vibe-Fit" value={pct(profile.vibe)} />
@@ -151,8 +151,8 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
                   <div className="font-semibold text-white">{resort.name}</div>
                   <div className="mt-1 text-xs text-slate-400">
                     {resort.country}
-                    {resort.region ` · ${resort.region}` : ""}
-                    {resort.pisteKm ` · ${number.format(resort.pisteKm)} km` : ""}
+                    {resort.region ? ` · ${resort.region}` : ""}
+                    {resort.pisteKm ? ` · ${number.format(resort.pisteKm)} km` : ""}
                   </div>
                 </div>
                 <div className="text-right">
@@ -169,10 +169,10 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
               </div>
               <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
                 <div className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-2">
-                  Grund: {resort.reasons.[0] "starker Profil-Fit"}
+                  Grund: {resort.reasons?.[0] ?? "starker Profil-Fit"}
                 </div>
                 <div className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-2">
-                  Haken: {resort.drawbacks.[0] "Details prüfen"}
+                  Haken: {resort.drawbacks?.[0] ?? "Details pr?fen"}
                 </div>
               </div>
             </Link>

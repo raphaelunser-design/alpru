@@ -6,29 +6,38 @@ import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
 import { supabase } from "@/lib/supabase";
 
+type FeedbackStatus = "new" | "reviewed" | "planned" | "done" | "archived";
+
 type FeedbackRow = {
   id: string;
   user_email: string | null;
-  category: "bug" | "feature" | "feedback";
+  display_name: string | null;
+  category: string | null;
+  feedback_type: string | null;
   message: string;
   page_path: string | null;
-  status: "new" | "reviewed" | "done" | "archived";
+  page_url: string | null;
+  status: FeedbackStatus;
+  rating: number | null;
   created_at: string;
 };
 
 const categoryOptions = [
-  { value: "all", label: "Alle Kategorien" },
-  { value: "feedback", label: "Feedback" },
-  { value: "bug", label: "Bugs" },
-  { value: "feature", label: "Ideen" },
+  { value: "all", label: "Alle Kategorien", description: "Alle Feedback-Arten" },
+  { value: "general", label: "Allgemein", description: "Allgemeine Rückmeldungen" },
+  { value: "bug", label: "Bugs", description: "Fehler und Probleme" },
+  { value: "idea", label: "Ideen", description: "Feature-Wünsche" },
+  { value: "design", label: "Design", description: "UI- und UX-Hinweise" },
+  { value: "feedback", label: "Feedback", description: "Sonstiges Feedback" },
 ];
 
 const statusOptions = [
-  { value: "all", label: "Alle Status" },
-  { value: "new", label: "Neu" },
-  { value: "reviewed", label: "Geprüft" },
-  { value: "done", label: "Erledigt" },
-  { value: "archived", label: "Archiv" },
+  { value: "all", label: "Alle Status", description: "Alle Bearbeitungsstände" },
+  { value: "new", label: "Neu", description: "Noch nicht bearbeitet" },
+  { value: "reviewed", label: "Geprüft", description: "Gesichtet" },
+  { value: "planned", label: "Geplant", description: "Für Umsetzung vorgemerkt" },
+  { value: "done", label: "Erledigt", description: "Umgesetzt oder beantwortet" },
+  { value: "archived", label: "Archiv", description: "Archiviert" },
 ];
 
 const statusEditOptions = statusOptions.filter((option) => option.value !== "all");
@@ -39,10 +48,20 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
-function categoryLabel(category: FeedbackRow["category"]) {
-  if (category === "bug") return "Bug";
-  if (category === "feature") return "Idee";
+function typeLabel(row: FeedbackRow) {
+  const type = row.feedback_type || row.category;
+  if (type === "bug") return "Bug";
+  if (type === "feature" || type === "idea") return "Idee";
+  if (type === "design") return "Design";
   return "Feedback";
+}
+
+function statusLabel(status: FeedbackStatus) {
+  if (status === "reviewed") return "Geprüft";
+  if (status === "planned") return "Geplant";
+  if (status === "done") return "Erledigt";
+  if (status === "archived") return "Archiviert";
+  return "Neu";
 }
 
 export default function AdminFeedbackPage() {
@@ -55,9 +74,9 @@ export default function AdminFeedbackPage() {
   const stats = useMemo(() => {
     return {
       total: rows.length,
-      bugs: rows.filter((row) => row.category === "bug").length,
-      features: rows.filter((row) => row.category === "feature").length,
-      open: rows.filter((row) => row.status === "new").length,
+      bugs: rows.filter((row) => (row.feedback_type || row.category) === "bug").length,
+      ideas: rows.filter((row) => ["feature", "idea"].includes(String(row.feedback_type || row.category))).length,
+      open: rows.filter((row) => ["new", "reviewed", "planned"].includes(row.status)).length,
     };
   }, [rows]);
 
@@ -70,17 +89,18 @@ export default function AdminFeedbackPage() {
     setLoading(true);
     setError("");
     const headers = await authHeaders();
-    const response = await fetch(`/api/admin/feedbackcategory=${category}&status=${status}`, { headers });
-    const body = (await response.json().catch(() => null)) as { data: FeedbackRow[]; error: string } | null;
+    const params = new URLSearchParams({ category, status });
+    const response = await fetch(`/api/admin/feedback?${params.toString()}`, { headers });
+    const body = (await response.json().catch(() => null)) as { data?: FeedbackRow[]; error?: string } | null;
 
     if (!response.ok) {
-      setError(body.error ?? "Feedback konnte nicht geladen werden.");
+      setError(body?.error ?? "Feedback konnte nicht geladen werden.");
       setRows([]);
       setLoading(false);
       return;
     }
 
-    setRows(body.data ?? []);
+    setRows(body?.data ?? []);
     setLoading(false);
   }
 
@@ -93,13 +113,13 @@ export default function AdminFeedbackPage() {
     });
 
     if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { error: string } | null;
-      setError(body.error ?? "Status konnte nicht gespeichert werden");
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(body?.error ?? "Status konnte nicht gespeichert werden.");
       return;
     }
 
     setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, status: nextStatus as FeedbackRow["status"] } : row))
+      current.map((row) => (row.id === id ? { ...row, status: nextStatus as FeedbackStatus } : row))
     );
   }
 
@@ -114,7 +134,7 @@ export default function AdminFeedbackPage() {
         <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Beta Feedback</p>
         <h1 className="mt-3 text-3xl font-semibold text-white">Nutzerfeedback auswerten</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-300">
-          Bugs, Ideen und allgemeines Feedback aus dem sticky Feedback-Button.
+          Bugs, Ideen, Design-Hinweise und allgemeines Feedback inklusive Account- und Seitenkontext.
         </p>
       </div>
 
@@ -124,7 +144,7 @@ export default function AdminFeedbackPage() {
           <div className="mt-1 text-2xl font-semibold text-white">{stats.total}</div>
         </GlassCard>
         <GlassCard className="p-4">
-          <div className="text-xs text-slate-400">Neu</div>
+          <div className="text-xs text-slate-400">Offen</div>
           <div className="mt-1 text-2xl font-semibold text-white">{stats.open}</div>
         </GlassCard>
         <GlassCard className="p-4">
@@ -133,7 +153,7 @@ export default function AdminFeedbackPage() {
         </GlassCard>
         <GlassCard className="p-4">
           <div className="text-xs text-slate-400">Ideen</div>
-          <div className="mt-1 text-2xl font-semibold text-white">{stats.features}</div>
+          <div className="mt-1 text-2xl font-semibold text-white">{stats.ideas}</div>
         </GlassCard>
       </div>
 
@@ -154,7 +174,7 @@ export default function AdminFeedbackPage() {
 
       <div className="grid gap-3">
         {loading ? <GlassCard className="p-5 text-sm text-slate-300">Feedback wird geladen...</GlassCard> : null}
-        {!loading && rows.length === 0 (
+        {!loading && rows.length === 0 ? (
           <GlassCard className="p-5 text-sm text-slate-300">Noch kein Feedback für diese Filter.</GlassCard>
         ) : null}
         {rows.map((row) => (
@@ -163,17 +183,22 @@ export default function AdminFeedbackPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-2.5 py-1 text-sky-100">
-                    {categoryLabel(row.category)}
+                    {typeLabel(row)}
                   </span>
                   <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-slate-300">
-                    {row.status}
+                    {statusLabel(row.status)}
                   </span>
+                  {row.rating ? (
+                    <span className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-amber-100">
+                      {row.rating}/5
+                    </span>
+                  ) : null}
                   <span className="text-slate-500">{formatDate(row.created_at)}</span>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{row.message}</p>
-                <div className="mt-3 text-xs text-slate-500">
-                  {row.user_email "anonym"}
-                  {row.page_path ` · ${row.page_path}` : ""}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <span>{row.display_name || row.user_email || "anonym"}</span>
+                  {(row.page_url || row.page_path) ? <span>· {row.page_url || row.page_path}</span> : null}
                 </div>
               </div>
               <div className="w-full md:w-44">

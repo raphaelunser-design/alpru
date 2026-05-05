@@ -80,7 +80,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
         </div>
       </div>
 
-      {spots.length > 0 (
+      {spots.length > 0 ? (
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {spots.map((spot) => {
             const primaryUrl = spot.maps_url || spot.website_url || spot.booking_url || spot.source_url;
@@ -93,7 +93,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
                     </div>
                     <h3 className="mt-1 text-base font-semibold text-white">{spot.name}</h3>
                   </div>
-                  {primaryUrl (
+                  {primaryUrl ? (
                     <a
                       className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-slate-950/40 text-slate-200 hover:text-sky-100"
                       href={primaryUrl}
@@ -107,24 +107,24 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
                 </div>
 
                 <div className="mt-3 space-y-2 text-sm text-slate-300">
-                  {spot.address || spot.village (
+                  {spot.address || spot.village ? (
                     <div>
                       <div className="text-[11px] uppercase tracking-wide text-slate-500">Adresse</div>
-                      <div className="mt-0.5 font-medium text-white">{spot.address spot.village}</div>
-                      {spot.address && spot.village <div className="text-xs text-slate-400">{spot.village}</div> : null}
+                      <div className="mt-0.5 font-medium text-white">{spot.address ?? spot.village}</div>
+                      {spot.address && spot.village ? <div className="text-xs text-slate-400">{spot.village}</div> : null}
                     </div>
                   ) : null}
-                  {spot.vibe_label <div>{spot.vibe_label}</div> : null}
-                  {spot.best_for <div className="text-xs text-slate-400">Gut für: {spot.best_for}</div> : null}
-                  {spot.opening_note <div className="text-xs text-slate-400">{spot.opening_note}</div> : null}
+                  {spot.vibe_label ? <div>{spot.vibe_label}</div> : null}
+                  {spot.best_for ? <div className="text-xs text-slate-400">Gut für: {spot.best_for}</div> : null}
+                  {spot.opening_note ? <div className="text-xs text-slate-400">{spot.opening_note}</div> : null}
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                  {spot.price_level (
+                  {spot.price_level ? (
                     <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">{spot.price_level}</span>
                   ) : null}
                   <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">
-                    {spot.source_label "Quelle gepflegt"}
+                    {spot.source_label ?? "Quelle gepflegt"}
                   </span>
                 </div>
               </article>
@@ -135,7 +135,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
         <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-lg border border-amber-200/20 bg-amber-200/10 p-4 text-sm text-amber-50">
             Für dieses Resort sind noch keine verifizierten Après-Ski-Adressen hinterlegt.
-            {hint <div className="mt-2 text-xs text-amber-100/80">{hint}</div> : null}
+            {hint ? <div className="mt-2 text-xs text-amber-100/80">{hint}</div> : null}
             <div className="mt-2 text-xs text-amber-100/80">
               Nächster Daten-Schritt: offizielle Resortseiten, lokale Tourismusquellen und geprüfte Kartenlinks je Spot importieren.
             </div>
@@ -150,7 +150,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
               Karten-Suche öffnen
               <ExternalArrow />
             </a>
-            {officialUrl (
+            {officialUrl ? (
               <a
                 className="inline-flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-slate-200 hover:bg-white/10"
                 href={officialUrl}

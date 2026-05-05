@@ -23,7 +23,7 @@ function getBudgetFit(row: ComparisonRow, cheapestTotal: number) {
 }
 
 function getSnowScore(row: ComparisonRow) {
-  const elevation = row.resort.elevationMaxM null;
+  const elevation = row.resort ? row.resort.elevationMaxM : null;
   if (typeof elevation !== "number") return null;
   return clamp(45 + ((elevation - 1200) / 1700) * 55);
 }
@@ -37,12 +37,12 @@ function getDecisionChips(row: ComparisonRow, cheapestTotal: number, bestAvailab
 }
 
 export default function ComparisonTable({ rows }: ComparisonTableProps) {
-  const cheapestTotal = rows.length Math.min(...rows.map((row) => row.total)) : 0;
-  const bestMix = rows.length Math.max(...rows.map((row) => row.combinedScore)) : 0;
-  const bestAvailability = rows.length Math.max(...rows.map((row) => row.availability.score)) : 0;
-  const winner = rows.find((row) => row.combinedScore === bestMix) rows[0] null;
-  const cheapest = rows.find((row) => row.total === cheapestTotal) null;
-  const bestDate = rows.find((row) => row.availability.score === bestAvailability) null;
+  const cheapestTotal = rows.length ? Math.min(...rows.map((row) => row.total)) : 0;
+  const bestMix = rows.length ? Math.max(...rows.map((row) => row.combinedScore)) : 0;
+  const bestAvailability = rows.length ? Math.max(...rows.map((row) => row.availability.score)) : 0;
+  const winner = rows.find((row) => row.combinedScore === bestMix) || rows[0] || null;
+  const cheapest = rows.find((row) => row.total === cheapestTotal) || null;
+  const bestDate = rows.find((row) => row.availability.score === bestAvailability) || null;
 
   if (!rows.length) {
     return (
@@ -54,30 +54,30 @@ export default function ComparisonTable({ rows }: ComparisonTableProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/55">
-      {winner (
+      {winner ? (
         <div className="border-b border-white/10 bg-sky-200/[0.07] p-4">
           <div className="text-xs uppercase tracking-[0.24em] text-sky-100/75">Warum gewinnt dieses Resort</div>
           <div className="mt-2 text-lg font-semibold text-white">
-            {winner.resort.name winner.favorite.resortSlug} gewinnt für {formatDateRange(winner.dateOption.startDate, winner.dateOption.endDate)}
+            {winner.resort ? winner.resort.name : winner.favorite.resortSlug} gewinnt für {formatDateRange(winner.dateOption.startDate, winner.dateOption.endDate)}
           </div>
           <p className="mt-1 max-w-3xl text-sm text-slate-300">
             Ausschlaggebend ist {winner.decisionReason}: {formatCurrency(winner.totalPerPerson)} pro Person,{" "}
-            {formatPercent(getGroupFit(winner))} Gruppen-Fit und {winner.resort.matchPct 52}% Alpivo-Fit.
+            {formatPercent(getGroupFit(winner))} Gruppen-Fit und {winner.resort && typeof winner.resort.matchPct === "number" ? winner.resort.matchPct : 52}% Alpivo-Fit.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
               <div className="text-xs uppercase tracking-wide text-slate-500">Günstigste Kombi</div>
-              <div className="mt-1 text-sm font-semibold text-white">{cheapest.resort.name cheapest.favorite.resortSlug "-"}</div>
-              <div className="mt-1 text-xs text-slate-400">{cheapest formatCurrency(cheapest.totalPerPerson) : "-"} pro Person</div>
+              <div className="mt-1 text-sm font-semibold text-white">{cheapest ? (cheapest.resort ? cheapest.resort.name : cheapest.favorite.resortSlug) : "-"}</div>
+              <div className="mt-1 text-xs text-slate-400">{cheapest ? formatCurrency(cheapest.totalPerPerson) : "-"} pro Person</div>
             </div>
             <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
               <div className="text-xs uppercase tracking-wide text-slate-500">Beste Verfügbarkeit</div>
-              <div className="mt-1 text-sm font-semibold text-white">{bestDate formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "-"}</div>
-              <div className="mt-1 text-xs text-slate-400">{bestDate formatPercent(getGroupFit(bestDate)) : "-"} Gruppen-Fit</div>
+              <div className="mt-1 text-sm font-semibold text-white">{bestDate ? formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "-"}</div>
+              <div className="mt-1 text-xs text-slate-400">{bestDate ? formatPercent(getGroupFit(bestDate)) : "-"} Gruppen-Fit</div>
             </div>
             <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
               <div className="text-xs uppercase tracking-wide text-slate-500">Ski-Fit</div>
-              <div className="mt-1 text-sm font-semibold text-white">{winner.resort.matchPct 52}% Alpivo-Fit</div>
+              <div className="mt-1 text-sm font-semibold text-white">{winner.resort && typeof winner.resort.matchPct === "number" ? winner.resort.matchPct : 52}% Alpivo-Fit</div>
               <div className="mt-1 text-xs text-slate-400">Preis, Verfügbarkeit und Resortdaten kombiniert</div>
             </div>
           </div>
@@ -98,8 +98,8 @@ export default function ComparisonTable({ rows }: ComparisonTableProps) {
           </thead>
           <tbody>
             {rows.map((row) => {
-              const snapshot = row.snapshot;
-              const otherCosts = (snapshot.rental 0) + (snapshot.skiSchool 0) + (snapshot.food 0) + (snapshot.buffer 0);
+              const snapshot = (row.snapshot || {}) as Partial<NonNullable<ComparisonRow["snapshot"]>>;
+              const otherCosts = (snapshot.rental || 0) + (snapshot.skiSchool || 0) + (snapshot.food || 0) + (snapshot.buffer || 0);
               const groupFit = getGroupFit(row);
               const budgetFit = getBudgetFit(row, cheapestTotal);
               const snowScore = getSnowScore(row);
@@ -108,9 +108,9 @@ export default function ComparisonTable({ rows }: ComparisonTableProps) {
               return (
                 <tr key={`${row.favorite.id}-${row.dateOption.id}`} className="border-t border-white/10 text-slate-200">
                   <td className="px-4 py-4 align-top">
-                    <div className="font-semibold text-white">{row.resort.name row.favorite.resortSlug}</div>
-                    <div className="mt-1 text-xs text-slate-500">{[row.resort.region, row.resort.country].filter(Boolean).join(", ") || "Resort-Favorit"}</div>
-                    {chips.length (
+                    <div className="font-semibold text-white">{row.resort ? row.resort.name : row.favorite.resortSlug}</div>
+                    <div className="mt-1 text-xs text-slate-500">{row.resort ? [row.resort.region, row.resort.country].filter(Boolean).join(", ") || "Resort-Favorit" : "Resort-Favorit"}</div>
+                    {chips.length ? (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {chips.map((chip) => (
                           <span key={chip.label} className={`rounded-full border px-2 py-1 text-[11px] ${chip.className}`}>
@@ -134,19 +134,19 @@ export default function ComparisonTable({ rows }: ComparisonTableProps) {
                     <div className="text-base font-semibold text-white">{formatCurrency(row.totalPerPerson)} p. P.</div>
                     <div className="mt-1 text-xs text-slate-500">gesamt {formatCurrency(row.total)}</div>
                     <div className="mt-2 grid gap-1 text-xs text-slate-400">
-                      <span>Skipass {formatCurrency(snapshot.skipass 0)}</span>
-                      <span>Unterkunft {formatCurrency(snapshot.accommodation 0)}</span>
-                      <span>Anreise {formatCurrency(snapshot.travel 0)}</span>
+                      <span>Skipass {formatCurrency(snapshot.skipass || 0)}</span>
+                      <span>Unterkunft {formatCurrency(snapshot.accommodation || 0)}</span>
+                      <span>Anreise {formatCurrency(snapshot.travel || 0)}</span>
                       <span>Sonstiges {formatCurrency(otherCosts)}</span>
                     </div>
                     <div className="mt-2 text-xs text-slate-500">Budget-Fit {formatPercent(budgetFit)}</div>
                   </td>
                   <td className="px-4 py-4 align-top">
-                    <div className="font-semibold text-white">{row.resort.matchPct 52}% Alpivo</div>
+                    <div className="font-semibold text-white">{row.resort && typeof row.resort.matchPct === "number" ? row.resort.matchPct : 52}% Alpivo</div>
                     <div className="mt-2 grid gap-1 text-xs text-slate-400">
-                      <span>{row.resort.pisteKm `${row.resort.pisteKm} km Pisten` : "Pisten-km offen"}</span>
-                      <span>{row.resort.elevationMaxM `bis ${row.resort.elevationMaxM} m` : "Höhenlage offen"}</span>
-                      <span>{snowScore !== null `Schneesicherheit ${formatPercent(snowScore)}` : "Schneesicherheit offen"}</span>
+                      <span>{row.resort && row.resort.pisteKm ? `${row.resort.pisteKm} km Pisten` : "Pisten-km offen"}</span>
+                      <span>{row.resort && row.resort.elevationMaxM ? `bis ${row.resort.elevationMaxM} m` : "H?henlage offen"}</span>
+                      <span>{snowScore !== null ? `Schneesicherheit ${formatPercent(snowScore)}` : "Schneesicherheit offen"}</span>
                     </div>
                   </td>
                   <td className="px-4 py-4 align-top">

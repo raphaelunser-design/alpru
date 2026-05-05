@@ -19,7 +19,7 @@ export default function TripNavigation({ tripId, activeView }: TripNavigationPro
               key={tab.view}
               href={buildTripRoute(tripId, tab.view)}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                active "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/[0.08] hover:text-white"
+                active ? "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/[0.08] hover:text-white"
               }`}
             >
               {tab.label}

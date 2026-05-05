@@ -4,14 +4,14 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const categories = [
-  { value: "feedback", label: "Feedback" },
+  { value: "general", label: "Feedback" },
   { value: "bug", label: "Bug" },
-  { value: "feature", label: "Idee" },
+  { value: "idea", label: "Idee" },
 ] as const;
 
 export default function FeedbackButton() {
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState<(typeof categories)[number]["value"]>("feedback");
+  const [category, setCategory] = useState<(typeof categories)[number]["value"]>("general");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
@@ -37,15 +37,17 @@ export default function FeedbackButton() {
       },
       body: JSON.stringify({
         category,
+        feedbackType: category,
         message: trimmed,
         pagePath: window.location.pathname,
+        pageUrl: window.location.href,
       }),
     });
 
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as { error: string } | null;
       setStatus("error");
-      setError(body.error ?? "Feedback konnte nicht gespeichert werden.");
+      setError(body?.error ?? "Feedback konnte nicht gespeichert werden.");
       return;
     }
 
@@ -59,7 +61,7 @@ export default function FeedbackButton() {
 
   return (
     <div className="fixed bottom-20 right-3 z-40 md:bottom-5 md:right-5">
-      {open (
+      {open ? (
         <div className="mb-3 w-[min(calc(100vw-1.5rem),360px)] rounded-2xl border border-white/15 bg-slate-950/94 p-4 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.5)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>

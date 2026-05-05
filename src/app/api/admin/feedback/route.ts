@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   let query = supabaseAdmin
     .from("beta_feedback")
-    .select("id,user_id,user_email,category,message,page_path,user_agent,status,created_at")
+    .select("id,user_id,user_email,display_name,category,feedback_type,message,page_path,page_url,rating,user_agent,status,created_at,updated_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -34,7 +34,7 @@ export async function PATCH(req: Request) {
   }
 
   const body = (await req.json()) as { id: string; status: string };
-  if (!body.id || !["new", "reviewed", "done", "archived"].includes(body.status ?? "")) {
+  if (!body.id || !["new", "reviewed", "planned", "done", "archived"].includes(body.status ?? "")) {
     return NextResponse.json({ error: "Ungültiger Feedback-Status." }, { status: 400 });
   }
 

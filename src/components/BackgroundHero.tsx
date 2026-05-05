@@ -3,8 +3,8 @@ import Image from "next/image";
 type BackgroundHeroProps = {
   imageSrc: string;
   children: React.ReactNode;
-  heightClass: string;
-  imagePosition: string;
+  heightClass?: string;
+  imagePosition?: string;
 };
 
 export default function BackgroundHero({

@@ -71,7 +71,7 @@ const ALPINE_COUNTRIES_DE = [
 
 const countryOptions = ALPINE_COUNTRIES_DE.map((country) => ({
   value: country,
-  label: country === "all" "Alle Länder" : country,
+  label: country === "all" ? "Alle Länder" : country,
 }));
 
 const defaultPrefs: Prefs = {
@@ -294,13 +294,13 @@ const tripProfiles: Array<{
   },
 ];
 
-function SliderRow(props: { label: string; hint: string; value: number; onChange: (v: number) => void }) {
+function SliderRow(props: { label: string; hint?: string; value: number; onChange: (v: number) => void }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-slate-200">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm font-medium text-white">{props.label}</div>
-          {props.hint <div className="mt-1 text-xs text-slate-400">{props.hint}</div> : null}
+          {props.hint ? <div className="mt-1 text-xs text-slate-400">{props.hint}</div> : null}
         </div>
         <div className="text-sm text-slate-300">{props.value}/5</div>
       </div>
@@ -374,20 +374,20 @@ export default function QuizPage() {
         const saved = JSON.parse(rawPrefs) as Partial<Prefs> & { needRental: boolean; budget: number };
         const rentalMode =
           typeof saved.rentalMode === "string"
-            saved.rentalMode === "rent"
-              "rent"
+            ? saved.rentalMode === "rent"
+              ? "rent"
               : "own"
             : saved.needRental
-              "rent"
+              ? "rent"
               : "own";
 
         const travelMode =
           saved.travelMode === "train" || saved.travelMode === "bus" || saved.travelMode === "flight"
-            saved.travelMode
+            ? saved.travelMode
             : "car";
 
-        const budgetMin = Number(saved.budgetMin defaultPrefs.budgetMin);
-        const budgetMax = Number(saved.budgetMax saved.budget defaultPrefs.budgetMax);
+        const budgetMin = Number(saved.budgetMin ?? defaultPrefs.budgetMin);
+        const budgetMax = Number(saved.budgetMax ?? saved.budget ?? defaultPrefs.budgetMax);
 
         const nextPrefs: Prefs = {
           ...defaultPrefs,
@@ -402,34 +402,34 @@ export default function QuizPage() {
             saved.tripStyle === "powder" ||
             saved.tripStyle === "glacier" ||
             saved.tripStyle === "offpiste"
-              saved.tripStyle
+              ? saved.tripStyle
               : "balanced",
           budgetMin,
           budgetMax,
-          peopleCount: Number(saved.peopleCount defaultPrefs.peopleCount),
-          apres: Number(saved.apres defaultPrefs.apres),
-          emptySlopes: Number(saved.emptySlopes defaultPrefs.emptySlopes),
-          infrastructure: Number(saved.infrastructure defaultPrefs.infrastructure),
-          huts: Number(saved.huts defaultPrefs.huts),
-          snowpark: Number(saved.snowpark defaultPrefs.snowpark),
-          easyRuns: Number(saved.easyRuns defaultPrefs.easyRuns),
-          challenging: Number(saved.challenging defaultPrefs.challenging),
-          snowReliability: Number(saved.snowReliability defaultPrefs.snowReliability),
-          valueForMoney: Number(saved.valueForMoney defaultPrefs.valueForMoney),
-          family: Number(saved.family defaultPrefs.family),
-          panorama: Number(saved.panorama defaultPrefs.panorama),
-          summerGlacier: Number(saved.summerGlacier defaultPrefs.summerGlacier),
-          offPiste: Number(saved.offPiste defaultPrefs.offPiste),
+          peopleCount: Number(saved.peopleCount ?? defaultPrefs.peopleCount),
+          apres: Number(saved.apres ?? defaultPrefs.apres),
+          emptySlopes: Number(saved.emptySlopes ?? defaultPrefs.emptySlopes),
+          infrastructure: Number(saved.infrastructure ?? defaultPrefs.infrastructure),
+          huts: Number(saved.huts ?? defaultPrefs.huts),
+          snowpark: Number(saved.snowpark ?? defaultPrefs.snowpark),
+          easyRuns: Number(saved.easyRuns ?? defaultPrefs.easyRuns),
+          challenging: Number(saved.challenging ?? defaultPrefs.challenging),
+          snowReliability: Number(saved.snowReliability ?? defaultPrefs.snowReliability),
+          valueForMoney: Number(saved.valueForMoney ?? defaultPrefs.valueForMoney),
+          family: Number(saved.family ?? defaultPrefs.family),
+          panorama: Number(saved.panorama ?? defaultPrefs.panorama),
+          summerGlacier: Number(saved.summerGlacier ?? defaultPrefs.summerGlacier),
+          offPiste: Number(saved.offPiste ?? defaultPrefs.offPiste),
           foodSpendLevel:
             saved.foodSpendLevel === "budget" || saved.foodSpendLevel === "comfort" || saved.foodSpendLevel === "standard"
-              saved.foodSpendLevel
+              ? saved.foodSpendLevel
               : "standard",
-          tripStartDate: saved.tripStartDate null,
-          tripEndDate: saved.tripEndDate null,
+          tripStartDate: saved.tripStartDate ?? null,
+          tripEndDate: saved.tripEndDate ?? null,
           rentalMode,
           travelMode,
           excludeCountries: Array.isArray(saved.excludeCountries)
-            saved.excludeCountries.filter((entry): entry is string => typeof entry === "string")
+            ? saved.excludeCountries.filter((entry): entry is string => typeof entry === "string")
             : [],
           excludeGlacier: Boolean(saved.excludeGlacier),
           excludePremium: Boolean(saved.excludePremium),
@@ -452,9 +452,9 @@ export default function QuizPage() {
       try {
         const saved = JSON.parse(rawFilters) as Partial<Prefilters> & { country: string };
         setPrefilters({
-          countryFilter: saved.countryFilter saved.country "all",
-          minPisteKm: saved.minPisteKm "",
-          maxDriveHours: saved.maxDriveHours "",
+          countryFilter: saved.countryFilter ?? saved.country ?? "all",
+          minPisteKm: saved.minPisteKm ?? "",
+          maxDriveHours: saved.maxDriveHours ?? "",
         });
       } catch {
         // ignore invalid storage
@@ -468,7 +468,7 @@ export default function QuizPage() {
 
     supabase.auth.getUser().then(async ({ data }) => {
       if (!mounted) return;
-      const nextUserId = data.user.id null;
+      const nextUserId = data.user?.id ?? null;
       setUserId(nextUserId);
       if (!nextUserId) return;
 
@@ -484,14 +484,14 @@ export default function QuizPage() {
         setDnaMessage("DNA ist lokal gespeichert. Supabase-Profil konnte nicht geladen werden.");
         return;
       }
-      if (!saved.preferences) return;
+      if (!saved?.preferences) return;
 
       const nextPrefs = { ...defaultPrefs, ...(saved.preferences as Partial<Prefs>) };
       setPrefs(nextPrefs);
       const from = parseIsoDate(nextPrefs.tripStartDate);
       const to = parseIsoDate(nextPrefs.tripEndDate);
-      setDateRange(from || to { from, to } : undefined);
-      if (saved.filters && typeof saved.filters === "object") {
+      setDateRange(from || to ? { from, to } : undefined);
+      if (saved?.filters && typeof saved.filters === "object") {
         setPrefilters((current) => ({ ...current, ...(saved.filters as Partial<Prefilters>) }));
       }
       setDnaStatus("saved");
@@ -507,7 +507,7 @@ export default function QuizPage() {
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     if (dnaStatus === "saved") return;
-    setDnaStatus(userId "local" : "idle");
+    setDnaStatus(userId ? "local" : "idle");
   }, [prefs, hydrated]);
 
   useEffect(() => {
@@ -518,9 +518,9 @@ export default function QuizPage() {
       try {
         const parsed = JSON.parse(existing) as Record<string, unknown>;
         originFields = {
-          originLat: parsed.originLat "",
-          originLon: parsed.originLon "",
-          originLabel: parsed.originLabel "",
+          originLat: parsed.originLat ?? "",
+          originLon: parsed.originLon ?? "",
+          originLabel: parsed.originLabel ?? "",
         };
       } catch {
         // ignore invalid storage
@@ -552,9 +552,9 @@ export default function QuizPage() {
       try {
         const parsed = JSON.parse(existingFilters) as Record<string, unknown>;
         originFields = {
-          originLat: parsed.originLat "",
-          originLon: parsed.originLon "",
-          originLabel: parsed.originLabel "",
+          originLat: parsed.originLat ?? "",
+          originLon: parsed.originLon ?? "",
+          originLabel: parsed.originLabel ?? "",
         };
       } catch {
         // ignore invalid storage
@@ -592,7 +592,7 @@ export default function QuizPage() {
 
     sessionStorage.setItem("ski_results", JSON.stringify(data.results));
     localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(data.results));
-    localStorage.setItem("alpivo_excluded_results", JSON.stringify(data.excluded []));
+    localStorage.setItem("alpivo_excluded_results", JSON.stringify(data.excluded ?? []));
     router.push("/results");
   }
 
@@ -639,14 +639,14 @@ export default function QuizPage() {
   }
 
   const rangeSummary = useMemo(() => {
-    if (!dateRange.from) return "Kein Datum gewählt";
+    if (!dateRange?.from) return "Kein Datum gewählt";
     const fromLabel = dateFormatter.format(dateRange.from);
     if (!dateRange.to) return `${fromLabel} – ...`;
     return `${fromLabel} – ${dateFormatter.format(dateRange.to)}`;
   }, [dateRange]);
 
   const rangeDays = useMemo(() => {
-    if (!dateRange.from || !dateRange.to) return null;
+    if (!dateRange?.from || !dateRange.to) return null;
     const diffMs = dateRange.to.getTime() - dateRange.from.getTime();
     const days = Math.max(1, Math.round(diffMs / 86400000) + 1);
     return days;
@@ -705,7 +705,7 @@ export default function QuizPage() {
               </p>
             </div>
             <div className="rounded-lg border border-sky-200/20 bg-sky-200/10 px-4 py-3 text-sm text-sky-50">
-              Aktiv: {activeProfile.title "Balanced"}
+              Aktiv: {activeProfile?.title ?? "Balanced"}
             </div>
           </div>
 
@@ -717,7 +717,7 @@ export default function QuizPage() {
                   key={profile.id}
                   className={`min-w-0 rounded-lg border p-4 text-left transition ${
                     active
-                      "border-sky-200 bg-sky-200/[0.14] shadow-[0_18px_48px_rgba(56,189,248,0.12)]"
+                      ? "border-sky-200 bg-sky-200/[0.14] shadow-[0_18px_48px_rgba(56,189,248,0.12)]"
                       : "border-white/10 bg-white/[0.05] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10"
                   }`}
                   onClick={() => applyTripProfile(profile)}
@@ -750,16 +750,16 @@ export default function QuizPage() {
                 disabled={dnaStatus === "loading"}
                 onClick={saveDnaToProfile}
               >
-                {dnaStatus === "loading" "Speichert..." : "DNA speichern"}
+                {dnaStatus === "loading" ? "Speichert..." : "DNA speichern"}
               </button>
             </div>
-            {dnaMessage (
+            {dnaMessage ? (
               <div
                 className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
                   dnaStatus === "error"
-                    "border-red-300/30 bg-red-500/10 text-red-100"
+                    ? "border-red-300/30 bg-red-500/10 text-red-100"
                     : dnaStatus === "saved"
-                      "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                      ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
                       : "border-white/10 bg-white/[0.05] text-slate-300"
                 }`}
               >
@@ -857,7 +857,7 @@ export default function QuizPage() {
                     key={country}
                     className={`rounded-full border px-3 py-2 text-xs transition ${
                       active
-                        "border-red-300/35 bg-red-400/12 text-red-100"
+                        ? "border-red-300/35 bg-red-400/12 text-red-100"
                         : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.1]"
                     }`}
                     type="button"
@@ -865,7 +865,7 @@ export default function QuizPage() {
                       setPrefs((current) => ({
                         ...current,
                         excludeCountries: current.excludeCountries.includes(country)
-                          current.excludeCountries.filter((entry) => entry !== country)
+                          ? current.excludeCountries.filter((entry) => entry !== country)
                           : [...current.excludeCountries, country],
                       }))
                     }
@@ -885,7 +885,7 @@ export default function QuizPage() {
                     key={key}
                     className={`rounded-full border px-3 py-2 text-xs transition ${
                       active
-                        "border-red-300/35 bg-red-400/12 text-red-100"
+                        ? "border-red-300/35 bg-red-400/12 text-red-100"
                         : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.1]"
                     }`}
                     type="button"
@@ -962,12 +962,12 @@ export default function QuizPage() {
                 </div>
                 <div className="text-xs text-slate-400">
                   {rangeSummary}
-                  {rangeDays ` · ${rangeDays} Tage` : ""}
+                  {rangeDays ? ` · ${rangeDays} Tage` : ""}
                 </div>
               </div>
 
               <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                {hydrated (
+                {hydrated ? (
                   <DayPicker
                     mode="range"
                     selected={dateRange}
@@ -975,8 +975,8 @@ export default function QuizPage() {
                       setDateRange(range);
                       setPrefs((prev) => ({
                         ...prev,
-                        tripStartDate: range.from toIsoDate(range.from) : null,
-                        tripEndDate: range.to toIsoDate(range.to) : null,
+                        tripStartDate: range?.from ? toIsoDate(range?.from) : null,
+                        tripEndDate: range?.to ? toIsoDate(range?.to) : null,
                       }));
                     }}
                     locale={alpivoDayPickerLocale}
@@ -996,13 +996,13 @@ export default function QuizPage() {
                 <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">
                   <span className="text-slate-500">Anreise</span>
                   <span className="ml-2 font-semibold text-white">
-                    {dateRange.from dateFormatter.format(dateRange.from) : "offen"}
+                    {dateRange?.from ? dateFormatter.format(dateRange.from) : "offen"}
                   </span>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">
                   <span className="text-slate-500">Abreise</span>
                   <span className="ml-2 font-semibold text-white">
-                    {dateRange.to dateFormatter.format(dateRange.to) : "offen"}
+                    {dateRange?.to ? dateFormatter.format(dateRange.to) : "offen"}
                   </span>
                 </div>
               </div>
@@ -1024,14 +1024,14 @@ export default function QuizPage() {
                       key={value}
                       className={`rounded-xl border px-3 py-3 text-left text-sm ${
                         prefs.foodSpendLevel === value
-                          "border-sky-200 bg-sky-200 text-slate-900"
+                          ? "border-sky-200 bg-sky-200 text-slate-900"
                           : "border-white/10 text-slate-200 hover:bg-white/10"
                       }`}
                       type="button"
                       onClick={() => setPrefs({ ...prefs, foodSpendLevel: value as Prefs["foodSpendLevel"] })}
                     >
                       <span className="block font-semibold">{label}</span>
-                      <span className={`mt-1 block text-xs ${prefs.foodSpendLevel === value "text-slate-700" : "text-slate-400"}`}>
+                      <span className={`mt-1 block text-xs ${prefs.foodSpendLevel === value ? "text-slate-700" : "text-slate-400"}`}>
                         {hint}
                       </span>
                     </button>
@@ -1045,7 +1045,7 @@ export default function QuizPage() {
                   <button
                     className={`rounded-xl border px-3 py-2 text-sm ${
                       prefs.rentalMode === "own"
-                        "border-sky-200 bg-sky-200 text-slate-900"
+                        ? "border-sky-200 bg-sky-200 text-slate-900"
                         : "border-white/10 text-slate-200 hover:bg-white/10"
                     }`}
                     onClick={() => setPrefs({ ...prefs, rentalMode: "own" })}
@@ -1055,7 +1055,7 @@ export default function QuizPage() {
                   <button
                     className={`rounded-xl border px-3 py-2 text-sm ${
                       prefs.rentalMode === "rent"
-                        "border-sky-200 bg-sky-200 text-slate-900"
+                        ? "border-sky-200 bg-sky-200 text-slate-900"
                         : "border-white/10 text-slate-200 hover:bg-white/10"
                     }`}
                     onClick={() => setPrefs({ ...prefs, rentalMode: "rent" })}
@@ -1073,17 +1073,17 @@ export default function QuizPage() {
                       key={mode}
                       className={`rounded-xl border px-3 py-2 text-sm ${
                         prefs.travelMode === mode
-                          "border-sky-200 bg-sky-200 text-slate-900"
+                          ? "border-sky-200 bg-sky-200 text-slate-900"
                           : "border-white/10 text-slate-200 hover:bg-white/10"
                       }`}
                       onClick={() => setPrefs({ ...prefs, travelMode: mode })}
                     >
                       {mode === "car"
-                        "Auto"
+                        ? "Auto"
                         : mode === "train"
-                          "Zug"
+                          ? "Zug"
                           : mode === "bus"
-                            "Bus"
+                            ? "Bus"
                             : "Flug"}
                     </button>
                   ))}
@@ -1105,11 +1105,11 @@ export default function QuizPage() {
               type="button"
               onClick={() => setShowFineTuning((current) => !current)}
             >
-              {showFineTuning "Feintuning schließen" : "Feintuning öffnen"}
+              {showFineTuning ? "Feintuning schlie?en" : "Feintuning ?ffnen"}
             </button>
           </div>
 
-          {!showFineTuning (
+          {!showFineTuning ? (
             <div className="mt-5 grid gap-2 text-sm text-slate-300 md:grid-cols-4">
               <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Schnee: {signalLabel(prefs.snowReliability)}</div>
               <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Value: {signalLabel(prefs.valueForMoney)}</div>
@@ -1185,7 +1185,7 @@ export default function QuizPage() {
           <div>
             <div className="text-sm font-semibold text-white">Bereit für die Ergebnisliste</div>
             <div className="mt-1 text-xs text-slate-400">
-              {activeProfile.title "Balanced"} · {prefs.peopleCount} Personen · {rangeSummary}
+              {activeProfile?.title ?? "Balanced"} · {prefs.peopleCount} Personen · {rangeSummary}
             </div>
           </div>
           <button

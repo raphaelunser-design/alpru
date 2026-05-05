@@ -44,14 +44,14 @@ export default function InviteDialog({ onCreateInvite }: InviteDialogProps) {
               setBusy(true);
               const created = await onCreateInvite({ email: email.trim(), role: "member", note: note.trim() });
               setBusy(false);
-              if (!created.url) return;
+              if (!created || !created.url) return;
               setInviteUrl(created.url);
               setToast("Invite-Link erzeugt.");
             }}
           >
-            {busy "Erzeuge..." : "Invite-Link erzeugen"}
+            {busy ? "Erzeuge..." : "Invite-Link erzeugen"}
           </button>
-          {inviteUrl (
+          {inviteUrl ? (
             <button
               className="button-lift rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
               onClick={async () => {
@@ -63,12 +63,12 @@ export default function InviteDialog({ onCreateInvite }: InviteDialogProps) {
             </button>
           ) : null}
         </div>
-        {inviteUrl (
+        {inviteUrl ? (
           <div className="rounded-lg border border-white/10 bg-slate-950/45 px-3 py-3 text-xs text-slate-300 break-all">{inviteUrl}</div>
         ) : null}
       </div>
 
-      <AnimatePresence>{toast <Toast message={toast} /> : null}</AnimatePresence>
+      <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
     </div>
   );
 }

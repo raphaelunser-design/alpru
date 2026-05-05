@@ -96,7 +96,7 @@ async function fetchTankerkoenigPrices(points: Coordinate[], fuelType: FuelType)
         for (const station of data.stations ?? []) {
           const stationPrice = station.price ?? station[fuelType];
           if (typeof stationPrice !== "number" || stationPrice <= 0) continue;
-          prices.set(station.id `${station.name}-${station.brand}-${stationPrice}`, stationPrice);
+          prices.set(station.id ?? `${station.name}-${station.brand}-${stationPrice}`, stationPrice);
         }
       } catch {
         // A sampled point may be outside Germany or the provider may reject it. Other points can still contribute.
@@ -108,7 +108,7 @@ async function fetchTankerkoenigPrices(points: Coordinate[], fuelType: FuelType)
 }
 
 export async function POST(req: Request) {
-  const body = asRecord(await req.json().catch(() => null));
+  const body = asRecord(await req.json().catch(() => null)) ?? {};
   const fuelType = parseFuelType(body.fuelType);
   const distanceMeters = toNumber(body.distanceMeters);
   const consumptionLPer100Km = Math.max(3, Math.min(20, toNumber(body.consumptionLPer100Km) ?? 7.2));
@@ -139,9 +139,9 @@ export async function POST(req: Request) {
     estimatedCost: Math.round(estimatedCost * 100) / 100,
     stationsSampled: livePrices.length,
     sampledPoints: sampledPoints.length,
-    source: hasLivePrices "Tankerkönig Live-Route-Sample" : "Fallback-Schätzwert",
+    source: hasLivePrices ? "Tankerkönig Live-Route-Sample" : "Fallback-Schätzwert",
     note: hasLivePrices
-      "Preis ist der Durchschnitt aktuell gefundener Tankstellen entlang der Route."
+      ? "Preis ist der Durchschnitt aktuell gefundener Tankstellen entlang der Route."
       : "Kein Tankerkönig API-Key oder keine passenden Stationen entlang der Route. Wert ist ein konfigurierbarer Schätzwert.",
   });
 }

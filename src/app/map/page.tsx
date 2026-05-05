@@ -124,10 +124,10 @@ export default function MapPage() {
           skipass_price_from: row.skipass_price_from ?? null,
         }));
 
-        setResorts(cleaned.length cleaned : (getMvpResorts(35) as Resort[]));
-        setUsingFallback((data []).length === 0);
+        setResorts(cleaned.length ? cleaned : (getMvpResorts(35) as Resort[]));
+        setUsingFallback((data ?? []).length === 0);
       } catch (loadError) {
-        setError(loadError instanceof Error loadError.message : "Resorts konnten nicht geladen werden.");
+        setError(loadError instanceof Error ? loadError.message : "Resorts konnten nicht geladen werden");
         setResorts(getMvpResorts(35) as Resort[]);
         setUsingFallback(true);
       } finally {
@@ -143,7 +143,7 @@ export default function MapPage() {
     const needle = query.trim().toLowerCase();
     if (!needle) return resorts;
     return resorts.filter((r) => {
-      const haystack = `${r.name} ${r.country} ${r.region ""}`.toLowerCase();
+      const haystack = `${r.name} ${r.country} ${r.region ?? ""}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [query, resorts]);
@@ -175,9 +175,9 @@ export default function MapPage() {
         fillOpacity: 0.8,
       });
 
-      const region = resort.region `, ${escapeHtml(resort.region)}` : "";
-      const piste = resort.piste_km `<br/>${resort.piste_km} km Pisten` : "";
-      const price = resort.skipass_price_from `<br/>Skipass grob ab ${resort.skipass_price_from} EUR` : "";
+      const region = resort.region ? `, ${escapeHtml(resort.region)}` : "";
+      const piste = resort.piste_km ? `<br/>${resort.piste_km} km Pisten` : "";
+      const price = resort.skipass_price_from ? `<br/>Skipass grob ab ${resort.skipass_price_from} EUR` : "";
       const detailTarget = encodeURIComponent(resort.slug || resort.id);
       const popupHtml = `<strong>${escapeHtml(resort.name)}</strong><br/>${escapeHtml(
         resort.country
@@ -207,7 +207,7 @@ export default function MapPage() {
     map.setView([resort.lat as number, resort.lon as number], 10, { animate: true });
 
     const marker = markerIndexRef.current.get(resort.id) as PopupLayer | undefined;
-    marker.openPopup();
+    marker?.openPopup();
   };
 
   return (
@@ -237,7 +237,7 @@ export default function MapPage() {
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
               <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5">{filtered.length} Resorts</span>
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">{mappableCount} auf Karte</span>
-              {usingFallback (
+              {usingFallback ? (
                 <span className="rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-amber-100">
                   MVP-Fallback
                 </span>
@@ -276,13 +276,13 @@ export default function MapPage() {
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>
-              {error (
+              {error ? (
                 <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-500/10 p-3 text-sm text-amber-100">
                   Live-Daten konnten nicht zuverlässig geladen werden. Die Karte nutzt kuratierte Demo-Resorts. Technischer Hinweis: {error}
                 </div>
               ) : null}
               <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {loading (
+                {loading ? (
                   <SidebarSkeleton />
                 ) : (
                   filtered.map((resort) => (
@@ -290,7 +290,7 @@ export default function MapPage() {
                       key={resort.id}
                       className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition ${
                         activeResortId === resort.id
-                          "border-sky-200/35 bg-sky-200/10 shadow-[0_16px_34px_rgba(56,189,248,0.12)]"
+                          ? "border-sky-200/35 bg-sky-200/10 shadow-[0_16px_34px_rgba(56,189,248,0.12)]"
                           : "border-white/10 bg-white/[0.05] hover:border-white/20 hover:bg-white/[0.08]"
                       }`}
                       onClick={() => focusResort(resort)}
@@ -300,10 +300,10 @@ export default function MapPage() {
                           <div className="font-medium text-white">{resort.name}</div>
                           <div className="mt-1 text-xs leading-5 text-slate-400">
                             {resort.country}
-                            {resort.region `, ${resort.region}` : ""}
+                            {resort.region ? `, ${resort.region}` : ""}
                           </div>
                         </div>
-                        {resort.piste_km (
+                        {resort.piste_km ? (
                           <span className="shrink-0 rounded-full border border-white/10 bg-slate-950/60 px-2.5 py-1 text-[11px] text-slate-300">
                             {resort.piste_km} km
                           </span>
@@ -312,7 +312,7 @@ export default function MapPage() {
                     </button>
                   ))
                 )}
-                {!loading && filtered.length === 0 (
+                {!loading && filtered.length === 0 ? (
                   <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
                     Keine Resorts gefunden.
                   </div>

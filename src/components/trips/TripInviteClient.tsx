@@ -83,11 +83,11 @@ export default function TripInviteClient({ token }: { token: string }) {
             title={invite.tripTitle}
             text={
               invite.email
-                `Dieser Invite ist für ${invite.email} gedacht. Eingeloggt bist du aktuell als ${userEmail ?? "niemand"}.`
+                ? `Dieser Invite ist für ${invite.email} gedacht. Eingeloggt bist du aktuell als ${userEmail ?? "niemand"}.`
                 : "Offener Gruppen-Invite für Alpivo."
             }
             action={
-              userEmail (
+              userEmail ? (
                 <button
                   className="button-lift rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
                   disabled={busy}
@@ -95,21 +95,21 @@ export default function TripInviteClient({ token }: { token: string }) {
                     setBusy(true);
                     setError("");
                     const { data: sessionData } = await supabase.auth.getSession();
-                    const accessToken = sessionData.session.access_token;
+                    const accessToken = sessionData.session ? sessionData.session.access_token : "";
                     const response = await fetch(`/api/trips/invite/${encodeURIComponent(token)}`, {
                       method: "POST",
-                      headers: accessToken { Authorization: `Bearer ${accessToken}` } : {},
+                      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
                     });
                     const payload = (await response.json()) as { error: string; tripId: string };
                     setBusy(false);
                     if (!response.ok || !payload.tripId) {
-                      setError(payload.error "Invite konnte nicht angenommen werden.");
+                      setError(payload.error ?? "Invite konnte nicht angenommen werden.");
                       return;
                     }
                     setSuccessUrl(`/trips/${encodeURIComponent(payload.tripId)}`);
                   }}
                 >
-                  {busy "Bitte warten..." : "Trip beitreten"}
+                  {busy ? "Bitte warten..." : "Trip beitreten"}
                 </button>
               ) : (
                 <Link

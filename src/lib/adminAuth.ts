@@ -1,8 +1,9 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ensureProfileForUser, roleForEmail } from "@/lib/profiles";
 
 function getTokenFromRequest(req: Request) {
-  const authHeader = req.headers.get("authorization").replace("Bearer ", "");
+  const authHeader = (req.headers.get("authorization") || "").replace("Bearer ", "");
   const headerToken = req.headers.get("x-admin-token");
   const urlToken = new URL(req.url).searchParams.get("token");
   return authHeader || headerToken || urlToken || "";
@@ -20,6 +21,7 @@ function isEmailAllowed(email: string) {
 async function isEmailAdmin(email: string) {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return false;
+  if (roleForEmail(normalized) === "admin") return true;
   if (isEmailAllowed(normalized)) return true;
 
   try {
@@ -29,7 +31,7 @@ async function isEmailAdmin(email: string) {
       .eq("email", normalized)
       .eq("role", "admin")
       .maybeSingle();
-    if (!error && data.role === "admin") return true;
+    if (!error && data && data.role === "admin") return true;
   } catch {
     // Migration may not exist in older local environments. ADMIN_EMAILS remains the fallback.
   }
@@ -44,9 +46,11 @@ export async function getAdminStatus(req: Request) {
   // Email-based admin via Supabase Auth
   try {
     const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (!error && data.user.email) {
+    if (!error && data.user && data.user.email) {
       const email = data.user.email.toLowerCase();
-      return { isAdmin: await isEmailAdmin(email), email };
+      const profile = await ensureProfileForUser(data.user);
+      const profileIsAdmin = profile?.role === "admin";
+      return { isAdmin: profileIsAdmin || (await isEmailAdmin(email)), email };
     }
   } catch {
     // ignore

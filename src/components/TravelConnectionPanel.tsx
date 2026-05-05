@@ -25,7 +25,7 @@ type TravelConnectionPanelProps = {
   roadDurationHours: number | null;
   roadDistanceKm: number | null;
   routeSource: "osrm" | "fallback" | null;
-  compact: boolean;
+  compact?: boolean;
 };
 
 type ProviderId = "db" | "omio" | "trainline";
@@ -133,7 +133,7 @@ const providerConfig: ProviderConfig[] = [
     label: "DB",
     eyebrow: "Bahn",
     description: "Direkt zur Bahnsuche. Gut für Deutschland, Österreich und Schweiz.",
-    baseUrl: process.env.NEXT_PUBLIC_DB_TRAVEL_URL "https://www.bahn.de/buchung/start",
+    baseUrl: process.env.NEXT_PUBLIC_DB_TRAVEL_URL || "https://www.bahn.de/buchung/start",
     modes: ["train"],
   },
   {
@@ -141,7 +141,7 @@ const providerConfig: ProviderConfig[] = [
     label: "Omio",
     eyebrow: "Bahn & Bus",
     description: "Vergleich für Bahn- und Busverbindungen, später ideal für Partnerlinks.",
-    baseUrl: process.env.NEXT_PUBLIC_OMIO_TRAVEL_URL "https://www.omio.de/",
+    baseUrl: process.env.NEXT_PUBLIC_OMIO_TRAVEL_URL || "https://www.omio.de/",
     modes: ["train", "bus", "flight"],
   },
   {
@@ -149,7 +149,7 @@ const providerConfig: ProviderConfig[] = [
     label: "Trainline",
     eyebrow: "International",
     description: "Alternative Suche für internationale Bahnstrecken.",
-    baseUrl: process.env.NEXT_PUBLIC_TRAINLINE_TRAVEL_URL "https://www.thetrainline.com/de",
+    baseUrl: process.env.NEXT_PUBLIC_TRAINLINE_TRAVEL_URL || "https://www.thetrainline.com/de",
     modes: ["train"],
   },
 ];
@@ -215,14 +215,14 @@ function persistOrigin(origin: NonNullable<TravelOrigin>) {
   if (!isValidCoordinate(origin.lat) || !isValidCoordinate(origin.lon)) return;
   try {
     const raw = localStorage.getItem("alpivo_results_filters");
-    const current = raw (JSON.parse(raw) as Record<string, unknown>) : {};
+    const current = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
     localStorage.setItem(
       "alpivo_results_filters",
       JSON.stringify({
         ...current,
         originLat: String(origin.lat),
         originLon: String(origin.lon),
-        originLabel: origin.label "Startort",
+        originLabel: origin.label || "Startort",
       })
     );
   } catch {
@@ -305,8 +305,8 @@ export default function TravelConnectionPanel({
 }: TravelConnectionPanelProps) {
   const [showRoute, setShowRoute] = useState(false);
   const [apiState, setApiState] = useState<ApiState>({ status: "idle", data: null, error: "" });
-  const [activeOrigin, setActiveOrigin] = useState<TravelOrigin>(origin null);
-  const [originQuery, setOriginQuery] = useState(origin.label "");
+  const [activeOrigin, setActiveOrigin] = useState<TravelOrigin>(origin || null);
+  const [originQuery, setOriginQuery] = useState(origin ? origin.label : "");
   const [originResults, setOriginResults] = useState<GeocodeResult[]>([]);
   const [originLoading, setOriginLoading] = useState(false);
   const [originError, setOriginError] = useState("");
@@ -318,7 +318,7 @@ export default function TravelConnectionPanel({
     () => buildDestinationLabel(resortName, region, country),
     [country, region, resortName]
   );
-  const originLabel = activeOrigin.label.trim() || null;
+  const originLabel = activeOrigin ? activeOrigin.label.trim() || null : null;
   const activeProviders = providerConfig.filter((provider) => provider.modes.includes(travelMode) || travelMode === "car");
   const canShowRoute = Boolean(
     activeOrigin &&
@@ -328,22 +328,22 @@ export default function TravelConnectionPanel({
       isValidCoordinate(destinationLon)
   );
   const routeDurationHours =
-    typeof routeState.data.durationSeconds === "number" routeState.data.durationSeconds / 3600 : roadDurationHours;
+    routeState.data && typeof routeState.data.durationSeconds === "number" ? routeState.data.durationSeconds / 3600 : roadDurationHours;
   const routeDistanceKm =
-    typeof routeState.data.distanceMeters === "number" routeState.data.distanceMeters / 1000 : roadDistanceKm;
-  const effectiveRouteSource = routeState.data.source routeSource;
-  const driveLabel = routeState.status === "loading" "Route wird berechnet..." : formatDriveHours(routeDurationHours);
+    routeState.data && typeof routeState.data.distanceMeters === "number" ? routeState.data.distanceMeters / 1000 : roadDistanceKm;
+  const effectiveRouteSource = routeState.data ? routeState.data.source : routeSource;
+  const driveLabel = routeState.status === "loading" ? "Route wird berechnet..." : formatDriveHours(routeDurationHours);
   const distanceLabel = formatDistance(routeDistanceKm);
   const isPublicTransport = travelMode === "train" || travelMode === "bus";
   const providerStateById = useMemo(() => {
-    return new Map((apiState.data.providers []).map((provider) => [provider.id, provider]));
-  }, [apiState.data.providers]);
-  const cheapestConnection = apiState.data.cheapest null;
+    return new Map(((apiState.data && apiState.data.providers) || []).map((provider) => [provider.id, provider]));
+  }, [apiState.data]);
+  const cheapestConnection = apiState.data && apiState.data.cheapest ? apiState.data.cheapest : null;
 
   useEffect(() => {
-    setActiveOrigin(origin null);
-    setOriginQuery(origin.label "");
-  }, [origin.lat, origin.lon, origin.label]);
+    setActiveOrigin(origin || null);
+    setOriginQuery(origin ? origin.label : "");
+  }, [origin?.lat, origin?.lon, origin?.label]);
 
   useEffect(() => {
     const needle = originQuery.trim();
@@ -357,14 +357,14 @@ export default function TravelConnectionPanel({
     const handle = window.setTimeout(() => {
       setOriginLoading(true);
       setOriginError("");
-      fetch(`/api/geocodeq=${encodeURIComponent(needle)}`)
+      fetch(`/api/geocode?q=${encodeURIComponent(needle)}`)
         .then(async (response) => {
           if (!response.ok) throw new Error("Startort konnte nicht gesucht werden.");
           return response.json();
         })
         .then((data) => {
           if (!active) return;
-          setOriginResults((data.results as GeocodeResult[]) []);
+          setOriginResults((data.results as GeocodeResult[]) || []);
         })
         .catch((err: Error) => {
           if (!active) return;
@@ -440,7 +440,7 @@ export default function TravelConnectionPanel({
         const lon = position.coords.longitude;
         let label = "Aktueller Standort";
         try {
-          const response = await fetch(`/api/geocode/reverselat=${lat}&lon=${lon}`);
+          const response = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
           if (response.ok) {
             const data = (await response.json()) as { label: string };
             if (data.label) label = data.label;
@@ -473,7 +473,7 @@ export default function TravelConnectionPanel({
       signal: controller.signal,
       body: JSON.stringify({
         origin: activeOrigin
-          {
+          ? {
               lat: activeOrigin.lat,
               lon: activeOrigin.lon,
               label: originLabel,
@@ -507,8 +507,8 @@ export default function TravelConnectionPanel({
     destinationLabel,
     destinationLat,
     destinationLon,
-    activeOrigin.lat,
-    activeOrigin.lon,
+    activeOrigin ? activeOrigin.lat : null,
+    activeOrigin ? activeOrigin.lon : null,
     originLabel,
     travelMode,
     tripEndDate,
@@ -517,10 +517,10 @@ export default function TravelConnectionPanel({
 
   useEffect(() => {
     const distanceMeters =
-      typeof routeState.data.distanceMeters === "number"
-        routeState.data.distanceMeters
+      routeState.data && typeof routeState.data.distanceMeters === "number"
+        ? routeState.data.distanceMeters
         : typeof roadDistanceKm === "number"
-          roadDistanceKm * 1000
+          ? roadDistanceKm * 1000
           : null;
 
     if (!distanceMeters || distanceMeters <= 0) {
@@ -537,7 +537,7 @@ export default function TravelConnectionPanel({
       signal: controller.signal,
       body: JSON.stringify({
         distanceMeters,
-        coordinates: routeState.data.coordinates [],
+        coordinates: routeState.data ? routeState.data.coordinates || [] : [],
         fuelType,
         consumptionLPer100Km,
       }),
@@ -556,7 +556,7 @@ export default function TravelConnectionPanel({
       });
 
     return () => controller.abort();
-  }, [consumptionLPer100Km, fuelType, roadDistanceKm, routeState.data.coordinates, routeState.data.distanceMeters]);
+  }, [consumptionLPer100Km, fuelType, roadDistanceKm, routeState.data]);
 
   return (
     <section className="overflow-hidden rounded-lg border border-white/10 bg-slate-950/62 shadow-[0_24px_70px_rgba(2,6,23,0.32)]">
@@ -583,7 +583,7 @@ export default function TravelConnectionPanel({
                   onChange={(event) => {
                     const next = event.target.value;
                     setOriginQuery(next);
-                    if (activeOrigin.label && next !== activeOrigin.label) setActiveOrigin(null);
+                    if (activeOrigin && activeOrigin.label && next !== activeOrigin.label) setActiveOrigin(null);
                   }}
                 />
                 <button
@@ -593,8 +593,8 @@ export default function TravelConnectionPanel({
                 >
                   Standort
                 </button>
-                {originLoading <div className="mt-1 text-[11px] text-slate-400">Startort wird gesucht...</div> : null}
-                {originResults.length > 0 (
+                {originLoading ? <div className="mt-1 text-[11px] text-slate-400">Startort wird gesucht...</div> : null}
+                {originResults.length > 0 ? (
                   <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-white/10 bg-slate-950/96 shadow-[0_18px_45px_rgba(2,6,23,0.55)]">
                     {originResults.map((result) => (
                       <button
@@ -609,7 +609,7 @@ export default function TravelConnectionPanel({
                     ))}
                   </div>
                 ) : null}
-                {originError <div className="mt-1 text-[11px] text-red-300">{originError}</div> : null}
+                {originError ? <div className="mt-1 text-[11px] text-red-300">{originError}</div> : null}
               </div>
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">
@@ -628,22 +628,22 @@ export default function TravelConnectionPanel({
             </div>
           </div>
 
-          {canShowRoute (
+          {canShowRoute ? (
             <div className="mt-4 rounded-lg border border-sky-200/15 bg-sky-200/[0.07] p-3 text-sm text-slate-200">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-white">
-                  {driveLabel "Straßenroute verfügbar"}
-                  {distanceLabel ` · ${distanceLabel}` : ""}
+                  {driveLabel || "Stra?enroute verf?gbar"}
+                  {distanceLabel ? ` · ${distanceLabel}` : ""}
                 </span>
                 <button
                   className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
                   onClick={() => setShowRoute((prev) => !prev)}
                 >
-                  {showRoute "Route schließen" : "Route anzeigen"}
+                  {showRoute ? "Route schlie?en" : "Route anzeigen"}
                 </button>
               </div>
-              {routeState.status === "error" <div className="mt-2 text-[11px] text-red-200">{routeState.error}</div> : null}
-              {effectiveRouteSource === "fallback" (
+              {routeState.status === "error" ? <div className="mt-2 text-[11px] text-red-200">{routeState.error}</div> : null}
+              {effectiveRouteSource === "fallback" ? (
                 <div className="mt-2 text-[11px] text-amber-100">Fahrzeit ist geschätzt, weil der Router keine exakte Route geliefert hat.</div>
               ) : null}
             </div>
@@ -659,7 +659,7 @@ export default function TravelConnectionPanel({
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-400">Verbindungen</p>
               <h3 className="mt-1 text-base font-semibold text-white">
-                {isPublicTransport "Bahn- und Busoptionen vorbereiten" : "Auto plus alternative Buchungswege"}
+                {isPublicTransport ? "Bahn- und Busoptionen vorbereiten" : "Auto plus alternative Buchungswege"}
               </h3>
             </div>
             <span className="w-fit rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-slate-300">
@@ -667,7 +667,7 @@ export default function TravelConnectionPanel({
             </span>
           </div>
 
-          {!compact (
+          {!compact ? (
             <p className="mt-3 max-w-2xl text-sm text-slate-300">
               Live-Verbindungen mit Dauer, Umstiegen und Preisen sind als nächste API-Stufe vorbereitet. Bis dahin öffnen die
               Buttons die jeweiligen Suchanbieter mit Start, Ziel und Reisedatum, soweit der Anbieter diese Parameter übernimmt.
@@ -680,23 +680,23 @@ export default function TravelConnectionPanel({
                 <div>
                   <div className="text-[11px] uppercase tracking-wide text-slate-500">Günstigste Verbindung</div>
                   <div className="mt-1 text-base font-semibold text-white">
-                    {cheapestConnection.price != null
-                      currency.format(cheapestConnection.price)
+                    {cheapestConnection && cheapestConnection.price != null
+                      ? currency.format(cheapestConnection.price)
                       : isPublicTransport
-                        "Provider-API fehlt"
+                        ? "Provider-API fehlt"
                         : "Nicht für Auto relevant"}
                   </div>
                 </div>
                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] text-slate-300">
-                  {tripStartDate formatTripDates(tripStartDate, tripEndDate) : "Datum offen"}
+                  {tripStartDate ? formatTripDates(tripStartDate, tripEndDate) : "Datum offen"}
                 </span>
               </div>
-              {cheapestConnection (
+              {cheapestConnection ? (
                 <div className="mt-3 text-sm text-slate-300">
                   <div className="font-medium text-white">{cheapestConnection.title}</div>
                   <div className="mt-1">
                     {formatConnectionTime(cheapestConnection.departureTime)} - {formatConnectionTime(cheapestConnection.arrivalTime)} ·{" "}
-                    {formatDurationMinutes(cheapestConnection.durationMinutes)} · {cheapestConnection.changes "-"} Umstiege
+                    {formatDurationMinutes(cheapestConnection.durationMinutes)} ? {typeof cheapestConnection.changes === "number" ? cheapestConnection.changes : "-"} Umstiege
                   </div>
                 </div>
               ) : (
@@ -713,9 +713,9 @@ export default function TravelConnectionPanel({
                   <div className="text-[11px] uppercase tracking-wide text-slate-500">Auto-Spritkosten</div>
                   <div className="mt-1 text-base font-semibold text-white">
                     {fuelState.status === "loading"
-                      "wird berechnet..."
+                      ? "wird berechnet..."
                       : fuelState.data
-                        currency.format(fuelState.data.estimatedCost)
+                        ? currency.format(fuelState.data.estimatedCost)
                         : "Startort setzen"}
                   </div>
                 </div>
@@ -729,7 +729,7 @@ export default function TravelConnectionPanel({
                       key={option.value}
                       className={`px-2.5 py-1 text-[11px] font-semibold transition ${
                         fuelType === option.value
-                          "bg-sky-200 text-slate-950"
+                          ? "bg-sky-200 text-slate-950"
                           : "text-slate-300 hover:bg-white/10 hover:text-white"
                       }`}
                       type="button"
@@ -753,14 +753,14 @@ export default function TravelConnectionPanel({
                 />
                 <span>l/100 km</span>
               </div>
-              {fuelState.data (
+              {fuelState.data ? (
                 <div className="mt-3 text-xs leading-relaxed text-slate-400">
                   {fuelState.data.estimatedLiters} l · {currency.format(fuelState.data.averagePricePerLiter)}/l ·{" "}
                   {fuelState.data.source}
-                  {fuelState.data.stationsSampled > 0 ` · ${fuelState.data.stationsSampled} Stationen` : ""}
+                  {fuelState.data.stationsSampled > 0 ? ` · ${fuelState.data.stationsSampled} Stationen` : ""}
                   <div className="mt-1">{fuelState.data.note}</div>
                 </div>
-              ) : fuelState.error (
+              ) : fuelState.error ? (
                 <div className="mt-3 text-xs text-red-300">{fuelState.error}</div>
               ) : (
                 <div className="mt-3 text-xs leading-relaxed text-slate-400">
@@ -774,7 +774,7 @@ export default function TravelConnectionPanel({
             {activeProviders.map((provider) => {
               const href = buildProviderUrl(provider, originLabel, destinationLabel, tripStartDate);
               const providerState = providerStateById.get(provider.id);
-              const providerBadge = providerState.status === "ready" "API bereit" : "Suchlink";
+              const providerBadge = providerState && providerState.status === "ready" ? "API bereit" : "Suchlink";
               return (
                 <a
                   key={provider.id}
@@ -807,11 +807,10 @@ export default function TravelConnectionPanel({
           <div className="mt-4 grid gap-3 text-xs text-slate-400 sm:grid-cols-2">
             <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
               {apiState.status === "loading"
-                "Travel-Providerstatus wird geprüft..."
+                ? "Travel-Providerstatus wird gepr?ft..."
                 : apiState.status === "error"
-                  apiState.error
-                  : apiState.data.note 
-                    "API-Slot: Live-Fahrplan, Dauer, Umstiege, Preis und Buchungslink können später pro Provider ergänzt werden."}
+                  ? apiState.error
+                  : (apiState.data && apiState.data.note ? apiState.data.note : "API-Slot: Live-Fahrplan, Dauer, Umstiege, Preis und Buchungslink k?nnen sp?ter pro Provider erg?nzt werden.")}
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
               Partnerlink möglich, wenn ein Anbieter Provision zahlt. Der Nutzerpreis soll gleich bleiben; keine Bannerwerbung.
@@ -820,10 +819,10 @@ export default function TravelConnectionPanel({
         </div>
       </div>
 
-      {showRoute && canShowRoute (
+      {showRoute && canShowRoute ? (
         <div className="border-t border-white/10 p-4">
           <RoutePreview
-            origin={{ lat: activeOrigin!.lat as number, lon: activeOrigin!.lon as number, label: originLabel "Start" }}
+            origin={{ lat: activeOrigin!.lat as number, lon: activeOrigin!.lon as number, label: originLabel || "Start" }}
             destination={{ lat: destinationLat as number, lon: destinationLon as number, label: resortName }}
             resortName={resortName}
           />

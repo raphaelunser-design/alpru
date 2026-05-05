@@ -13,8 +13,8 @@ type CallbackState = {
 };
 
 function accountTarget(authMode: string | null) {
-  if (authMode === "recovery") return "/accountauth=recovery";
-  if (authMode === "magic") return "/accountauth=magic";
+  if (authMode === "recovery") return "/account?auth=recovery";
+  if (authMode === "magic") return "/account?auth=magic";
   return "/account";
 }
 
@@ -59,7 +59,7 @@ export default function AuthCallbackPage() {
       if (!mounted) return;
       setState({
         status: "error",
-        message: error instanceof Error ? error.message : "Der Auth-Link konnte nicht verarbeitet werden",
+        message: error instanceof Error ? error.message : "Der Auth-Link konnte nicht verarbeitet werden.",
       });
     });
 
@@ -73,10 +73,10 @@ export default function AuthCallbackPage() {
       <GlassCard className="w-full max-w-xl p-8 text-center">
         <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Sicherer Alpivo-Link</p>
         <h1 className="mt-3 text-3xl font-semibold text-white">
-          {state.status === "loading" "Link wird geprüft" : "Link konnte nicht geprüft werden"}
+          {state.status === "loading" ? "Link wird geprüft" : "Link konnte nicht geprüft werden"}
         </h1>
         <p className="mt-4 text-sm leading-6 text-slate-300">{state.message}</p>
-        {state.status === "error" (
+        {state.status === "error" ? (
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link className="rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" href="/account">
               Zur Kontoansicht

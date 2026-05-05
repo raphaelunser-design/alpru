@@ -8,11 +8,11 @@ export function clamp01(value: number) {
 }
 
 export function safeNumber(value: unknown, fallback = 0) {
-  return typeof value === "number" && Number.isFinite(value) value : fallback;
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 export function optionalNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) value : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 export function scoreFromZeroOne(value: unknown, fallback = 50) {
@@ -37,7 +37,7 @@ export function weightedAverage(items: Array<{ value: number; weight: number }>,
 export function normalizeWeights<T extends string>(weights: Record<T, number>) {
   const entries = Object.entries(weights) as Array<[T, number]>;
   const total = entries.reduce((sum, [, value]) => sum + Math.max(0, safeNumber(value)), 0);
-  const fallback = total > 0 total : 1;
+  const fallback = total > 0 ? total : 1;
   return Object.fromEntries(entries.map(([key, value]) => [key, Math.max(0, safeNumber(value)) / fallback])) as Record<T, number>;
 }
 

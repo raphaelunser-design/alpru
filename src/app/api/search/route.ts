@@ -99,7 +99,7 @@ export async function GET(req: Request) {
         href: `/resort/${encodeURIComponent(row.slug || row.id)}`,
         imageUrl: row.hero_image_url || row.image_url || null,
         meta: pisteKm ? `${new Intl.NumberFormat("de-DE").format(pisteKm)} km Pisten` : "Skigebiet",
-        price: row.skipass_price_from `Skipass ab ${new Intl.NumberFormat("de-DE").format(row.skipass_price_from)} €` : null,
+        price: row.skipass_price_from ? `Skipass ab ${new Intl.NumberFormat("de-DE").format(row.skipass_price_from)} €` : null,
         score: resortScore(row, normalizedQuery),
       };
     })

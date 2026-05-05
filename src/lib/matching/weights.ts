@@ -64,7 +64,7 @@ function applyTripWeights(weights: Record<ScoreCategory, number>, tripType: Trip
 
 export function getDynamicWeights(preferences: UserPreferences = {}) {
   const weights = { ...baseWeights };
-  const p = preferences.priorities {};
+  const p = preferences.priorities ?? {};
 
   bump(weights, "budget", (normalizePriority(p.budget, 3) - 0.6) * 0.12);
   bump(weights, "valueForMoney", (normalizePriority(p.budget, 3) - 0.6) * 0.08);
@@ -84,8 +84,8 @@ export function getDynamicWeights(preferences: UserPreferences = {}) {
   if (preferences.wantsOffPiste) bump(weights, "offPiste", 0.09);
   if (preferences.wantsFamilyFriendly) bump(weights, "skillFit", 0.05);
 
-  applySkillWeights(weights, preferences.skillLevel);
-  applyTripWeights(weights, preferences.tripType);
+  applySkillWeights(weights, preferences.skillLevel ?? "mixed");
+  applyTripWeights(weights, preferences.tripType ?? "weekend");
 
   return normalizeWeights(weights);
 }

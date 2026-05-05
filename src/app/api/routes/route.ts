@@ -120,7 +120,7 @@ async function fetchBatch(origin: Coordinate, destinations: Destination[]): Prom
 }
 
 export async function POST(req: Request) {
-  const body = asRecord(await req.json().catch(() => null));
+  const body = asRecord(await req.json().catch(() => null)) ?? {};
   const origin = parseCoordinate(body.origin);
   const rawDestinations = Array.isArray(body.destinations) ? body.destinations : [];
   const destinations = rawDestinations.map(parseDestination).filter((item): item is Destination => Boolean(item));

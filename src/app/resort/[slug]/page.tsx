@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -15,7 +15,7 @@ import PisteMapSection from "@/components/PisteMapSection";
 import ResortVibe from "@/components/ResortVibe";
 import Section from "@/components/Section";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
-import { deriveResortDecision, resortSignalSelect, type ResortSignalRow } from "@/lib/resortSignals";
+import { deriveResortDecision, resortSignalSelect, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { findMvpResortBySlug, sanitizeResortRow } from "@/lib/mvpResorts";
 
 type Resort = ResortSignalRow & {
@@ -175,7 +175,7 @@ function formatMaybeNumber(value: number | null | undefined, suffix = "") {
 
 function weatherLabel(code: number | null | undefined) {
   if (code === null || code === undefined) return "Unbekannt";
-  return weatherLabels[code] `Code ${code}`;
+  return weatherLabels[code] ?? `Code ${code}`;
 }
 
 function formatUpdated(value: string | null | undefined, timeZone: string | null) {
@@ -251,7 +251,7 @@ function formatNumber(value: number | null | undefined, suffix = "") {
 
 function formatPrice(value: number | null | undefined, currency = "EUR", priceType: "fixed" | "from" = "fixed") {
   if (value === null || value === undefined || Number.isNaN(value)) return "-";
-  const symbol = currency.toUpperCase() === "EUR" "€" : currency.toUpperCase();
+  const symbol = currency.toUpperCase() === "EUR" ? "€" : currency.toUpperCase();
   const prefix = priceType === "from" ? "ab " : "";
   return `${prefix}${formatNumber(value)} ${symbol}`;
 }
@@ -264,7 +264,7 @@ function ageRangeLabel(row: SkipassPriceRow) {
 }
 
 function pickPisteKm(resort: Resort) {
-  return resort.piste_km_total resort.piste_km null;
+  return resort.piste_km_total ?? resort.piste_km ?? null;
 }
 
 function isUuid(value: string) {
@@ -277,15 +277,15 @@ function scoreDisplay(value: number | null | undefined, label: string) {
 }
 
 function glacierDisplay(value: number | null | undefined) {
-  const pct = typeof value === "number" Math.round(value * 100) : 0;
+  const pct = typeof value === "number" ? Math.round(value * 100) : 0;
   if (pct >= 66) return { value: `${pct}%`, note: "Starker Kandidat. Sommerbetrieb trotzdem offiziell prüfen." };
   if (pct >= 50) return { value: `${pct}%`, note: "Möglicher Kandidat, aber saisonal stark abhängig." };
   return { value: `${pct}%`, note: "Kein starkes Sommer-Gletscher-Signal in den vorhandenen Daten." };
 }
 
 function WeatherPointCard({ point }: { point: WeatherPointData }) {
-  const hourly = point.hourly.slice(0, 6) [];
-  const qualityLabel = point.data_quality === "fallback" "Höhe geschätzt" : "höhenkorrigiert";
+  const hourly = point.hourly?.slice(0, 6) ?? [];
+  const qualityLabel = point.data_quality === "fallback" ? "H?he gesch?tzt" : "h?henkorrigiert";
   const stats = [
     { label: "Wind", value: formatMaybeNumber(point.current.wind_kph, " km/h") },
     { label: "Schnee 24h", value: formatMaybeNumber(point.current.snowfall_24h_cm, " cm") },
@@ -299,7 +299,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase text-slate-300">{point.label}wetter</div>
             <div className="mt-1 text-sm text-slate-400">
-              {point.elevation_m formatNumber(point.elevation_m, " m") : "Höhe nicht gepflegt"} · {qualityLabel}
+              {point.elevation_m ? formatNumber(point.elevation_m, " m") : "H\u00f6he nicht gepflegt"} · {qualityLabel}
             </div>
           </div>
           <div className="shrink-0 rounded-full border border-white/12 bg-white/[0.08] px-3 py-1.5 text-xs text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
@@ -308,7 +308,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
         </div>
 
         <div className="w-fit max-w-full rounded-2xl border border-sky-200/20 bg-sky-200/[0.11] px-3.5 py-2 text-sm leading-snug text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
-          {point.current.ski_hint "Bedingungen prüfen"}
+          {point.current.ski_hint ?? "Bedingungen pr?fen"}
         </div>
       </div>
 
@@ -336,7 +336,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
         ))}
       </div>
 
-      {hourly.length (
+      {hourly.length ? (
         <div className="mt-auto pt-6">
           <div className="mb-3 text-xs font-semibold uppercase text-slate-400">Stundenverlauf</div>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
@@ -360,8 +360,8 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
 export default function ResortDetail() {
   const params = useParams<{ slug: string }>();
   const slug = useMemo(() => {
-    const raw = Array.isArray(params.slug) params.slug[0] : params.slug;
-    return raw decodeURIComponent(raw) : "";
+    const raw = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+    return raw ? decodeURIComponent(raw) : "";
   }, [params]);
 
   const [r, setR] = useState<Resort | null>(null);
@@ -414,12 +414,12 @@ export default function ResortDetail() {
         };
         const travelMode =
           saved.travelMode === "train" || saved.travelMode === "bus" || saved.travelMode === "flight"
-            saved.travelMode
+            ? saved.travelMode
             : "car";
         setTravelPrefs({
           travelMode,
-          tripStartDate: saved.tripStartDate null,
-          tripEndDate: saved.tripEndDate null,
+          tripStartDate: saved.tripStartDate ?? null,
+          tripEndDate: saved.tripEndDate ?? null,
         });
       }
     } catch {
@@ -431,13 +431,13 @@ export default function ResortDetail() {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
-      setUserId(data.user.id null);
-      setUserEmail(data.user.email null);
+      setUserId(data.user?.id ?? null);
+      setUserEmail(data.user?.email ?? null);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session.user.id null);
-      setUserEmail(session.user.email null);
+      setUserId(session?.user?.id ?? null);
+      setUserEmail(session?.user?.email ?? null);
     });
 
     return () => {
@@ -468,7 +468,7 @@ export default function ResortDetail() {
         setDetailError(slugError.message);
       }
 
-      let resolved = bySlug null;
+      let resolved = bySlug ?? null;
       if (!resolved && isUuid(safeSlug)) {
         const { data: byId, error: idError } = await supabase
           .from("resorts")
@@ -479,7 +479,7 @@ export default function ResortDetail() {
         if (idError) {
           setDetailError(idError.message);
         }
-        resolved = byId null;
+        resolved = byId ?? null;
       }
 
       if (resolved) {
@@ -487,7 +487,7 @@ export default function ResortDetail() {
       } else {
         const fallback = findMvpResortBySlug(safeSlug);
         if (fallback) {
-          setR(fallback as Resort);
+          setR(fallback as unknown as Resort);
           setDetailError("");
         } else {
           setR(null);
@@ -539,8 +539,8 @@ export default function ResortDetail() {
       })
       .then((data: { prices: SkipassPriceRow[]; configured: boolean; hint: string }) => {
         if (!mounted) return;
-        setSkipassPrices(data.prices []);
-        setSkipassPriceHint(data.hint "");
+        setSkipassPrices(data.prices ?? []);
+        setSkipassPriceHint(data.hint ?? "");
       })
       .catch((err: Error) => {
         if (!mounted) return;
@@ -565,8 +565,8 @@ export default function ResortDetail() {
       })
       .then((data: { spots: ApresSpot[]; configured: boolean; hint: string }) => {
         if (!mounted) return;
-        setApresSpots(data.spots []);
-        setApresSpotHint(data.hint "");
+        setApresSpots(data.spots ?? []);
+        setApresSpotHint(data.hint ?? "");
       })
       .catch((err: Error) => {
         if (!mounted) return;
@@ -592,10 +592,10 @@ export default function ResortDetail() {
         return;
       }
 
-      const ratings = data [];
+      const ratings = data ?? [];
       const count = ratings.length;
       const avg =
-        count > 0 Math.round((ratings.reduce((sum, row) => sum + Number(row.rating 0), 0) / count) * 10) / 10 : null;
+        count > 0 ? Math.round((ratings.reduce((sum, row) => sum + Number(row.rating ?? 0), 0) / count) * 10) / 10 : null;
 
       setRatingStats({ avg, count });
 
@@ -607,7 +607,7 @@ export default function ResortDetail() {
           .eq("user_id", userId)
           .maybeSingle();
 
-        if (myRating.rating !== undefined && myRating.rating !== null) {
+        if (myRating?.rating !== undefined && myRating?.rating !== null) {
           setRatingValue(Number(myRating.rating));
         }
       }
@@ -662,7 +662,7 @@ export default function ResortDetail() {
       <Section>
         <GlassCard className="p-6">
           Resort nicht gefunden
-          {detailError <div className="mt-2 text-xs text-red-300">{detailError}</div> : null}
+          {detailError ? <div className="mt-2 text-xs text-red-300">{detailError}</div> : null}
           <div className="mt-3">
             <Link className="underline" href="/results">
               Zurück
@@ -673,7 +673,14 @@ export default function ResortDetail() {
     );
   }
 
-  const decision = deriveResortDecision(r, {
+  const detailPrefs: MatchPreferences = {
+    tripStyle: "balanced",
+    tripStartDate: null,
+    tripEndDate: null,
+    budgetMin: 0,
+    budgetMax: 450,
+    budget: 450,
+    peopleCount: 2,
     apres: 3,
     emptySlopes: 3,
     infrastructure: 4,
@@ -681,22 +688,35 @@ export default function ResortDetail() {
     snowpark: 1,
     easyRuns: 3,
     challenging: 3,
-    budgetMax: 450,
-  });
-  const heroUrl = r.hero_image_url.trim() || r.image_url.trim() || "/bg/skilandschaft.png";
+    snowReliability: 3,
+    valueForMoney: 3,
+    family: 0,
+    panorama: 3,
+    summerGlacier: 0,
+    offPiste: 0,
+    foodSpendLevel: "standard",
+    needRental: false,
+    rentalMode: "own",
+    travelMode: "car",
+    excludeCountries: [],
+    excludeGlacier: false,
+    excludePremium: false,
+    excludeFamilyOnly: false,
+  };
+  const decision = deriveResortDecision(r, detailPrefs);
+  const heroUrl = r.hero_image_url?.trim() || r.image_url?.trim() || "/bg/skilandschaft.png";
   const heroCredit =
     r.hero_image_url && (r.image_credit || r.image_license)
-      
-      [r.image_credit, r.image_license].filter(Boolean).join(" · ")
+      ? [r.image_credit, r.image_license].filter(Boolean).join(" · ")
       : null;
   const pisteKm = pickPisteKm(r);
-  const apres = scoreDisplay(r.apres_score null, "Après-Ski");
-  const quiet = scoreDisplay(r.crowd_score == null null : 1 - r.crowd_score, "Wenig Andrang");
+  const apres = scoreDisplay(r.apres_score ?? null, "Après-Ski");
+  const quiet = scoreDisplay(r.crowd_score == null ? null : 1 - r.crowd_score, "Wenig Andrang");
   const infra = scoreDisplay(decision.infrastructureScore, "Infrastruktur");
   const infrastructure = decision.infrastructureProfile;
   const skipassTrackingUrl = buildTrackingUrl(r.skipass_url);
-  const skipassCurrency = (r.skipass_price_currency "EUR").toUpperCase();
-  const skipassSymbol = skipassCurrency === "EUR" "€" : skipassCurrency;
+  const skipassCurrency = (r.skipass_price_currency ?? "EUR").toUpperCase();
+  const skipassSymbol = skipassCurrency === "EUR" ? "?" : skipassCurrency;
   const glacier = glacierDisplay(decision.summerGlacierScore);
   const strongestDecisionSignal = [
     { label: "Pistenprofil", value: decision.fitProfile.slope },
@@ -707,10 +727,10 @@ export default function ResortDetail() {
     { label: "Value", value: decision.fitProfile.value },
     { label: "Komfort", value: decision.fitProfile.comfort },
   ].sort((a, b) => b.value - a.value)[0];
-  const primaryReason = decision.reasons[0] "Guter Kandidat für deinen Kriterienmix.";
-  const firstDrawback = decision.drawbacks[0] "Preise, Verfügbarkeit und Pistenkarte vor der Buchung prüfen.";
+  const primaryReason = decision.reasons[0] ?? "Guter Kandidat f?r deinen Kriterienmix.";
+  const firstDrawback = decision.drawbacks[0] ?? "Preise, Verf?gbarkeit und Pistenkarte vor der Buchung pr?fen.";
   const decisionCostRange = `${formatNumber(decision.cost.totalMin, " €")} - ${formatNumber(decision.cost.totalMax, " €")}`;
-  const nextCheck = r.skipass_price_from "Zeitraum und Buchung prüfen" : "Skipasspreise prüfen";
+  const nextCheck = r.skipass_price_from ? "Zeitraum und Buchung pr?fen" : "Skipasspreise pr?fen";
 
   return (
     <div className="space-y-8">
@@ -724,10 +744,10 @@ export default function ResortDetail() {
 
           <div className="mt-2 text-white/75">
             {r.country}
-            {r.region `, ${r.region}` : ""}
-            {pisteKm `, ${pisteKm} km` : ""}
-            {r.drive_hours `, ca. ${r.drive_hours} h` : ""}
-            {r.distance_km `, ${r.distance_km} km` : ""}
+            {r.region ? `, ${r.region}` : ""}
+            {pisteKm ? `, ${pisteKm} km` : ""}
+            {r.drive_hours ? `, ca. ${r.drive_hours} h` : ""}
+            {r.distance_km ? `, ${r.distance_km} km` : ""}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -736,7 +756,7 @@ export default function ResortDetail() {
             ))}
             <span>{tag(`${decision.matchPct}% Match`)}</span>
           </div>
-          {heroCredit (
+          {heroCredit ? (
             <div className="mt-4 w-fit max-w-full rounded-full border border-white/10 bg-slate-950/35 px-3 py-1.5 text-[11px] text-white/60 backdrop-blur">
               Bild: {heroCredit}
             </div>
@@ -827,13 +847,13 @@ export default function ResortDetail() {
                   Lokal berechnete Wetterpunkte für Tal und Berg, damit Temperatur, Wind und Schnee nicht wie Stadtwetter wirken.
                 </p>
               </div>
-              {weather.resort_local_time (
+              {weather?.resort_local_time ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-3.5 py-2 text-xs text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   Lokal: {formatWeatherLocalTime(weather.resort_local_time)}
                 </div>
               ) : null}
             </div>
-            {weatherLoading (
+            {weatherLoading ? (
               <div className="mt-6 space-y-4">
                 <div className="grid gap-4 xl:grid-cols-2">
                   {Array.from({ length: 2 }).map((_, i) => (
@@ -842,13 +862,13 @@ export default function ResortDetail() {
                 </div>
                 <div className="h-28 animate-pulse rounded-3xl bg-white/10" />
               </div>
-            ) : weatherError (
+            ) : weatherError ? (
               <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
                 {weatherError}
               </div>
-            ) : weather (
+            ) : weather ? (
               <>
-                {weather.valley && weather.mountain (
+                {weather.valley && weather.mountain ? (
                   <div className="mt-6 grid items-stretch gap-4 xl:grid-cols-2">
                     <WeatherPointCard point={weather.valley} />
                     <WeatherPointCard point={weather.mountain} />
@@ -888,7 +908,7 @@ export default function ResortDetail() {
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    {(weather.mountain.daily weather.daily).slice(0, 5).map((day) => (
+                    {(weather.mountain?.daily ?? weather.daily ?? []).slice(0, 5).map((day) => (
                       <div
                         key={day.date}
                         className="min-h-[142px] rounded-2xl border border-white/10 bg-slate-950/22 p-4 text-sm text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -913,8 +933,8 @@ export default function ResortDetail() {
                   </div>
                 </div>
                 <div className="mt-3 text-xs leading-relaxed text-slate-500">
-                  Quelle: Open-Meteo, Zeitzone {weather.timezone "automatisch"}. Aktualisiert{" "}
-                  {formatUpdated(weather.weather_updated_at weather.updated_at, weather.timezone)}.
+                  Quelle: Open-Meteo, Zeitzone {weather.timezone ?? "automatisch"}. Aktualisiert{" "}
+                  {formatUpdated(weather.weather_updated_at ?? weather.updated_at, weather.timezone)}.
                 </div>
               </>
             ) : (
@@ -941,7 +961,7 @@ export default function ResortDetail() {
 
         <ApresSkiSpots
           resortName={r.name}
-          apresScore={r.apres_score null}
+          apresScore={r.apres_score ?? null}
           officialUrl={r.official_url}
           spots={apresSpots}
           hint={apresSpotHint}
@@ -961,7 +981,7 @@ export default function ResortDetail() {
             tripEndDate={travelPrefs.tripEndDate}
             roadDurationHours={r.drive_hours}
             roadDistanceKm={r.distance_km}
-            routeSource={r.drive_hours "fallback" : null}
+            routeSource={r.drive_hours ? "fallback" : null}
           />
         </div>
 
@@ -1100,7 +1120,7 @@ export default function ResortDetail() {
                   <p className="text-xs uppercase tracking-wide text-slate-400">Skipasspreise</p>
                   <h2 className="mt-2 text-lg font-semibold text-white">Altersgruppen & Ticketarten</h2>
                 </div>
-                {skipassPrices.length > 0 (
+                {skipassPrices.length > 0 ? (
                   <span className="rounded-full border border-emerald-200/25 bg-emerald-200/10 px-2.5 py-1 text-[11px] text-emerald-100">
                     offiziell gepflegt
                   </span>
@@ -1111,7 +1131,7 @@ export default function ResortDetail() {
                 )}
               </div>
 
-              {skipassPrices.length > 0 (
+              {skipassPrices.length > 0 ? (
                 <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
                   <div className="grid grid-cols-[1.2fr_1fr_0.8fr] border-b border-white/10 bg-white/[0.06] px-3 py-2 text-[11px] uppercase tracking-wide text-slate-400">
                     <span>Kategorie</span>
@@ -1123,13 +1143,13 @@ export default function ResortDetail() {
                       <div key={price.id} className="grid grid-cols-[1.2fr_1fr_0.8fr] gap-2 px-3 py-3 text-sm text-slate-200">
                         <div>
                           <div className="font-medium text-white">{ageRangeLabel(price)}</div>
-                          {price.season_label <div className="mt-1 text-[11px] text-slate-400">{price.season_label}</div> : null}
+                          {price.season_label ? <div className="mt-1 text-[11px] text-slate-400">{price.season_label}</div> : null}
                         </div>
                         <div>
                           <div>{price.ticket_name}</div>
-                          {price.valid_from || price.valid_to (
+                          {price.valid_from || price.valid_to ? (
                             <div className="mt-1 text-[11px] text-slate-400">
-                              {price.valid_from ""} - {price.valid_to ""}
+                              {price.valid_from ?? ""} - {price.valid_to ?? ""}
                             </div>
                           ) : null}
                         </div>
@@ -1142,7 +1162,7 @@ export default function ResortDetail() {
                 </div>
               ) : (
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                  {r.skipass_price_from (
+                  {r.skipass_price_from ? (
                     <>
                       Aktuell ist nur ein Basispreis hinterlegt:{" "}
                       <span className="font-semibold text-white">
@@ -1153,7 +1173,7 @@ export default function ResortDetail() {
                   ) : (
                     "Für dieses Resort sind noch keine gepflegten Skipasspreise hinterlegt."
                   )}
-                  {skipassPriceHint <div className="mt-2 text-[11px] text-slate-400">{skipassPriceHint}</div> : null}
+                  {skipassPriceHint ? <div className="mt-2 text-[11px] text-slate-400">{skipassPriceHint}</div> : null}
                 </div>
               )}
 
@@ -1166,24 +1186,24 @@ export default function ResortDetail() {
               <h2 className="text-lg font-semibold text-white">Links</h2>
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
                 <div className="text-xs uppercase tracking-wide text-slate-400">Skipass Preis (Tag)</div>
-                {r.skipass_price_from (
+                {r.skipass_price_from ? (
                   <div className="mt-2 text-lg font-semibold text-white">
                     {formatMaybeNumber(r.skipass_price_from)} {skipassSymbol}
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-slate-300">Kein Preis hinterlegt.</div>
                 )}
-                {r.skipass_price_last_checked (
+                {r.skipass_price_last_checked ? (
                   <div className="mt-2 text-[11px] text-slate-400">
                     Stand: {r.skipass_price_last_checked}
                   </div>
                 ) : null}
-                {r.skipass_price_note (
+                {r.skipass_price_note ? (
                   <div className="mt-2 text-[11px] text-slate-400">{r.skipass_price_note}</div>
                 ) : null}
               </div>
               <div className="mt-4 grid gap-3 text-sm">
-                {r.official_url (
+                {r.official_url ? (
                   <a
                     className="rounded-xl border border-white/10 px-4 py-3 text-slate-200 hover:bg-white/10"
                     href={r.official_url}
@@ -1193,7 +1213,7 @@ export default function ResortDetail() {
                     Offizielle Website
                   </a>
                 ) : null}
-                {r.piste_map_url (
+                {r.piste_map_url ? (
                   <a
                     className="rounded-xl border border-white/10 px-4 py-3 text-slate-200 hover:bg-white/10"
                     href={r.piste_map_url}
@@ -1203,11 +1223,11 @@ export default function ResortDetail() {
                     Pistenplan
                   </a>
                 ) : null}
-                {r.skipass_url (
+                {r.skipass_url ? (
                   <div className="rounded-xl border border-white/10 bg-white/5">
                     <a
                       className="block px-4 py-3 text-slate-200 hover:bg-white/10"
-                      href={skipassTrackingUrl r.skipass_url}
+                      href={skipassTrackingUrl ?? r.skipass_url}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -1216,7 +1236,7 @@ export default function ResortDetail() {
                     <div className="px-4 pb-3 text-[11px] text-slate-400">UTM-Tracking</div>
                   </div>
                 ) : null}
-                {r.openskimap_url (
+                {r.openskimap_url ? (
                   <a
                     className="rounded-xl border border-white/10 px-4 py-3 text-slate-200 hover:bg-white/10"
                     href={r.openskimap_url}
@@ -1226,7 +1246,7 @@ export default function ResortDetail() {
                     OpenSkiMap
                   </a>
                 ) : null}
-                {!r.official_url && !r.piste_map_url && !r.skipass_url && !r.openskimap_url (
+                {!r.official_url && !r.piste_map_url && !r.skipass_url && !r.openskimap_url ? (
                   <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-300">
                     Keine externen Links verfügbar.
                   </div>
@@ -1239,7 +1259,7 @@ export default function ResortDetail() {
                 <h2 className="text-lg font-semibold text-white">Bewertungen</h2>
                 <div className="text-sm text-slate-300">
                   {ratingStats.count > 0
-                    `Durchschnitt: ${formatNumber(ratingStats.avg)} / 10 (${ratingStats.count})`
+                    ? `Durchschnitt: ${formatNumber(ratingStats.avg)} / 10 (${ratingStats.count})`
                     : "Noch keine Bewertungen"}
                 </div>
               </div>
@@ -1264,18 +1284,18 @@ export default function ResortDetail() {
                     onClick={saveRating}
                     disabled={ratingSaving}
                   >
-                    {ratingSaving "Speichern..." : "Bewertung speichern"}
+                    {ratingSaving ? "Speichern..." : "Bewertung speichern"}
                   </button>
-                  {!userId (
+                  {!userId ? (
                     <Link className="text-xs text-slate-300 underline" href="/account">
                       Anmelden, um zu bewerten
                     </Link>
                   ) : (
-                    <span className="text-xs text-slate-400">Bewertest als {userEmail "Nutzer"}</span>
+                    <span className="text-xs text-slate-400">Bewertest als {userEmail ?? "Nutzer"}</span>
                   )}
                 </div>
 
-                {ratingError <div className="mt-3 text-xs text-red-300">{ratingError}</div> : null}
+                {ratingError ? <div className="mt-3 text-xs text-red-300">{ratingError}</div> : null}
               </div>
             </GlassCard>
           </div>
@@ -1290,7 +1310,7 @@ export default function ResortDetail() {
           />
         </div>
 
-        <AnimatePresence>{toast <Toast message={toast} /> : null}</AnimatePresence>
+        <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
       </Section>
     </div>
   );

@@ -149,7 +149,7 @@ export async function POST(req: Request) {
         for (const row of bindings) {
           if (results.length >= maxTotal) break;
           const itemUri = row.item.value;
-          const name = row.itemLabel.value "";
+          const name = row.itemLabel?.value ?? "";
           const coord = parseCoord(row.coord.value);
           if (!itemUri || !name || !coord) continue;
 
@@ -160,11 +160,11 @@ export async function POST(req: Request) {
           results.push({
             qid,
             name,
-            country: row.countryLabel.value country.name,
+            country: row.countryLabel?.value ?? country.name,
             region: "",
             lat: String(coord.lat),
             lon: String(coord.lon),
-            official_url: row.officialWebsite.value "",
+            official_url: row.officialWebsite?.value ?? "",
             image_url: toCommonsImageUrl(row.image.value),
           });
         }
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
         fetchedForCountry += bindings.length;
         offset += bindings.length;
       } catch (err) {
-        const reason = err instanceof Error err.message : "sparql error";
+        const reason = err instanceof Error ? err.message : "sparql error";
         skipped.push({ country: country.code, reason });
         break;
       }
@@ -188,9 +188,9 @@ export async function POST(req: Request) {
   const slugCounts = new Map<string, number>();
   const payload = results.map((row) => {
     const base = slugify(row.name);
-    const seen = slugCounts.get(base) 0;
+    const seen = slugCounts.get(base) ?? 0;
     slugCounts.set(base, seen + 1);
-    const slug = seen > 0 `${base}-${seen + 1}` : base;
+    const slug = seen > 0 ? `${base}-${seen + 1}` : base;
     return {
       slug,
       name: row.name,
@@ -213,7 +213,7 @@ export async function POST(req: Request) {
   for (let i = 0; i < slugs.length; i += 100) {
     const chunk = slugs.slice(i, i + 100);
     const { data } = await supabaseAdmin.from("resorts").select("slug").in("slug", chunk);
-    (data []).forEach((row) => {
+    (data ?? []).forEach((row) => {
       if (row.slug) existing.add(row.slug);
     });
   }

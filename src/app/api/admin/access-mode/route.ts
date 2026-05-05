@@ -26,8 +26,8 @@ export async function PUT(req: Request) {
     return NextResponse.json({
       mode,
       source: "supabase",
-      updatedAt: data.updated_at ?? null,
-      updatedBy: data.updated_by ?? null,
+      updatedAt: data?.updated_at ?? null,
+      updatedBy: data?.updated_by ?? null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Access mode could not be updated";

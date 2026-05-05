@@ -27,11 +27,11 @@ type TripResortRow = ResortSignalRow;
 function isMissingTableError(error: DbErrorLike) {
   if (!error) return false;
   if (error.code === "42P01") return true;
-  return /does not exist|not find the table|relation .* does not exist/i.test(error.message "");
+  return /does not exist|not find the table|relation .* does not exist/i.test(error.message ?? "");
 }
 
 function sortByCreatedAt<T extends { createdAt: string | null }>(items: T[]) {
-  return [...items].sort((a, b) => (a.createdAt "").localeCompare(b.createdAt ""));
+  return [...items].sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 }
 
 function sortByDateRange<T extends { startDate: string; endDate: string }>(items: T[]) {
@@ -41,20 +41,20 @@ function sortByDateRange<T extends { startDate: string; endDate: string }>(items
 function normalizeTrip(row: Record<string, unknown>): SkiTripRecord {
   return {
     id: String(row.id),
-    title: String(row.title "Ski Trip"),
-    description: typeof row.description === "string" row.description : null,
-    startRegion: typeof row.start_region === "string" row.start_region : null,
-    participantTarget: typeof row.participant_target === "number" row.participant_target : null,
-    budgetPerPerson: typeof row.budget_per_person === "number" row.budget_per_person : null,
+    title: String(row.title ?? "Ski Trip"),
+    description: typeof row.description === "string" ? row.description : null,
+    startRegion: typeof row.start_region === "string" ? row.start_region : null,
+    participantTarget: typeof row.participant_target === "number" ? row.participant_target : null,
+    budgetPerPerson: typeof row.budget_per_person === "number" ? row.budget_per_person : null,
     skiLevel:
-      row.ski_level === "beginner" || row.ski_level === "advanced" || row.ski_level === "mixed" row.ski_level : "mixed",
-    focus: Array.isArray(row.focus) (row.focus.filter((entry): entry is SkiTripRecord["focus"][number] => typeof entry === "string") as SkiTripRecord["focus"]) : [],
+      row.ski_level === "beginner" || row.ski_level === "advanced" || row.ski_level === "mixed" ? row.ski_level : "mixed",
+    focus: Array.isArray(row.focus) ? (row.focus.filter((entry): entry is SkiTripRecord["focus"][number] => typeof entry === "string") as SkiTripRecord["focus"]) : [],
     preferredResortSlugs: Array.isArray(row.preferred_resort_slugs)
-      row.preferred_resort_slugs.filter((entry): entry is string => typeof entry === "string")
+      ? row.preferred_resort_slugs.filter((entry): entry is string => typeof entry === "string")
       : [],
-    createdBy: typeof row.created_by === "string" row.created_by : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
-    updatedAt: typeof row.updated_at === "string" row.updated_at : null,
+    createdBy: typeof row.created_by === "string" ? row.created_by : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
   };
 }
 
@@ -62,15 +62,15 @@ function normalizeMember(row: Record<string, unknown>): SkiTripMemberRecord {
   return {
     id: String(row.id),
     tripId: String(row.trip_id),
-    userId: typeof row.user_id === "string" row.user_id : null,
-    displayName: typeof row.display_name === "string" row.display_name : "Mitglied",
-    email: typeof row.email === "string" row.email : null,
-    role: row.role === "admin" "admin" : "member",
-    status: row.status === "invited" || row.status === "open" row.status : "joined",
+    userId: typeof row.user_id === "string" ? row.user_id : null,
+    displayName: typeof row.display_name === "string" ? row.display_name : "Mitglied",
+    email: typeof row.email === "string" ? row.email : null,
+    role: row.role === "admin" ? "admin" : "member",
+    status: row.status === "invited" || row.status === "open" ? row.status : "joined",
     isDemo: Boolean(row.is_demo),
-    demoProfile: row.demo_profile && typeof row.demo_profile === "object" && !Array.isArray(row.demo_profile) (row.demo_profile as Record<string, unknown>) : {},
-    joinedAt: typeof row.joined_at === "string" row.joined_at : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    demoProfile: row.demo_profile && typeof row.demo_profile === "object" && !Array.isArray(row.demo_profile) ? (row.demo_profile as Record<string, unknown>) : {},
+    joinedAt: typeof row.joined_at === "string" ? row.joined_at : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -78,13 +78,13 @@ function normalizeInvite(row: Record<string, unknown>): SkiTripInviteRecord {
   return {
     id: String(row.id),
     tripId: String(row.trip_id),
-    email: typeof row.email === "string" row.email : null,
-    role: row.role === "admin" "admin" : "member",
+    email: typeof row.email === "string" ? row.email : null,
+    role: row.role === "admin" ? "admin" : "member",
     inviteToken: String(row.invite_token),
-    note: typeof row.note === "string" row.note : null,
-    status: row.status === "joined" || row.status === "open" row.status : "invited",
-    expiresAt: typeof row.expires_at === "string" row.expires_at : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    note: typeof row.note === "string" ? row.note : null,
+    status: row.status === "joined" || row.status === "open" ? row.status : "invited",
+    expiresAt: typeof row.expires_at === "string" ? row.expires_at : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -92,12 +92,12 @@ function normalizeDateOption(row: Record<string, unknown>): SkiTripDateOptionRec
   return {
     id: String(row.id),
     tripId: String(row.trip_id),
-    label: String(row.label "Zeitraum"),
+    label: String(row.label ?? "Zeitraum"),
     startDate: String(row.start_date),
     endDate: String(row.end_date),
-    note: typeof row.note === "string" row.note : null,
-    createdBy: typeof row.created_by === "string" row.created_by : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    note: typeof row.note === "string" ? row.note : null,
+    createdBy: typeof row.created_by === "string" ? row.created_by : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -107,10 +107,10 @@ function normalizeAvailability(row: Record<string, unknown>): SkiTripAvailabilit
     tripId: String(row.trip_id),
     dateOptionId: String(row.date_option_id),
     memberId: String(row.member_id),
-    userId: typeof row.user_id === "string" row.user_id : null,
-    status: row.status === "available" || row.status === "maybe" row.status : "unavailable",
-    note: typeof row.note === "string" row.note : null,
-    updatedAt: typeof row.updated_at === "string" row.updated_at : null,
+    userId: typeof row.user_id === "string" ? row.user_id : null,
+    status: row.status === "available" || row.status === "maybe" ? row.status : "unavailable",
+    note: typeof row.note === "string" ? row.note : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
   };
 }
 
@@ -118,12 +118,12 @@ function normalizeFavorite(row: Record<string, unknown>): SkiTripFavoriteRecord 
   return {
     id: String(row.id),
     tripId: String(row.trip_id),
-    resortId: typeof row.resort_id === "string" row.resort_id : null,
+    resortId: typeof row.resort_id === "string" ? row.resort_id : null,
     resortSlug: String(row.resort_slug),
-    note: typeof row.note === "string" row.note : null,
-    proposedByMemberId: typeof row.proposed_by_member_id === "string" row.proposed_by_member_id : null,
+    note: typeof row.note === "string" ? row.note : null,
+    proposedByMemberId: typeof row.proposed_by_member_id === "string" ? row.proposed_by_member_id : null,
     isPinned: Boolean(row.is_pinned),
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -133,8 +133,8 @@ function normalizeVote(row: Record<string, unknown>): SkiTripFavoriteVoteRecord 
     tripId: String(row.trip_id),
     favoriteId: String(row.favorite_id),
     memberId: String(row.member_id),
-    voteKind: row.vote_kind === "favorite" "favorite" : "like",
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    voteKind: row.vote_kind === "favorite" ? "favorite" : "like",
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -144,8 +144,8 @@ function normalizeComment(row: Record<string, unknown>): SkiTripCommentRecord {
     tripId: String(row.trip_id),
     favoriteId: String(row.favorite_id),
     memberId: String(row.member_id),
-    body: String(row.body ""),
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    body: String(row.body ?? ""),
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -155,19 +155,19 @@ function normalizePriceSnapshot(row: Record<string, unknown>): SkiTripPriceSnaps
     tripId: String(row.trip_id),
     favoriteId: String(row.favorite_id),
     dateOptionId: String(row.date_option_id),
-    currency: typeof row.currency === "string" row.currency : "EUR",
-    skipass: typeof row.skipass === "number" row.skipass : 0,
-    accommodation: typeof row.accommodation === "number" row.accommodation : 0,
-    travel: typeof row.travel === "number" row.travel : 0,
-    rental: typeof row.rental === "number" row.rental : 0,
-    skiSchool: typeof row.ski_school === "number" row.ski_school : 0,
-    food: typeof row.food === "number" row.food : 0,
-    buffer: typeof row.buffer === "number" row.buffer : 0,
-    totalOverride: typeof row.total_override === "number" row.total_override : null,
-    note: typeof row.note === "string" row.note : null,
-    sourceKind: row.source_kind === "manual" || row.source_kind === "seed" row.source_kind : "estimate",
-    updatedByMemberId: typeof row.updated_by_member_id === "string" row.updated_by_member_id : null,
-    updatedAt: typeof row.updated_at === "string" row.updated_at : null,
+    currency: typeof row.currency === "string" ? row.currency : "EUR",
+    skipass: typeof row.skipass === "number" ? row.skipass : 0,
+    accommodation: typeof row.accommodation === "number" ? row.accommodation : 0,
+    travel: typeof row.travel === "number" ? row.travel : 0,
+    rental: typeof row.rental === "number" ? row.rental : 0,
+    skiSchool: typeof row.ski_school === "number" ? row.ski_school : 0,
+    food: typeof row.food === "number" ? row.food : 0,
+    buffer: typeof row.buffer === "number" ? row.buffer : 0,
+    totalOverride: typeof row.total_override === "number" ? row.total_override : null,
+    note: typeof row.note === "string" ? row.note : null,
+    sourceKind: row.source_kind === "manual" || row.source_kind === "seed" ? row.source_kind : "estimate",
+    updatedByMemberId: typeof row.updated_by_member_id === "string" ? row.updated_by_member_id : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
   };
 }
 
@@ -182,17 +182,17 @@ function normalizeBudgetItem(row: Record<string, unknown>): SkiTripBudgetItemRec
       row.category === "ski_school" ||
       row.category === "food" ||
       row.category === "other"
-        row.category
+        ? row.category
         : "skipass",
-    description: String(row.description "Budgetposten"),
-    amount: typeof row.amount === "number" row.amount : 0,
-    dueDate: typeof row.due_date === "string" row.due_date : null,
+    description: String(row.description ?? "Budgetposten"),
+    amount: typeof row.amount === "number" ? row.amount : 0,
+    dueDate: typeof row.due_date === "string" ? row.due_date : null,
     isPaid: Boolean(row.is_paid),
-    paidByMemberId: typeof row.paid_by_member_id === "string" row.paid_by_member_id : null,
-    note: typeof row.note === "string" row.note : null,
-    createdByMemberId: typeof row.created_by_member_id === "string" row.created_by_member_id : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
-    updatedAt: typeof row.updated_at === "string" row.updated_at : null,
+    paidByMemberId: typeof row.paid_by_member_id === "string" ? row.paid_by_member_id : null,
+    note: typeof row.note === "string" ? row.note : null,
+    createdByMemberId: typeof row.created_by_member_id === "string" ? row.created_by_member_id : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
   };
 }
 
@@ -207,17 +207,17 @@ function normalizeExpense(row: Record<string, unknown>): SkiTripExpenseRecord {
       row.category === "ski_school" ||
       row.category === "food" ||
       row.category === "other"
-        row.category
+        ? row.category
         : "skipass",
-    description: String(row.description "Ausgabe"),
-    amount: typeof row.amount === "number" row.amount : 0,
-    paidByMemberId: typeof row.paid_by_member_id === "string" row.paid_by_member_id : null,
-    incurredOn: typeof row.incurred_on === "string" row.incurred_on : null,
-    dueDate: typeof row.due_date === "string" row.due_date : null,
-    note: typeof row.note === "string" row.note : null,
+    description: String(row.description ?? "Ausgabe"),
+    amount: typeof row.amount === "number" ? row.amount : 0,
+    paidByMemberId: typeof row.paid_by_member_id === "string" ? row.paid_by_member_id : null,
+    incurredOn: typeof row.incurred_on === "string" ? row.incurred_on : null,
+    dueDate: typeof row.due_date === "string" ? row.due_date : null,
+    note: typeof row.note === "string" ? row.note : null,
     isSettled: Boolean(row.is_settled),
-    createdAt: typeof row.created_at === "string" row.created_at : null,
-    updatedAt: typeof row.updated_at === "string" row.updated_at : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
   };
 }
 
@@ -227,8 +227,8 @@ function normalizeExpenseSplit(row: Record<string, unknown>): SkiTripExpenseSpli
     tripId: String(row.trip_id),
     expenseId: String(row.expense_id),
     memberId: String(row.member_id),
-    amount: typeof row.amount === "number" row.amount : 0,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    amount: typeof row.amount === "number" ? row.amount : 0,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -238,11 +238,11 @@ function normalizeSettlement(row: Record<string, unknown>): SkiTripSettlementRec
     tripId: String(row.trip_id),
     fromMemberId: String(row.from_member_id),
     toMemberId: String(row.to_member_id),
-    amount: typeof row.amount === "number" row.amount : 0,
-    status: row.status === "paid" "paid" : "open",
-    note: typeof row.note === "string" row.note : null,
-    settledAt: typeof row.settled_at === "string" row.settled_at : null,
-    createdAt: typeof row.created_at === "string" row.created_at : null,
+    amount: typeof row.amount === "number" ? row.amount : 0,
+    status: row.status === "paid" ? "paid" : "open",
+    note: typeof row.note === "string" ? row.note : null,
+    settledAt: typeof row.settled_at === "string" ? row.settled_at : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
 
@@ -281,16 +281,16 @@ export async function loadResortLookup(slugs: string[]) {
       slug: resort.slug,
       name: resort.name,
       country: resort.country,
-      region: resort.region null,
-      imageUrl: resort.hero_image_url.trim() || resort.image_url.trim() || null,
-      pisteKm: resort.piste_km_total resort.piste_km null,
-      elevationMinM: resort.elevation_min_m null,
-      elevationMaxM: resort.elevation_max_m null,
-      verticalM: resort.vertical_m null,
-      skipassPriceFrom: resort.skipass_price_from null,
-      officialUrl: resort.official_url null,
-      lat: typeof resort.lat === "number" resort.lat : null,
-      lon: typeof resort.lon === "number" resort.lon : null,
+      region: resort.region ?? null,
+      imageUrl: (resort.hero_image_url || "").trim() || (resort.image_url || "").trim() || null,
+      pisteKm: resort.piste_km_total ?? resort.piste_km ?? null,
+      elevationMinM: resort.elevation_min_m ?? null,
+      elevationMaxM: resort.elevation_max_m ?? null,
+      verticalM: resort.vertical_m ?? null,
+      skipassPriceFrom: resort.skipass_price_from ?? null,
+      officialUrl: resort.official_url ?? null,
+      lat: typeof resort.lat === "number" ? resort.lat : null,
+      lon: typeof resort.lon === "number" ? resort.lon : null,
       matchPct: decision.matchPct,
     };
   }
@@ -313,7 +313,7 @@ export async function loadTripBundlesForUser(userId: string) {
     throw membershipError;
   }
 
-  const tripIds = Array.from(new Set((membershipRows []).map((row) => row.trip_id).filter(Boolean)));
+  const tripIds = Array.from(new Set((membershipRows ?? []).map((row) => row.trip_id).filter(Boolean)));
   if (!tripIds.length) return [] as SkiTripBundle[];
 
   const [
@@ -365,19 +365,19 @@ export async function loadTripBundlesForUser(userId: string) {
     throw maybeMissingError;
   }
 
-  const trips = (tripsResult.data []).map((row) => normalizeTrip(row as Record<string, unknown>));
-  const members = (membersResult.data []).map((row) => normalizeMember(row as Record<string, unknown>));
-  const invites = (invitesResult.data []).map((row) => normalizeInvite(row as Record<string, unknown>));
-  const dateOptions = (dateOptionsResult.data []).map((row) => normalizeDateOption(row as Record<string, unknown>));
-  const availability = (availabilityResult.data []).map((row) => normalizeAvailability(row as Record<string, unknown>));
-  const favorites = (favoritesResult.data []).map((row) => normalizeFavorite(row as Record<string, unknown>));
-  const votes = (votesResult.data []).map((row) => normalizeVote(row as Record<string, unknown>));
-  const comments = (commentsResult.data []).map((row) => normalizeComment(row as Record<string, unknown>));
-  const priceSnapshots = (priceSnapshotsResult.data []).map((row) => normalizePriceSnapshot(row as Record<string, unknown>));
-  const budgetItems = (budgetItemsResult.data []).map((row) => normalizeBudgetItem(row as Record<string, unknown>));
-  const expenses = (expensesResult.data []).map((row) => normalizeExpense(row as Record<string, unknown>));
-  const expenseSplits = (expenseSplitsResult.data []).map((row) => normalizeExpenseSplit(row as Record<string, unknown>));
-  const settlements = (settlementsResult.data []).map((row) => normalizeSettlement(row as Record<string, unknown>));
+  const trips = (tripsResult.data ?? []).map((row) => normalizeTrip(row as Record<string, unknown>));
+  const members = (membersResult.data ?? []).map((row) => normalizeMember(row as Record<string, unknown>));
+  const invites = (invitesResult.data ?? []).map((row) => normalizeInvite(row as Record<string, unknown>));
+  const dateOptions = (dateOptionsResult.data ?? []).map((row) => normalizeDateOption(row as Record<string, unknown>));
+  const availability = (availabilityResult.data ?? []).map((row) => normalizeAvailability(row as Record<string, unknown>));
+  const favorites = (favoritesResult.data ?? []).map((row) => normalizeFavorite(row as Record<string, unknown>));
+  const votes = (votesResult.data ?? []).map((row) => normalizeVote(row as Record<string, unknown>));
+  const comments = (commentsResult.data ?? []).map((row) => normalizeComment(row as Record<string, unknown>));
+  const priceSnapshots = (priceSnapshotsResult.data ?? []).map((row) => normalizePriceSnapshot(row as Record<string, unknown>));
+  const budgetItems = (budgetItemsResult.data ?? []).map((row) => normalizeBudgetItem(row as Record<string, unknown>));
+  const expenses = (expensesResult.data ?? []).map((row) => normalizeExpense(row as Record<string, unknown>));
+  const expenseSplits = (expenseSplitsResult.data ?? []).map((row) => normalizeExpenseSplit(row as Record<string, unknown>));
+  const settlements = (settlementsResult.data ?? []).map((row) => normalizeSettlement(row as Record<string, unknown>));
 
   const resortSlugs = Array.from(
     new Set(
@@ -408,20 +408,20 @@ export async function loadTripBundlesForUser(userId: string) {
       ),
       isDemo: false,
     }))
-    .sort((a, b) => (b.trip.updatedAt "").localeCompare(a.trip.updatedAt ""));
+    .sort((a, b) => (b.trip.updatedAt ?? "").localeCompare(a.trip.updatedAt ?? ""));
 }
 
 export async function loadTripBundleById(tripId: string, userId: string | null) {
   if (demoTripIds.includes(tripId as (typeof demoTripIds)[number])) {
     const demoBundles = await loadDemoTripBundles();
-    return demoBundles.find((bundle) => bundle.trip.id === tripId) null;
+    return demoBundles.find((bundle) => bundle.trip.id === tripId) ?? null;
   }
 
   if (!userId) return null;
 
   try {
     const bundles = await loadTripBundlesForUser(userId);
-    return bundles.find((bundle) => bundle.trip.id === tripId) null;
+    return bundles.find((bundle) => bundle.trip.id === tripId) ?? null;
   } catch (error) {
     if (isMissingTableError(error as DbErrorLike)) {
       return null;

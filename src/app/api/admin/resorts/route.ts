@@ -124,33 +124,33 @@ export async function POST(req: Request) {
     lat: body.lat ?? null,
     lon: body.lon ?? null,
     image_url: body.image_url ?? null,
-    hero_image_url: body.hero_image_url null,
-    hero_image_alt: body.hero_image_alt null,
-    image_source: body.image_source null,
-    image_credit: body.image_credit null,
-    image_license: body.image_license null,
-    official_url: body.official_url null,
-    piste_map_url: body.piste_map_url null,
-    skipass_url: body.skipass_url null,
-    openskimap_url: body.openskimap_url null,
-    piste_km: body.piste_km null,
-    piste_km_total: body.piste_km_total null,
-    runs_count_total: body.runs_count_total null,
-    lifts_count_total: body.lifts_count_total null,
-    elevation_min_m: body.elevation_min_m null,
-    elevation_max_m: body.elevation_max_m null,
-    vertical_m: body.vertical_m null,
-    apres_score: body.apres_score null,
-    crowd_score: body.crowd_score null,
-    infra_score: body.infra_score null,
-    hut_score: body.hut_score null,
-    park_score: body.park_score null,
-    beginner_score: body.beginner_score null,
-    advanced_score: body.advanced_score null,
-    skipass_price_from: body.skipass_price_from null,
-    skipass_price_currency: body.skipass_price_currency null,
-    skipass_price_last_checked: body.skipass_price_last_checked null,
-    skipass_price_note: body.skipass_price_note null,
+    hero_image_url: body.hero_image_url ?? null,
+    hero_image_alt: body.hero_image_alt ?? null,
+    image_source: body.image_source ?? null,
+    image_credit: body.image_credit ?? null,
+    image_license: body.image_license ?? null,
+    official_url: body.official_url ?? null,
+    piste_map_url: body.piste_map_url ?? null,
+    skipass_url: body.skipass_url ?? null,
+    openskimap_url: body.openskimap_url ?? null,
+    piste_km: body.piste_km ?? null,
+    piste_km_total: body.piste_km_total ?? null,
+    runs_count_total: body.runs_count_total ?? null,
+    lifts_count_total: body.lifts_count_total ?? null,
+    elevation_min_m: body.elevation_min_m ?? null,
+    elevation_max_m: body.elevation_max_m ?? null,
+    vertical_m: body.vertical_m ?? null,
+    apres_score: body.apres_score ?? null,
+    crowd_score: body.crowd_score ?? null,
+    infra_score: body.infra_score ?? null,
+    hut_score: body.hut_score ?? null,
+    park_score: body.park_score ?? null,
+    beginner_score: body.beginner_score ?? null,
+    advanced_score: body.advanced_score ?? null,
+    skipass_price_from: body.skipass_price_from ?? null,
+    skipass_price_currency: body.skipass_price_currency ?? null,
+    skipass_price_last_checked: body.skipass_price_last_checked ?? null,
+    skipass_price_note: body.skipass_price_note ?? null,
   };
 
   const { data, error } = await supabaseAdmin.from("resorts").insert(payload).select("id,slug,name").maybeSingle();
@@ -214,12 +214,12 @@ export async function PATCH(req: Request) {
   const payload: Record<string, unknown> = {};
   for (const field of fields) {
     if (Object.prototype.hasOwnProperty.call(body, field)) {
-      payload[field] = body[field] === "" null : body[field];
+      payload[field] = body[field] === "" ? null : body[field];
     }
   }
 
   let update = supabaseAdmin.from("resorts").update(payload);
-  update = id update.eq("id", id) : update.eq("slug", slug);
+  update = id ? update.eq("id", id) : update.eq("slug", slug);
 
   const { data, error } = await update.select("id,slug,name").maybeSingle();
   if (error) {
@@ -243,7 +243,7 @@ export async function DELETE(req: Request) {
   }
 
   let del = supabaseAdmin.from("resorts").delete();
-  del = id del.eq("id", id) : del.eq("slug", slug);
+  del = id ? del.eq("id", id) : del.eq("slug", slug);
 
   const { error } = await del;
   if (error) {

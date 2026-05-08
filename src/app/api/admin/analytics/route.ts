@@ -4,9 +4,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-function isoDaysAgo(days: number) {
+function startOfDayDaysAgo(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
+  date.setHours(0, 0, 0, 0);
   return date.toISOString();
 }
 
@@ -14,6 +15,12 @@ function startOfTodayIso() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   return date.toISOString();
+}
+
+function requestedRangeDays(req: Request) {
+  const days = Number(new URL(req.url).searchParams.get("days") || 30);
+  if (days === 7 || days === 30 || days === 90) return days;
+  return 30;
 }
 
 async function countFrom(table: string, options: { since?: string; statusIn?: string[] } = {}) {
@@ -31,9 +38,11 @@ export async function GET(req: Request) {
   }
 
   try {
+    const rangeDays = requestedRangeDays(req);
     const today = startOfTodayIso();
-    const sevenDays = isoDaysAgo(7);
-    const thirtyDays = isoDaysAgo(30);
+    const sevenDays = startOfDayDaysAgo(6);
+    const thirtyDays = startOfDayDaysAgo(29);
+    const rangeStart = startOfDayDaysAgo(rangeDays - 1);
 
     const [
       totalPageViews,
@@ -75,9 +84,9 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from("page_events")
         .select("path,created_at,user_id,session_id")
-        .gte("created_at", thirtyDays)
+        .gte("created_at", rangeStart)
         .order("created_at", { ascending: false })
-        .limit(5000),
+        .limit(rangeDays === 90 ? 10000 : 5000),
     ]);
 
     for (const result of [recentEventsResult, recentUsersResult, recentFeedbackResult, eventRowsResult]) {
@@ -90,7 +99,7 @@ export async function GET(req: Request) {
     const uniqueSessions = new Set<string>();
     const activeUsers = new Set<string>();
 
-    for (let i = 29; i >= 0; i -= 1) {
+    for (let i = rangeDays - 1; i >= 0; i -= 1) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const key = date.toISOString().slice(0, 10);
@@ -131,6 +140,7 @@ export async function GET(req: Request) {
       recentEvents: recentEventsResult.data ?? [],
       recentUsers: recentUsersResult.data ?? [],
       recentFeedback: recentFeedbackResult.data ?? [],
+      meta: { rangeDays },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Analytics konnten nicht geladen werden.";

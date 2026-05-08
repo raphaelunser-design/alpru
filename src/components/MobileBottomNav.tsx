@@ -6,10 +6,10 @@ import { useClientLocale } from "@/lib/clientLocale";
 import { getLocaleText, type LocaleTextKey } from "@/components/LocaleText";
 
 const items = [
-  { href: "/", labelKey: "mobileStart" },
   { href: "/quiz", labelKey: "mobileMatch" },
-  { href: "/trips", labelKey: "mobileTrips" },
-  { href: "/checklist", labelKey: "mobileList" },
+  { href: "/resorts", labelKey: "resorts", badge: "Beta" },
+  { href: "/trips", labelKey: "mobileTrips", badge: "Bald" },
+  { href: "/map", labelKey: "map", badge: "Beta" },
   { href: "/account", labelKey: "account" },
 ];
 
@@ -19,7 +19,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 overflow-hidden rounded-2xl border border-white/15 bg-slate-950/88 p-1 shadow-[0_18px_60px_rgba(2,6,23,0.5)] backdrop-blur-xl md:hidden"
+      className="fixed bottom-3 left-3 z-40 grid w-[366px] max-w-[calc(100vw-1.5rem)] grid-cols-[repeat(5,minmax(0,1fr))] overflow-hidden rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-[0_18px_60px_rgba(2,6,23,0.5)] backdrop-blur-xl md:hidden"
       aria-label="Mobile Hauptnavigation"
     >
       {items.map((item) => {
@@ -29,11 +29,16 @@ export default function MobileBottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex min-h-11 items-center justify-center rounded-xl px-2 text-xs font-semibold transition ${
+            className={`relative flex min-h-12 items-center justify-center overflow-hidden rounded-xl px-1 text-[11px] font-semibold transition ${
               active ? "bg-sky-200 text-slate-950" : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
             }`}
           >
             {label}
+            {"badge" in item && item.badge ? (
+              <span className={`absolute right-1 top-1 rounded-full px-1 text-[8px] font-bold ${active ? "bg-slate-950/12 text-slate-800" : "bg-sky-200/15 text-sky-100"}`}>
+                {item.badge}
+              </span>
+            ) : null}
           </Link>
         );
       })}

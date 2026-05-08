@@ -30,7 +30,7 @@ const staticItems: SearchResult[] = [
   },
   {
     type: "page",
-    title: "Ski-Trip planen",
+    title: "Trips",
     subtitle: "Gruppenplanung, Budget und Favoriten",
     href: "/trips",
     meta: "Trips",
@@ -55,13 +55,6 @@ const staticItems: SearchResult[] = [
     subtitle: "Deine letzte Match-Auswertung öffnen",
     href: "/results",
     meta: "Ranking",
-  },
-  {
-    type: "page",
-    title: "Checkliste",
-    subtitle: "Packliste und To-dos für den Skitrip",
-    href: "/checklist",
-    meta: "Planung",
   },
   {
     type: "page",

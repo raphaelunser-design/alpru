@@ -46,12 +46,12 @@ export default function ValueCards() {
       {values.map(([title, text], index) => (
         <article
           key={title}
-          className="rounded-2xl border border-white/14 bg-white/[0.075] p-5 shadow-[0_18px_58px_rgba(2,6,23,0.32)] backdrop-blur-2xl md:p-6"
+          className="surface-lift rounded-2xl p-5 transition hover:-translate-y-1 hover:border-sky-200/28 md:p-6"
         >
           <div className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-200/24 bg-sky-200/12 text-sky-100">
             <ValueIcon icon={icons[index] ?? "score"} />
           </div>
-          <h2 className="mt-5 text-lg font-semibold text-white">{title}</h2>
+          <h2 className="mt-5 text-lg font-semibold leading-tight text-white">{title}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">{text}</p>
         </article>
       ))}

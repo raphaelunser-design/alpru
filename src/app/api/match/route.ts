@@ -1,107 +1,42 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { supabase } from "@/lib/supabase";
 import {
   deriveResortDecision,
-  resortSignalSelect,
   resolveBudgetCap,
-  type MatchPreferences,
   type ResortDecision,
-  type ResortSignalRow,
 } from "@/lib/resortSignals";
-import { getMvpResorts, mergeWithMvpResorts } from "@/lib/mvpResorts";
+import { buildMatchPayload } from "@/lib/matching/matchPayload";
+import { loadAllResortRows } from "@/lib/resortRepository";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const PrefSchema = z.object({
-  tripStyle: z
-    .enum(["balanced", "budget", "apres", "family", "sport", "premium", "quiet", "powder", "glacier", "offpiste"])
-    .optional(),
-  tripStartDate: z.string().nullable().optional(),
-  tripEndDate: z.string().nullable().optional(),
-  budgetMin: z.number().min(0).optional(),
-  budgetMax: z.number().min(0).optional(),
-  budget: z.number().min(0).optional(),
-  peopleCount: z.number().min(1).max(12).optional(),
-  apres: z.number().min(0).max(5),
-  emptySlopes: z.number().min(0).max(5),
-  infrastructure: z.number().min(0).max(5),
-  huts: z.number().min(0).max(5),
-  snowpark: z.number().min(0).max(5),
-  easyRuns: z.number().min(0).max(5),
-  challenging: z.number().min(0).max(5),
-  snowReliability: z.number().min(0).max(5).optional(),
-  valueForMoney: z.number().min(0).max(5).optional(),
-  family: z.number().min(0).max(5).optional(),
-  panorama: z.number().min(0).max(5).optional(),
-  summerGlacier: z.number().min(0).max(5).optional(),
-  offPiste: z.number().min(0).max(5).optional(),
-  foodSpendLevel: z.enum(["budget", "standard", "comfort"]).optional(),
-  needRental: z.boolean().optional(),
-  rentalMode: z.enum(["own", "rent"]).optional(),
-  travelMode: z.enum(["car", "train", "bus", "flight"]).optional(),
-  excludeCountries: z.array(z.string()).optional(),
-  excludeGlacier: z.boolean().optional(),
-  excludePremium: z.boolean().optional(),
-  excludeFamilyOnly: z.boolean().optional(),
-});
-
-type Prefs = z.infer<typeof PrefSchema>;
-
-const RESULT_LIMIT = 600;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const json = await req.json();
-    const parsed = PrefSchema.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-    }
-
-    const rawPrefs: Prefs = parsed.data;
-    const prefs: MatchPreferences = {
-      tripStyle: rawPrefs.tripStyle ?? "balanced",
-      tripStartDate: rawPrefs.tripStartDate ?? null,
-      tripEndDate: rawPrefs.tripEndDate ?? null,
-      budgetMin: rawPrefs.budgetMin ?? 0,
-      budgetMax: rawPrefs.budgetMax ?? rawPrefs.budget ?? 0,
-      budget: rawPrefs.budget ?? rawPrefs.budgetMax ?? 0,
-      peopleCount: rawPrefs.peopleCount ?? 2,
-      apres: rawPrefs.apres,
-      emptySlopes: rawPrefs.emptySlopes,
-      infrastructure: rawPrefs.infrastructure,
-      huts: rawPrefs.huts,
-      snowpark: rawPrefs.snowpark,
-      easyRuns: rawPrefs.easyRuns,
-      challenging: rawPrefs.challenging,
-      snowReliability: rawPrefs.snowReliability ?? 3,
-      valueForMoney: rawPrefs.valueForMoney ?? 3,
-      family: rawPrefs.family ?? 0,
-      panorama: rawPrefs.panorama ?? 3,
-      summerGlacier: rawPrefs.summerGlacier ?? 0,
-      offPiste: rawPrefs.offPiste ?? 0,
-      foodSpendLevel: rawPrefs.foodSpendLevel ?? "standard",
-      needRental: rawPrefs.needRental ?? rawPrefs.rentalMode === "rent",
-      rentalMode: rawPrefs.rentalMode ?? "own",
-      travelMode: rawPrefs.travelMode ?? "car",
-      excludeCountries: rawPrefs.excludeCountries ?? [],
-      excludeGlacier: rawPrefs.excludeGlacier ?? false,
-      excludePremium: rawPrefs.excludePremium ?? false,
-      excludeFamilyOnly: rawPrefs.excludeFamilyOnly ?? false,
-    };
+    const rawPrefs = await req.json().catch(() => ({}));
+    const prefs = buildMatchPayload(rawPrefs);
     const budgetCap = resolveBudgetCap(prefs);
 
-    const { data: resorts, error } = await supabase
-      .from("resorts")
-      .select(resortSignalSelect)
-      .limit(RESULT_LIMIT)
-      .returns<ResortSignalRow[]>();
-
-    const sourceResorts = error || !resorts?.length ? getMvpResorts(35) : mergeWithMvpResorts(resorts, 35);
+    const source = await loadAllResortRows(supabaseAdmin, { orderBy: "name" });
+    const sourceResorts = source.resorts;
 
     const allScored: ResortDecision[] = sourceResorts.map((resort) =>
       deriveResortDecision(resort, prefs, budgetCap)
     );
     const scored = allScored.filter((resort) => resort.exclusionReasons.length === 0);
     const excluded = allScored.filter((resort) => resort.exclusionReasons.length > 0);
+
+    if (process.env.NODE_ENV !== "production" && (source.usingFallback || scored.length === 0)) {
+      console.warn("[alpivo-match] match completed with fallback or empty result set", {
+        params: prefs,
+        source: source.source,
+        fallbackReason: source.fallbackReason,
+        supabaseError: source.error,
+        loaded: source.loaded,
+        scored: scored.length,
+        excluded: excluded.length,
+      });
+    }
 
     scored.sort((a, b) => {
       if (b.matchPct !== a.matchPct) return b.matchPct - a.matchPct;
@@ -127,6 +62,15 @@ export async function POST(req: Request) {
         const offPiste = (b.fitProfile.offPiste ?? 0) - (a.fitProfile.offPiste ?? 0);
         if (offPiste !== 0) return offPiste;
       }
+      if (prefs.partyPreference === "festival_event" || prefs.partyPreference === "party_places") {
+        const festival = (b.fitProfile.festival ?? b.festivalFitScore ?? 0) - (a.fitProfile.festival ?? a.festivalFitScore ?? 0);
+        if (festival !== 0) return festival;
+      }
+      if (prefs.partyPreference === "quiet_no_events") {
+        const quietA = a.crowdScore == null ? 0.5 : 1 - a.crowdScore;
+        const quietB = b.crowdScore == null ? 0.5 : 1 - b.crowdScore;
+        if (quietB !== quietA) return quietB - quietA;
+      }
       const pisteA = a.pisteKm ?? 0;
       const pisteB = b.pisteKm ?? 0;
       if (pisteB !== pisteA) return pisteB - pisteA;
@@ -136,12 +80,22 @@ export async function POST(req: Request) {
     return NextResponse.json({
       results: scored,
       excluded,
-      source: error || !resorts?.length ? "mvp-fallback" : "supabase",
-      note: error ? "Supabase-Daten konnten nicht geladen werden, Matching nutzt kuratierte MVP-Resorts." : null,
+      source: source.source,
+      usingFallback: source.usingFallback,
+      fallbackReason: source.fallbackReason,
+      total: source.total,
+      loaded: source.loaded,
+      filteredOut: excluded.length,
+      note: source.usingFallback
+        ? "Supabase-Daten konnten nicht geladen werden oder waren leer. Matching nutzt sichtbar gekennzeichnete Fallback-Daten."
+        : null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     const stack = error instanceof Error ? error.stack : undefined;
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[alpivo-match] match request failed", { error: message, stack });
+    }
     return NextResponse.json({ error: message, stack }, { status: 500 });
   }
 }

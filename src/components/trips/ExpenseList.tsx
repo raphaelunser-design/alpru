@@ -5,6 +5,32 @@ type ExpenseListProps = {
 };
 
 export default function ExpenseList({ bundle }: ExpenseListProps) {
+  if (!bundle.expenses.length) {
+    const exampleFavorites = bundle.favorites
+      .slice(0, 3)
+      .map((favorite) => bundle.resorts[favorite.resortSlug]?.name ?? favorite.resortSlug)
+      .filter(Boolean);
+
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5 text-sm text-slate-300">
+        <div className="text-sm font-semibold text-white">Noch keine Gruppenausgaben erfasst</div>
+        <p className="mt-2 leading-6">
+          Ausgaben werden pro Beleg gespeichert, einem Zahler zugeordnet und auf die Gruppe verteilt. Offene Salden koennen danach
+          manuell als ausgeglichen markiert werden.
+        </p>
+        {exampleFavorites.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {exampleFavorites.map((name) => (
+              <span key={name} className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1 text-xs text-slate-200">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-3">
       {bundle.expenses.map((expense) => {

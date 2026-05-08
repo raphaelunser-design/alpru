@@ -7,9 +7,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
-import { supabase } from "@/lib/supabase";
-import { getMvpResorts, mergeWithMvpResorts } from "@/lib/mvpResorts";
-import { resortSignalSelect, type ResortSignalRow } from "@/lib/resortSignals";
+import { getMvpResorts } from "@/lib/mvpResorts";
+import type { ResortLoadResult } from "@/lib/resortRepository";
+import type { ResortSignalRow } from "@/lib/resortSignals";
 
 type Resort = Pick<
   ResortSignalRow,
@@ -20,6 +20,7 @@ type PopupLayer = import("leaflet").Layer & { openPopup: () => void };
 
 const DEFAULT_CENTER: [number, number] = [47.4, 11.2];
 const DEFAULT_ZOOM = 5;
+const number = new Intl.NumberFormat("de-DE");
 
 function escapeHtml(value: string) {
   return value
@@ -41,11 +42,12 @@ function SidebarSkeleton() {
 }
 
 export default function MapPage() {
-  const [resorts, setResorts] = useState<Resort[]>(() => getMvpResorts(35) as Resort[]);
+  const [resorts, setResorts] = useState<Resort[]>([]);
+  const [totalResorts, setTotalResorts] = useState(0);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [usingFallback, setUsingFallback] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
   const [activeResortId, setActiveResortId] = useState<string | null>(null);
 
   const mapElementRef = useRef<HTMLDivElement | null>(null);
@@ -93,7 +95,7 @@ export default function MapPage() {
 
   useEffect(() => {
     async function loadResorts() {
-      setLoading(false);
+      setLoading(true);
       setError("");
       setUsingFallback(false);
 
@@ -101,17 +103,11 @@ export default function MapPage() {
       const timeout = window.setTimeout(() => controller.abort(), 7000);
 
       try {
-        const { data, error } = await supabase
-          .from("resorts")
-          .select(resortSignalSelect)
-          .order("name", { ascending: true })
-          .abortSignal(controller.signal)
-          .returns<ResortSignalRow[]>();
+        const response = await fetch("/api/resorts", { cache: "no-store", signal: controller.signal });
+        const result = (await response.json().catch(() => null)) as ResortLoadResult<ResortSignalRow> | null;
+        if (!response.ok || !result) throw new Error(result?.error || "Resorts konnten nicht geladen werden");
 
-        if (error) throw error;
-
-        const sourceRows = mergeWithMvpResorts(data, 35);
-        const cleaned = sourceRows.map((row): Resort => ({
+        const cleaned = result.resorts.map((row): Resort => ({
           id: row.id,
           slug: row.slug,
           name: row.name,
@@ -124,11 +120,15 @@ export default function MapPage() {
           skipass_price_from: row.skipass_price_from ?? null,
         }));
 
-        setResorts(cleaned.length ? cleaned : (getMvpResorts(35) as Resort[]));
-        setUsingFallback((data ?? []).length === 0);
+        setResorts(cleaned);
+        setTotalResorts(result.total);
+        setUsingFallback(result.usingFallback);
+        setError(result.error ?? "");
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Resorts konnten nicht geladen werden");
-        setResorts(getMvpResorts(35) as Resort[]);
+        const fallback = getMvpResorts() as Resort[];
+        setResorts(fallback);
+        setTotalResorts(fallback.length);
         setUsingFallback(true);
       } finally {
         window.clearTimeout(timeout);
@@ -152,6 +152,9 @@ export default function MapPage() {
     () => filtered.filter((resort) => Number.isFinite(resort.lat) && Number.isFinite(resort.lon)).length,
     [filtered]
   );
+  const filteredOutCount = Math.max(0, resorts.length - filtered.length);
+  const filteredOutReason = query.trim() ? "Suchbegriff" : "";
+  const totalLabel = number.format(totalResorts || resorts.length);
 
   useEffect(() => {
     const layer = markerLayerRef.current;
@@ -217,8 +220,8 @@ export default function MapPage() {
           <div className="max-w-3xl">
             <p className="text-xs uppercase tracking-[0.3em] text-white/70">Map</p>
             <h1 className="mt-4 text-3xl font-semibold text-white md:text-5xl">Alpenkarte</h1>
-            <p className="mt-3 max-w-2xl text-sm text-white/78">
-              Interaktive Karte mit allen Alpen-Resorts. Suche nach Name, Land oder Region und springe direkt in die passenden Gebiete.
+            <p className="mt-3 max-w-[31ch] text-sm leading-6 text-white/78 sm:max-w-2xl">
+              Alle Alpen-Resorts auf einer Karte. Suche nach Name oder Region.
             </p>
           </div>
         </div>
@@ -227,23 +230,27 @@ export default function MapPage() {
       <Section className="pt-0">
         <GlassCard className="p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+            <div className="min-w-0 flex-1 basis-64">
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Resort Übersicht</div>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Karte und Suche in einem Panel</h2>
-              <p className="mt-2 text-sm text-slate-300">
-                Klick auf Marker oder Trefferliste. Die Liste scrollt intern, die Seite bleibt kompakt.
+              <h2 className="mt-2 text-2xl font-semibold text-white">Karte und Liste</h2>
+              <p className="mt-2 max-w-[32ch] text-sm leading-6 text-slate-300">
+                Marker antippen, Treffer direkt darunter sehen.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5">{filtered.length} Resorts</span>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">{mappableCount} auf Karte</span>
+            <div className="nav-scroll flex w-full items-center gap-2 overflow-x-auto text-sm text-slate-300 sm:w-auto sm:flex-wrap sm:overflow-visible">
+              <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5">
+                {loading ? "Resorts laden" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
+              </span>
+              <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                {number.format(mappableCount)} auf Karte
+              </span>
               {usingFallback ? (
-                <span className="rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-amber-100">
-                  MVP-Fallback
+                <span className="shrink-0 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-amber-100">
+                  Fallback-Daten
                 </span>
               ) : null}
               <Link
-                className="rounded-lg border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-sky-200/25 hover:bg-white/[0.09]"
+                className="shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-sky-200/25 hover:bg-white/[0.09]"
                 href="/resorts"
               >
                 Resorts
@@ -264,9 +271,14 @@ export default function MapPage() {
                     <div className="mt-1 text-sm text-slate-300">Name, Land oder Region</div>
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-300">
-                    {filtered.length} Treffer
+                    {loading ? "Laden" : `${number.format(filtered.length)} Treffer`}
                   </div>
                 </div>
+                {!loading && filteredOutCount > 0 ? (
+                  <div className="mt-2 text-xs text-slate-500">
+                    {number.format(filteredOutCount)} Resorts ausgefiltert durch {filteredOutReason || "aktive Filter"}.
+                  </div>
+                ) : null}
                 <input
                   className="mt-4 w-full rounded-lg border border-white/10 bg-slate-950/75 px-4 py-3 text-sm font-medium text-white caret-sky-200 outline-none transition placeholder:text-slate-500 focus:border-sky-200/35 focus:ring-4 focus:ring-sky-200/10"
                   placeholder="Resort, Land oder Region suchen"
@@ -313,8 +325,16 @@ export default function MapPage() {
                   ))
                 )}
                 {!loading && filtered.length === 0 ? (
-                  <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-                    Keine Resorts gefunden.
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 text-sm text-slate-300">
+                    <div className="font-semibold text-white">Keine Resorts gefunden</div>
+                    <p className="mt-1 leading-6">Deine Suche passt aktuell zu keinem Resort auf der Karte.</p>
+                    <button
+                      type="button"
+                      className="mt-3 rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
+                      onClick={() => setQuery("")}
+                    >
+                      Filter zurücksetzen
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -325,3 +345,4 @@ export default function MapPage() {
     </div>
   );
 }
+

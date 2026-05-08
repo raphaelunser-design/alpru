@@ -6,7 +6,6 @@ import AdminNavLink from "@/components/AdminNavLink";
 import FeedbackButton from "@/components/FeedbackButton";
 import GlobalSearch from "@/components/GlobalSearch";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import LocaleText from "@/components/LocaleText";
 import Logo from "@/components/Logo";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PageAnalyticsTracker from "@/components/PageAnalyticsTracker";
@@ -47,34 +46,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="sticky top-0 z-50 border-b border-white/35 bg-white/94 shadow-sm backdrop-blur-xl">
           <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 md:px-6">
             <Logo />
-            <nav className="nav-scroll ml-auto hidden min-w-0 items-center gap-1.5 overflow-x-auto text-sm font-medium text-slate-700 lg:flex">
+            <nav className="nav-scroll ml-auto hidden min-w-0 items-center gap-1.5 overflow-x-auto text-sm font-semibold text-slate-700 lg:flex">
               <Link className="nav-link border border-sky-200/70 bg-sky-100/80 text-slate-950 shadow-sm hover:bg-sky-200" href="/quiz">
-                <LocaleText textKey="match" />
+                Match
               </Link>
-              <Link className="nav-link border border-slate-200 bg-white text-slate-900 hover:bg-slate-50" href="/trips">
-                <LocaleText textKey="trip" />
+              <Link className="nav-link text-slate-600" href="/resorts">
+                Resorts <span className="alpivo-badge ml-1">Beta</span>
               </Link>
-              <div className="ml-1 hidden h-6 w-px bg-slate-200 md:block" />
-              <Link className="nav-link text-slate-600" href="/results"><LocaleText textKey="results" /></Link>
-              <Link className="nav-link text-slate-600" href="/map"><LocaleText textKey="map" /></Link>
-              <Link className="nav-link text-slate-600" href="/resorts"><LocaleText textKey="resorts" /></Link>
-              <Link className="nav-link text-slate-600" href="/checklist"><LocaleText textKey="checklist" /></Link>
-              <Link className="nav-link text-slate-600" href="/account"><LocaleText textKey="account" /></Link>
+              <Link className="nav-link text-slate-600" href="/trips">
+                Trips <span className="alpivo-badge ml-1">Bald</span>
+              </Link>
+              <Link className="nav-link text-slate-600" href="/map">
+                Karte <span className="alpivo-badge ml-1">Beta</span>
+              </Link>
+              <Link className="nav-link text-slate-600" href="/account">Konto</Link>
               <AdminNavLink className="nav-link text-slate-600" />
             </nav>
             <GlobalSearch variant="compact" className="hidden lg:block" />
             <div className="hidden lg:block">
               <LanguageSwitcher />
-            </div>
-            <div className="ml-auto flex items-center gap-2 lg:hidden">
-              <GlobalSearch variant="icon" />
-              <LanguageSwitcher />
-              <Link className="nav-link border border-sky-200/70 bg-sky-100/80 text-sm font-semibold text-slate-950" href="/quiz">
-                <LocaleText textKey="mobileMatch" />
-              </Link>
-              <Link className="nav-link border border-slate-200 bg-white text-sm font-semibold text-slate-900" href="/account">
-                <LocaleText textKey="account" />
-              </Link>
             </div>
           </div>
         </header>
@@ -94,6 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link className="hover:text-white" href="/datenschutz">Datenschutz</Link>
               <Link className="hover:text-white" href="/datenhinweis">Datenhinweis</Link>
               <Link className="hover:text-white" href="/feedback">Kontakt/Feedback</Link>
+              <Link className="hover:text-white" href="/quiz">Match starten</Link>
             </nav>
           </div>
         </footer>

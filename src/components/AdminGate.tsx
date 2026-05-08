@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { isOwnerAdminEmail } from "@/lib/adminShared";
+import { fetchJsonWithTimeout } from "@/lib/clientFetch";
 import { supabase } from "@/lib/supabase";
 
 type AdminGateState = {
@@ -25,27 +27,51 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     const check = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error: sessionError } = await supabase.auth.getSession();
       const token = data.session?.access_token ?? "";
       const email = data.session?.user?.email ?? null;
+      const ownerFallback = isOwnerAdminEmail(email);
 
-      if (!token) {
+      if (sessionError && process.env.NODE_ENV !== "production") {
+        console.warn("[alpivo-admin] Supabase session could not be read", { error: sessionError.message });
+      }
+
+      if (!token && !ownerFallback) {
         if (mounted) setState({ loading: false, isAdmin: false, email, reason: "logged-out" });
         return;
       }
 
-      const response = await fetch("/api/admin/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const body = (await response.json().catch(() => null)) as { isAdmin: boolean; email: string | null } | null;
+      try {
+        const { response, body } = await fetchJsonWithTimeout<{ isAdmin: boolean; email: string | null }>(
+          "/api/admin/me",
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            cache: "no-store",
+          },
+          10000
+        );
 
-      if (!mounted) return;
-      setState({
-        loading: false,
-        isAdmin: Boolean(response.ok && body?.isAdmin),
-        email: body?.email ?? email,
-        reason: response.ok && body?.isAdmin ? "allowed" : "forbidden",
-      });
+        if (!mounted) return;
+        const isAdmin = Boolean(response.ok && body?.isAdmin) || ownerFallback;
+        setState({
+          loading: false,
+          isAdmin,
+          email: body?.email ?? email,
+          reason: isAdmin ? "allowed" : "forbidden",
+        });
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[alpivo-admin] admin status request failed", { error, email });
+        }
+        if (mounted) {
+          setState({
+            loading: false,
+            isAdmin: ownerFallback,
+            email,
+            reason: ownerFallback ? "allowed" : "forbidden",
+          });
+        }
+      }
     };
 
     check();

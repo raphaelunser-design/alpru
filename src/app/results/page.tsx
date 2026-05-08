@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -14,13 +12,23 @@ import AlpivoCompass from "@/components/AlpivoCompass";
 import ResortDecisionCard from "@/components/ResortDecisionCard";
 import SelectControl from "@/components/SelectControl";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
-import { deriveResortDecision, type MatchPreferences, type ResortDecision } from "@/lib/resortSignals";
+import { deriveResortDecision, type MatchPreferences, type ResortDecision, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
+import {
+  RESULT_BUDGET_MAX,
+  RESULT_BUDGET_MIN,
+  buildMatchPayload,
+  buildResortQuery,
+  getLatestMatchSnapshot,
+  type MatchResultError,
+  type MatchResultMeta,
+} from "@/lib/matching/matchPayload";
+import type { ResortLoadResult } from "@/lib/resortRepository";
 import { useSiteContent } from "@/lib/useSiteContent";
 
 type Result = ResortDecision;
 
-type SortKey = "match" | "price_low" | "price_high" | "drive_time" | "snow" | "value" | "summer" | "offpiste";
+type SortKey = "match" | "price_low" | "price_high" | "drive_time" | "snow" | "value" | "festival" | "summer" | "offpiste";
 
 type RouteMetric = {
   id: string;
@@ -75,6 +83,8 @@ const EXAMPLE_PREFS: MatchPreferences = {
   panorama: 3,
   summerGlacier: 1,
   offPiste: 1,
+  partyPreference: "indifferent",
+  musicPreference: "any",
   foodSpendLevel: "standard",
   needRental: false,
   rentalMode: "own",
@@ -85,15 +95,15 @@ const EXAMPLE_PREFS: MatchPreferences = {
   excludeFamilyOnly: false,
 };
 
-const BUDGET_MIN = 150;
-const BUDGET_MAX = 900;
+const BUDGET_MIN = RESULT_BUDGET_MIN;
+const BUDGET_MAX = RESULT_BUDGET_MAX;
 const BUDGET_STEP = 25;
+const number = new Intl.NumberFormat("de-DE");
 
-function createExampleResults() {
-  return getMvpResorts(35)
+function createExampleResults(resorts: ResortSignalRow[]) {
+  return resorts
     .map((resort) => deriveResortDecision(resort, EXAMPLE_PREFS))
-    .sort((a, b) => b.matchPct - a.matchPct)
-    .slice(0, 18);
+    .sort((a, b) => b.matchPct - a.matchPct || a.name.localeCompare(b.name, "de-DE"));
 }
 
 const budgetOptions = [
@@ -110,6 +120,7 @@ const profileOptions = [
   { value: "comfort", label: "Komfort-Fit" },
   { value: "sport", label: "Sport-Fit" },
   { value: "vibe", label: "Vibe-Fit" },
+  { value: "festival", label: "Vibe & Events" },
   { value: "glacier", label: "Sommer-Gletscher" },
   { value: "offpiste", label: "Off-Piste" },
 ];
@@ -121,10 +132,47 @@ const sortOptions: Array<{ value: SortKey; label: string; description?: string }
   { value: "drive_time", label: "Kürzeste Fahrzeit", description: "nach gesetztem Startort" },
   { value: "snow", label: "Beste Schneesicherheit" },
   { value: "value", label: "Bester Value" },
+  { value: "festival", label: "Vibe & Events" },
   { value: "summer", label: "Sommer-Gletscher" },
   { value: "offpiste", label: "Off-Piste Potenzial" },
 ];
 
+const demoProfiles = [
+  {
+    title: "Smart Budget",
+    text: "Value-starke Resorts mit kontrollierbaren Kosten und kurzer Entscheidungslogik.",
+    tags: ["Budget", "Value", "kurz"],
+  },
+  {
+    title: "Après & Crew",
+    text: "Gruppen-Vibe, Hütten, Pistenbreite und ein realistisches Kostenfenster.",
+    tags: ["Après", "Crew", "Wochenende"],
+  },
+  {
+    title: "Family Calm",
+    text: "Einfachere Pisten, ruhigere Orte und planbare Kosten für mehrere Personen.",
+    tags: ["Familie", "Ruhe", "Easy"],
+  },
+];
+
+function ResultsSkeletonCards() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-[0_18px_54px_rgba(2,6,23,0.22)]">
+          <div className="h-32 animate-pulse rounded-xl bg-white/10" />
+          <div className="mt-4 h-5 w-2/3 animate-pulse rounded bg-white/10" />
+          <div className="mt-3 h-4 w-full animate-pulse rounded bg-white/10" />
+          <div className="mt-2 h-4 w-4/5 animate-pulse rounded bg-white/10" />
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="h-12 animate-pulse rounded-lg bg-white/10" />
+            <div className="h-12 animate-pulse rounded-lg bg-white/10" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -144,8 +192,14 @@ export default function ResultsPage() {
     subtitle: "Sortiert nach bester Passung. Filtere nach Land, Region, Fahrzeit oder Preis.",
     heroImage: "/bg/banner-bild-4k.png",
   });
-  const [results, setResults] = useState<Result[]>(() => createExampleResults());
+  const [results, setResults] = useState<Result[]>([]);
   const [excludedResults, setExcludedResults] = useState<Result[]>([]);
+  const [totalResortCount, setTotalResortCount] = useState(0);
+  const [loadingResults, setLoadingResults] = useState(true);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
+  const [dataSourceError, setDataSourceError] = useState("");
+  const [matchError, setMatchError] = useState<MatchResultError | null>(null);
+  const [resultMeta, setResultMeta] = useState<MatchResultMeta | null>(null);
 
   const [query, setQuery] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
@@ -156,8 +210,9 @@ export default function ResultsPage() {
   const [maxDriveHours, setMaxDriveHours] = useState("");
   const [minPisteKm, setMinPisteKm] = useState("");
   const [maxPisteKm, setMaxPisteKm] = useState("");
-  const [budgetMin, setBudgetMin] = useState(250);
-  const [budgetMax, setBudgetMax] = useState(450);
+  const [budgetMin, setBudgetMin] = useState(BUDGET_MIN);
+  const [budgetMax, setBudgetMax] = useState(BUDGET_MAX);
+  const [budgetFilterActive, setBudgetFilterActive] = useState(false);
   const [apresMin, setAprèsMin] = useState(0);
   const [quietMin, setQuietMin] = useState(0);
   const [toast, setToast] = useState("");
@@ -182,99 +237,311 @@ export default function ResultsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showAllResults, setShowAllResults] = useState(false);
   const [usingExampleResults, setUsingExampleResults] = useState(true);
+  const [showDemoResults, setShowDemoResults] = useState(false);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("ski_results");
-    const excluded = localStorage.getItem("alpivo_excluded_results");
-    if (excluded) setExcludedResults(JSON.parse(excluded) as Result[]);
-    if (raw) {
-      setResults(JSON.parse(raw) as Result[]);
-      setUsingExampleResults(false);
-      return;
-    }
-    const cached = localStorage.getItem("alpivo_results");
-    if (cached) {
-      setResults(JSON.parse(cached) as Result[]);
-      setUsingExampleResults(false);
-      return;
-    }
-
-    setResults(createExampleResults());
+  const resetResultFilters = () => {
     setQuery("");
     setCountryFilter("all");
     setRegionFilter("all");
     setBudgetFilter("all");
     setProfileFilter("all");
+    setSortBy("match");
+    setMaxDriveHours("");
     setMinPisteKm("");
     setMaxPisteKm("");
-    setMaxDriveHours("");
-    setBudgetMin(250);
-    setBudgetMax(500);
-    setUsingExampleResults(true);
+    setBudgetMin(BUDGET_MIN);
+    setBudgetMax(BUDGET_MAX);
+    setBudgetFilterActive(false);
+    setAprèsMin(0);
+    setQuietMin(0);
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    async function hydrateResults() {
+      setLoadingResults(true);
+      setDataSourceError("");
+      setMatchError(null);
+
+      const applyLoadedResults = (nextResults: Result[], nextExcluded: Result[], meta?: MatchResultMeta | null) => {
+        setResults(nextResults);
+        setExcludedResults(nextExcluded);
+        setResultMeta(meta ?? null);
+        setTotalResortCount(meta?.total ?? nextResults.length);
+        setUsingExampleResults(false);
+        setShowDemoResults(false);
+        setUsingFallbackData(Boolean(meta?.usingFallback));
+        setDataSourceError("");
+        setLoadingResults(false);
+      };
+
+      const finishNoStoredResults = (message = "") => {
+        resetResultFilters();
+        setUsingExampleResults(true);
+        setShowDemoResults(false);
+        setResults([]);
+        setExcludedResults([]);
+        setTotalResortCount(0);
+        setResultMeta(null);
+        setUsingFallbackData(false);
+        setDataSourceError(message);
+        setLoadingResults(false);
+      };
+
+      // Mobile browsers can lose the quiz -> results Web Storage handoff; refetch keeps /results non-empty.
+      const refetchMatchResults = async () => {
+        let storedPrefs: unknown = {};
+        let storedFilters: unknown = {};
+
+        try {
+          const rawPrefs = localStorage.getItem("alpivo_quiz_prefs");
+          if (rawPrefs) storedPrefs = JSON.parse(rawPrefs);
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[alpivo-results] stored match preferences could not be read before refetch", { error });
+          }
+        }
+
+        try {
+          const rawFilters = localStorage.getItem(FILTER_STORAGE_KEY);
+          if (rawFilters) storedFilters = JSON.parse(rawFilters);
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[alpivo-results] stored result filters could not be read before refetch", { error });
+          }
+        }
+
+        const prefs = buildMatchPayload(storedPrefs);
+        const filters = buildResortQuery({
+          ...buildResortQuery(storedFilters),
+          budgetMin: prefs.budgetMin,
+          budgetMax: prefs.budgetMax,
+        });
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const response = await fetch("/api/match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(prefs),
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const payload = (await response.json().catch(() => null)) as {
+            results?: Result[];
+            excluded?: Result[];
+            source?: string;
+            usingFallback?: boolean;
+            total?: number;
+            loaded?: number;
+          } | null;
+
+          if (!response.ok || !payload || !Array.isArray(payload.results)) {
+            throw new Error(`Match-Refetch failed with status ${response.status}`);
+          }
+
+          const nextResults = payload.results;
+          const nextExcluded = Array.isArray(payload.excluded) ? payload.excluded : [];
+          if (nextResults.length === 0) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[alpivo-results] match refetch returned no results", { params: prefs, filters, payload });
+            }
+            return false;
+          }
+
+          const meta: MatchResultMeta = {
+            createdAt: new Date().toISOString(),
+            source: payload.source ?? "api-refetch",
+            usingFallback: Boolean(payload.usingFallback),
+            total: Number.isFinite(Number(payload.total)) ? Number(payload.total) : nextResults.length,
+            loaded: Number.isFinite(Number(payload.loaded)) ? Number(payload.loaded) : nextResults.length,
+            resultCount: nextResults.length,
+            excludedCount: nextExcluded.length,
+            prefs,
+            filters,
+          };
+
+          if (!active) return true;
+          applyLoadedResults(nextResults, nextExcluded, meta);
+
+          try {
+            sessionStorage.setItem("ski_results", JSON.stringify(nextResults));
+            localStorage.setItem("alpivo_results", JSON.stringify(nextResults));
+            localStorage.setItem("alpivo_excluded_results", JSON.stringify(nextExcluded));
+            localStorage.setItem("alpivo_results_meta", JSON.stringify(meta));
+            localStorage.removeItem("alpivo_results_error");
+          } catch {
+            // Storage may be blocked on mobile/private browsers; visible results already came from the refetch.
+          }
+
+          return true;
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error("[alpivo-results] match refetch failed", { params: prefs, filters, error });
+          }
+          return false;
+        } finally {
+          window.clearTimeout(timeout);
+        }
+      };
+
+      const memorySnapshot = getLatestMatchSnapshot();
+      if (memorySnapshot?.error) {
+        if (!active) return;
+        setMatchError(memorySnapshot.error);
+        setResultMeta(null);
+        setResults([]);
+        setExcludedResults([]);
+        setTotalResortCount(0);
+        setUsingExampleResults(false);
+        setShowDemoResults(false);
+        setUsingFallbackData(false);
+        setLoadingResults(false);
+        return;
+      }
+
+      if (memorySnapshot?.results?.length) {
+        if (!active) return;
+        applyLoadedResults(memorySnapshot.results as Result[], (memorySnapshot.excluded ?? []) as Result[], memorySnapshot.meta ?? null);
+        return;
+      }
+
+      try {
+        const excluded = localStorage.getItem("alpivo_excluded_results");
+        if (excluded) setExcludedResults(JSON.parse(excluded) as Result[]);
+      } catch {
+        setExcludedResults([]);
+      }
+
+      try {
+        const storedError = localStorage.getItem("alpivo_results_error");
+        if (storedError) {
+          const parsedError = JSON.parse(storedError) as MatchResultError;
+          if (!active) return;
+          setMatchError(parsedError);
+          setResultMeta(null);
+          setResults([]);
+          setTotalResortCount(0);
+          setUsingExampleResults(false);
+          setShowDemoResults(false);
+          setUsingFallbackData(false);
+          setLoadingResults(false);
+          return;
+        }
+
+        const rawMeta = localStorage.getItem("alpivo_results_meta");
+        const parsedMeta = rawMeta ? (JSON.parse(rawMeta) as MatchResultMeta) : null;
+        const rawExcluded = localStorage.getItem("alpivo_excluded_results");
+        const parsedExcluded = rawExcluded ? (JSON.parse(rawExcluded) as Result[]) : [];
+
+        const raw = sessionStorage.getItem("ski_results");
+        if (raw) {
+          const parsed = JSON.parse(raw) as Result[];
+          if (!active) return;
+          if (parsed.length > 0) {
+            applyLoadedResults(parsed, parsedExcluded, parsedMeta);
+            return;
+          }
+        }
+
+        const cached = localStorage.getItem("alpivo_results");
+        if (cached) {
+          const parsed = JSON.parse(cached) as Result[];
+          if (!active) return;
+          if (parsed.length > 0) {
+            applyLoadedResults(parsed, parsedExcluded, parsedMeta);
+            return;
+          }
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[alpivo-results] stored match data could not be read", { error });
+        }
+        // continue with the explicit no-match state if stored client data is invalid
+      }
+
+      if (!active) return;
+      const refetched = await refetchMatchResults();
+      if (!active || refetched) return;
+      finishNoStoredResults("Kein gespeicherter Match gefunden. Starte den Match erneut oder lade die Demo.");
+    }
+
+    hydrateResults();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    const rawPrefs = localStorage.getItem("alpivo_quiz_prefs");
-    if (rawPrefs) {
-      try {
-        const saved = JSON.parse(rawPrefs) as {
-          budgetMin: number;
-          budgetMax: number;
-          budget: number;
-          peopleCount: number;
-          travelMode: string;
-          tripStartDate: string | null;
-          tripEndDate: string | null;
-        };
-        if (typeof saved.budgetMin === "number") setBudgetMin(saved.budgetMin);
-        if (typeof saved.budgetMax === "number") setBudgetMax(saved.budgetMax);
-        if (typeof saved.budget === "number" && typeof saved.budgetMax !== "number") setBudgetMax(saved.budget);
-        if (typeof saved.peopleCount === "number") setPeopleCount(saved.peopleCount);
-        const travelMode =
-          saved.travelMode === "train" || saved.travelMode === "bus" || saved.travelMode === "flight"
-            ? saved.travelMode
-            : "car";
-        setTravelPrefs({
-          travelMode,
-          tripStartDate: saved.tripStartDate ?? null,
-          tripEndDate: saved.tripEndDate ?? null,
+    if (!loadingResults) return;
+    const timeout = window.setTimeout(() => {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[alpivo-results] results hydration timed out", {
+          resultCount: results.length,
+          hasMatchError: Boolean(matchError),
+          resultMeta,
         });
-      } catch {
-        // ignore invalid storage
       }
+      if (results.length === 0 && !matchError) {
+        setUsingExampleResults(true);
+        setShowDemoResults(false);
+        setDataSourceError("Der Match konnte nicht rechtzeitig geladen werden. Starte die Suche erneut oder lade die Demo.");
+      }
+      setLoadingResults(false);
+    }, 12000);
+
+    return () => window.clearTimeout(timeout);
+  }, [loadingResults, matchError, resultMeta, results.length]);
+
+  useEffect(() => {
+    try {
+      const rawPrefs = localStorage.getItem("alpivo_quiz_prefs");
+      if (rawPrefs) {
+        const saved = buildMatchPayload(JSON.parse(rawPrefs));
+        setBudgetMin(saved.budgetMin);
+        setBudgetMax(saved.budgetMax);
+        setPeopleCount(saved.peopleCount);
+        setTravelPrefs({
+          travelMode: saved.travelMode,
+          tripStartDate: saved.tripStartDate,
+          tripEndDate: saved.tripEndDate,
+        });
+      }
+    } catch {
+      // ignore invalid storage
     }
 
-    const raw = localStorage.getItem(FILTER_STORAGE_KEY);
-    if (!raw) {
-      setHydrated(true);
-      return;
-    }
     try {
-      const saved = JSON.parse(raw) as Partial<Record<string, string>>;
-      if (saved.query) setQuery(saved.query);
-      if (saved.countryFilter) setCountryFilter(saved.countryFilter);
-      if (!saved.countryFilter && (saved as { country: string }).country) {
-        setCountryFilter((saved as { country: string }).country ?? "all");
+      const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) {
+        setHydrated(true);
+        return;
       }
-      if (saved.regionFilter) setRegionFilter(saved.regionFilter);
-      if (saved.budgetFilter) setBudgetFilter(saved.budgetFilter);
-      if (saved.profileFilter) setProfileFilter(saved.profileFilter);
-      if (saved.sortBy) setSortBy(saved.sortBy === "distance" ? "drive_time" : (saved.sortBy as SortKey));
-      if (saved.maxDriveHours) setMaxDriveHours(saved.maxDriveHours);
-      if (saved.maxPisteKm !== undefined) setMaxPisteKm(saved.maxPisteKm);
-      if (saved.minPisteKm) setMinPisteKm(saved.minPisteKm);
+      const saved = buildResortQuery(JSON.parse(raw));
+      setQuery(saved.query);
+      setCountryFilter(saved.countryFilter);
+      setRegionFilter(saved.regionFilter);
+      setBudgetFilter(saved.budgetFilter);
+      setProfileFilter(saved.profileFilter);
+      setSortBy(saved.sortBy as SortKey);
+      setMaxDriveHours(saved.maxDriveHours);
+      setMaxPisteKm(saved.maxPisteKm);
+      setMinPisteKm(saved.minPisteKm);
       if (saved.apresMin !== undefined) setAprèsMin(Number(saved.apresMin));
       if (saved.quietMin !== undefined) setQuietMin(Number(saved.quietMin));
-      if (saved.budgetMin !== undefined) setBudgetMin(Number(saved.budgetMin));
-      if (saved.budgetMax !== undefined) setBudgetMax(Number(saved.budgetMax));
-      if (saved.originLat && saved.originLon) {
+      setBudgetMin(saved.budgetMin);
+      setBudgetMax(saved.budgetMax);
+      setBudgetFilterActive(saved.budgetFilterActive);
+      if (saved.originLat !== null && saved.originLon !== null) {
         setGeo({
           status: "ready",
           error: "",
           location: {
-            lat: Number(saved.originLat),
-            lon: Number(saved.originLon),
-            label: saved.originLabel ?? "Gespeicherter Standort",
+            lat: saved.originLat,
+            lon: saved.originLon,
+            label: saved.originLabel || "Gespeicherter Standort",
           },
         });
         if (saved.originLabel) setOriginQuery(saved.originLabel);
@@ -330,7 +597,7 @@ export default function ResultsPage() {
     const apresThreshold = apresMin / 100;
     const quietThreshold = quietMin / 100;
 
-    const maxBudget = Math.max(budgetMin, budgetMax);
+    const maxBudget = budgetFilterActive ? Math.max(budgetMin, budgetMax) : 0;
 
     return enriched.filter((r) => {
       if (countryFilter !== "all" && r.country !== countryFilter) return false;
@@ -341,11 +608,12 @@ export default function ResultsPage() {
       if (profileFilter === "comfort" && (r.fitProfile.comfort ?? 0) < 0.55) return false;
       if (profileFilter === "sport" && (r.fitProfile.slope ?? 0) < 0.6) return false;
       if (profileFilter === "vibe" && (r.fitProfile.vibe ?? 0) < 0.6) return false;
+      if (profileFilter === "festival" && !((r.eventBadges?.length ?? 0) > 0 || (r.festivalFitScore ?? 0) >= 0.66)) return false;
       if (profileFilter === "glacier" && (r.summerGlacierScore ?? r.fitProfile.summer ?? 0) < 0.58) return false;
       if (profileFilter === "offpiste" && (r.fitProfile.offPiste ?? 0) < 0.58) return false;
       if (needle) {
         const haystack =
-          `${r.name} ${r.country} ${r.region ?? ""} ${r.vibeTags.map((tag) => tag.label).join(" ") ?? ""} ${r.bestFor.join(" ") ?? ""}`.toLowerCase();
+          `${r.name} ${r.country} ${r.region ?? ""} ${r.vibeTags.map((tag) => tag.label).join(" ") ?? ""} ${(r.eventBadges ?? []).join(" ")} ${(r.events ?? []).map((event) => event.name).join(" ")} ${r.bestFor.join(" ") ?? ""}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       if (Number.isFinite(driveCapHours) && driveCapHours > 0) {
@@ -387,6 +655,7 @@ export default function ResultsPage() {
     maxPisteKm,
     budgetMin,
     budgetMax,
+    budgetFilterActive,
     apresMin,
     quietMin,
   ]);
@@ -407,6 +676,7 @@ export default function ResultsPage() {
       if (sortBy === "price_high") return b.cost.totalMax - a.cost.totalMax;
       if (sortBy === "snow") return (b.fitProfile.snow ?? b.snowReliability ?? 0) - (a.fitProfile.snow ?? a.snowReliability ?? 0);
       if (sortBy === "value") return ((b.fitProfile.value ?? b.valueScore ?? 0) - (a.fitProfile.value ?? a.valueScore ?? 0));
+      if (sortBy === "festival") return (b.festivalFitScore ?? b.fitProfile.festival ?? 0) - (a.festivalFitScore ?? a.fitProfile.festival ?? 0);
       if (sortBy === "summer") return (b.summerGlacierScore ?? b.fitProfile.summer ?? 0) - (a.summerGlacierScore ?? a.fitProfile.summer ?? 0);
       if (sortBy === "offpiste") return (b.fitProfile.offPiste ?? 0) - (a.fitProfile.offPiste ?? 0);
       if (sortBy === "drive_time") {
@@ -421,6 +691,69 @@ export default function ResultsPage() {
   }, [filtered, sortBy]);
 
   const visibleResults = useMemo(() => (showAllResults ? sorted : sorted.slice(0, 12)), [showAllResults, sorted]);
+  const filteredOutCount = Math.max(0, results.length - filtered.length);
+  const activeFilterReasons = [
+    query.trim() ? "Suchbegriff" : null,
+    countryFilter !== "all" ? "Landfilter" : null,
+    regionFilter !== "all" ? "Regionsfilter" : null,
+    budgetFilter !== "all" ? "Budgetfilter" : null,
+    profileFilter !== "all" ? "Fit-Filter" : null,
+    maxDriveHours ? "Fahrzeitfilter" : null,
+    minPisteKm || maxPisteKm ? "Pistenfilter" : null,
+    budgetFilterActive ? "Budgetrahmen" : null,
+    apresMin > 0 ? "Apres-Filter" : null,
+    quietMin > 0 ? "Ruhe-Filter" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const totalBasisCount = resultMeta?.total || totalResortCount || results.length;
+  const showNoMatchEmptyState = !loadingResults && usingExampleResults && !showDemoResults;
+  const showMatchErrorState = !loadingResults && Boolean(matchError) && results.length === 0;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || loadingResults || results.length === 0 || sorted.length > 0) return;
+    console.warn("[alpivo-results] all stored match results are hidden by client filters", {
+      resultCount: results.length,
+      filters: {
+        query,
+        countryFilter,
+        regionFilter,
+        budgetFilter,
+        profileFilter,
+        sortBy,
+        maxDriveHours,
+        minPisteKm,
+        maxPisteKm,
+        budgetMin,
+        budgetMax,
+        budgetFilterActive,
+        apresMin,
+        quietMin,
+      },
+      routeStatus,
+      origin: geo.location,
+    });
+  }, [
+    loadingResults,
+    results.length,
+    sorted.length,
+    query,
+    countryFilter,
+    regionFilter,
+    budgetFilter,
+    profileFilter,
+    sortBy,
+    maxDriveHours,
+    minPisteKm,
+    maxPisteKm,
+    budgetMin,
+    budgetMax,
+    budgetFilterActive,
+    apresMin,
+    quietMin,
+    routeStatus,
+    geo.location,
+  ]);
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -434,7 +767,7 @@ export default function ResultsPage() {
         const lon = pos.coords.longitude;
         let label = "Aktueller Standort";
         try {
-          const res = await fetch(`/api/geocode/reverselat=${lat}&lon=${lon}`);
+          const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
           if (res.ok) {
             const data = (await res.json()) as { label: string };
             if (data.label) label = data.label;
@@ -476,9 +809,49 @@ export default function ResultsPage() {
     setMaxDriveHours("");
     setMinPisteKm("");
     setMaxPisteKm("");
+    setBudgetMin(BUDGET_MIN);
+    setBudgetMax(BUDGET_MAX);
+    setBudgetFilterActive(false);
     setAprèsMin(0);
     setQuietMin(0);
     setToast("Filter zurückgesetzt");
+  };
+
+  const loadDemoResults = async () => {
+    setShowDemoResults(true);
+    setUsingExampleResults(true);
+    setLoadingResults(true);
+    setDataSourceError("");
+    setMatchError(null);
+    setResultMeta(null);
+    resetResultFilters();
+    try {
+      localStorage.removeItem("alpivo_results_error");
+    } catch {
+      // ignore unavailable storage
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 7000);
+
+    try {
+      const response = await fetch("/api/resorts", { cache: "no-store", signal: controller.signal });
+      const result = (await response.json().catch(() => null)) as ResortLoadResult<ResortSignalRow> | null;
+      if (!response.ok || !result) throw new Error(result?.error || "Resorts konnten nicht geladen werden.");
+      setResults(createExampleResults(result.resorts));
+      setTotalResortCount(result.total);
+      setUsingFallbackData(result.usingFallback);
+      setDataSourceError(result.error ?? "");
+    } catch (error) {
+      const fallback = getMvpResorts();
+      setResults(createExampleResults(fallback));
+      setTotalResortCount(fallback.length);
+      setUsingFallbackData(true);
+      setDataSourceError(error instanceof Error ? error.message : "Resorts konnten nicht geladen werden.");
+    } finally {
+      window.clearTimeout(timeout);
+      setLoadingResults(false);
+    }
   };
 
   const applyFilters = () => {
@@ -493,27 +866,34 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(
-      FILTER_STORAGE_KEY,
-      JSON.stringify({
-        query,
-        countryFilter,
-        regionFilter,
-        budgetFilter,
-        profileFilter,
-        sortBy,
-        maxDriveHours,
-        minPisteKm,
-        maxPisteKm,
-        budgetMin,
-        budgetMax,
-        apresMin,
-        quietMin,
-        originLat: geo.location?.lat ?? "",
-        originLon: geo.location?.lon ?? "",
-        originLabel: geo.location?.label ?? "",
-      })
-    );
+    try {
+      localStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify(
+          buildResortQuery({
+            query,
+            countryFilter,
+            regionFilter,
+            budgetFilter,
+            profileFilter,
+            sortBy,
+            maxDriveHours,
+            minPisteKm,
+            maxPisteKm,
+            budgetMin,
+            budgetMax,
+            budgetFilterActive,
+            apresMin,
+            quietMin,
+            originLat: geo.location?.lat ?? "",
+            originLon: geo.location?.lon ?? "",
+            originLabel: geo.location?.label ?? "",
+          })
+        )
+      );
+    } catch {
+      // ignore unavailable client storage
+    }
   }, [
     hydrated,
     query,
@@ -527,6 +907,7 @@ export default function ResultsPage() {
     maxPisteKm,
     budgetMin,
     budgetMax,
+    budgetFilterActive,
     apresMin,
     quietMin,
     geo.location,
@@ -660,23 +1041,174 @@ export default function ResultsPage() {
       </BackgroundHero>
 
       <Section className="space-y-6">
-        <AlpivoCompass results={sorted} totalResults={sorted.length} />
+        {loadingResults ? (
+          <GlassCard className="space-y-5 p-6 md:p-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Empfehlungen</p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">Resorts und Empfehlungen werden geladen ...</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                Alpivo prüft gespeicherte Matches und bereitet passende Resortkarten vor.
+              </p>
+            </div>
+            <ResultsSkeletonCards />
+          </GlassCard>
+        ) : showMatchErrorState ? (
+          <GlassCard className="p-6 md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-100/80">Match konnte nicht geladen werden</p>
+            <h2 className="mt-3 text-2xl font-semibold text-white">Die Ergebnisseite bleibt sichtbar, aber der letzte Match ist fehlgeschlagen.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+              {matchError?.message || "Der Match konnte gerade nicht berechnet werden."}
+              {matchError?.status ? ` Status: ${matchError.status}.` : ""}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" href="/quiz">
+                Erneut suchen
+              </Link>
+              <button
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                type="button"
+                onClick={loadDemoResults}
+              >
+                Demo ansehen
+              </button>
+            </div>
+          </GlassCard>
+        ) : showNoMatchEmptyState ? (
+          <>
+            <GlassCard className="overflow-hidden p-0">
+              <div className="grid gap-0 lg:grid-cols-[1fr_0.82fr]">
+                <div className="p-6 md:p-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Persönlicher Match</p>
+                  <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">Noch kein persönlicher Match vorhanden</h2>
+                  <p className="mt-4 max-w-[19.5rem] break-words text-sm leading-7 text-slate-300 sm:max-w-2xl md:text-base">
+                    Starte den Alpivo Match und erhalte passende Skigebiete inklusive Kosten, Anreise und Begründung.
+                  </p>
+                  {dataSourceError ? (
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-amber-100">{dataSourceError}</p>
+                  ) : null}
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <Link
+                      className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-200 px-5 text-sm font-bold text-slate-950 hover:bg-white"
+                      href="/quiz"
+                    >
+                      Match starten
+                    </Link>
+                    <button
+                      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 text-sm font-semibold text-white hover:bg-white/10"
+                      type="button"
+                      onClick={loadDemoResults}
+                    >
+                      Demo ansehen
+                    </button>
+                  </div>
+                </div>
+                <div className="border-t border-white/10 bg-slate-950/34 p-6 lg:border-l lg:border-t-0 md:p-8">
+                  <div className="rounded-2xl border border-sky-200/18 bg-sky-200/[0.08] p-5">
+                    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Beispiel</div>
+                        <div className="mt-2 text-xl font-semibold text-white">Saalbach-Hinterglemm</div>
+                        <div className="mt-1 text-sm text-slate-300">87% Fit · ca. 830 EUR p. P.</div>
+                      </div>
+                      <div className="rounded-2xl bg-sky-200 px-4 py-3 text-center text-slate-950">
+                        <div className="text-2xl font-bold">87</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.12em]">Score</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm text-slate-200">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2">Kurze Anreise</div>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2">Starkes Après-Ski</div>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2">Gute Schneesicherheit</div>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-sm text-amber-50">
+                      Warnhinweis: höhere Kosten in der Hauptsaison.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {demoProfiles.map((profile) => (
+                <article key={profile.title} className="rounded-2xl border border-white/10 bg-white/[0.065] p-5 shadow-[0_18px_54px_rgba(2,6,23,0.22)]">
+                  <h3 className="text-lg font-semibold text-white">{profile.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{profile.text}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {profile.tags.map((tag) => (
+                      <span key={tag} className="rounded-full border border-sky-200/18 bg-sky-200/[0.08] px-2.5 py-1 text-xs text-sky-50">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+        {sorted.length > 0 ? <AlpivoCompass results={sorted} totalResults={sorted.length} /> : null}
 
         {usingExampleResults ? (
           <GlassCard className="border-sky-200/20 bg-sky-200/[0.08] p-5">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Beispiel-Ergebnisse</p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Noch kein persönlicher Match berechnet</h2>
+                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Demo-Modus</p>
+                <h2 className="mt-2 text-xl font-semibold text-white">Demo-Ergebnisse aktiv</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200">
-                  Damit die Ergebnisseite nicht leer wirkt, zeigt Alpivo hier einen neutralen Balanced-Match aus kuratierten MVP-Resorts.
-                  Starte den Fragebogen, um Budget, Reiseart und Ausschlüsse auf dich anzupassen.
+                  Diese Beispiel-Ergebnisse zeigen die Resortlogik mit neutralem Profil. Starte den Match für persönliche Empfehlungen.
+                  {usingFallbackData ? " Fallback-Daten aktiv." : ""}
                 </p>
               </div>
               <Link className="rounded-lg bg-sky-200 px-4 py-2 text-center text-sm font-semibold text-slate-950 hover:bg-white" href="/quiz">
                 Match personalisieren
               </Link>
             </div>
+          </GlassCard>
+        ) : null}
+
+        {sorted.length > 0 ? (
+          <GlassCard className="space-y-5 p-5 md:p-6">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Produktmoment</p>
+                <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">Dein Alpivo Match ist da</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  Top-Match zuerst, danach die besten Alternativen. Kosten, Fahrzeit, Wetter/Vibe-Signale und Haken bleiben sichtbar.
+                </p>
+              </div>
+              <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="/quiz">
+                Match feinjustieren
+              </Link>
+            </div>
+
+            <ResortDecisionCard
+              resort={sorted[0]}
+              peopleCount={peopleCount}
+              distanceKm={sorted[0].distanceKm}
+              driveHours={sorted[0].driveHours}
+              routeSource={sorted[0].routeSource}
+              origin={geo.location}
+            />
+
+            {sorted.length > 1 ? (
+              <div>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Top 2 und Top 3</div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {sorted.slice(1, 3).map((resort) => (
+                    <ResortDecisionCard
+                      key={`preview-${resort.id}`}
+                      resort={resort}
+                      peopleCount={peopleCount}
+                      distanceKm={resort.distanceKm}
+                      driveHours={resort.driveHours}
+                      routeSource={resort.routeSource}
+                      origin={geo.location}
+                      compact
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </GlassCard>
         ) : null}
 
@@ -695,7 +1227,7 @@ export default function ResultsPage() {
                   type="button"
                   onClick={() => setShowAdvancedFilters((current) => !current)}
                 >
-                  {showAdvancedFilters ? "Filter reduzieren" : "Feinfilter ?ffnen"}
+                  {showAdvancedFilters ? "Filter reduzieren" : "Feinfilter öffnen"}
                 </button>
                 <Link className="rounded-xl border border-white/15 px-4 py-2 text-center text-sm text-white hover:bg-white/10" href="/quiz">
                   Match anpassen
@@ -715,7 +1247,7 @@ export default function ResultsPage() {
                 ariaLabel="Land filtern"
                 options={countries.map((country) => ({
                   value: country,
-                  label: country === "all" ? "Alle L?nder" : country,
+                  label: country === "all" ? "Alle Länder" : country,
                 }))}
                 onChange={setCountryFilter}
               />
@@ -811,6 +1343,7 @@ export default function ResultsPage() {
                     onChange={(nextMin, nextMax) => {
                       setBudgetMin(nextMin);
                       setBudgetMax(nextMax);
+                      setBudgetFilterActive(true);
                     }}
                   />
                 </div>
@@ -924,7 +1457,9 @@ export default function ResultsPage() {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-500">Budget</div>
-                  <div className="mt-1 font-semibold text-white">{budgetMin} - {budgetMax} EUR</div>
+                  <div className="mt-1 font-semibold text-white">
+                    {budgetFilterActive ? `${budgetMin} - ${budgetMax} EUR` : "kein harter Filter"}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-500">Startort</div>
@@ -945,7 +1480,7 @@ export default function ResultsPage() {
             <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
               <div className="text-xs text-slate-400">Ergebnisse</div>
               <div className="mt-2 text-sm text-slate-200">
-                {sorted.length} Resorts nach Filterung. Sortiert nach{" "}
+                {number.format(sorted.length)} von {number.format(totalBasisCount)} Resorts nach Filterung. Sortiert nach{" "}
                 {sortBy === "match"
                   ? "bester Passung"
                   : sortBy === "price_low"
@@ -956,6 +1491,8 @@ export default function ResultsPage() {
                         ? "bester Schneesicherheit"
                         : sortBy === "value"
                           ? "bestem Value"
+                          : sortBy === "festival"
+                            ? "Vibe & Events"
                           : sortBy === "summer"
                             ? "Sommer-Gletscher-Potenzial"
                             : sortBy === "offpiste"
@@ -966,6 +1503,13 @@ export default function ResultsPage() {
             <div className="mt-1 text-xs text-slate-400">
                 Budget: {budgetMin} – {budgetMax} EUR pro Person · Personen: {peopleCount}
               </div>
+              {!loadingResults && filteredOutCount > 0 ? (
+                <div className="mt-1 text-xs text-slate-500">
+                  {number.format(filteredOutCount)} Resorts ausgefiltert durch {activeFilterReasons || "aktive Filter"}.
+                </div>
+              ) : null}
+              {usingFallbackData ? <div className="mt-1 text-xs text-amber-100">Fallback-Daten aktiv.</div> : null}
+              {dataSourceError ? <div className="mt-1 text-xs text-amber-100">Datenhinweis: {dataSourceError}</div> : null}
               <div className="mt-1 text-xs text-slate-400">
                 {geo.location
                   ? routeStatus === "loading"
@@ -1003,7 +1547,9 @@ export default function ResultsPage() {
             <div className="flex flex-col justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.045] p-4 md:flex-row md:items-center">
               <div>
                 <div className="text-sm font-semibold text-white">
-                  {sorted.length === 0 ? "Keine passenden Resorts" : `${visibleResults.length} von ${sorted.length} Resorts`}
+                  {sorted.length === 0
+                    ? "Keine passenden Resorts"
+                    : `${number.format(visibleResults.length)} von ${number.format(sorted.length)} Resorts`}
                 </div>
                 <div className="mt-1 text-xs text-slate-400">
                   Alpivo zeigt zuerst die stärksten Kandidaten. Weitere Resorts bleiben abrufbar.
@@ -1034,17 +1580,26 @@ export default function ResultsPage() {
 
             {sorted.length === 0 ? (
               <GlassCard className="p-6">
-                {results.length > 0
-                  ? "Keine Resorts nach den aktuellen Filtern. Bitte Filter lockern oder zurücksetzen."
-                  : "Keine Ergebnisse gespeichert. Bitte starte den Match neu."}
-                <div className="mt-3 flex flex-wrap gap-3">
+                <h2 className="text-xl font-semibold text-white">
+                  {results.length > 0 ? "Keine Treffer mit diesen Filtern" : "Demo-Ergebnisse nicht verfügbar"}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  {results.length > 0
+                    ? "Lockere Suche, Budget oder Fit-Filter, damit Alpivo wieder passende Resorts anzeigen kann."
+                    : "Die Demo-Daten konnten gerade nicht vorbereitet werden. Starte den Match oder versuche die Demo erneut."}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
                   {results.length > 0 ? (
-                    <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950" onClick={resetFilters}>
+                    <button className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" onClick={resetFilters}>
                       Filter zurücksetzen
                     </button>
-                  ) : null}
-                  <Link className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href="/quiz">
-                    Zum Match
+                  ) : (
+                    <button className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" onClick={loadDemoResults}>
+                      Demo erneut laden
+                    </button>
+                  )}
+                  <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="/quiz">
+                    Match starten
                   </Link>
                 </div>
               </GlassCard>
@@ -1079,6 +1634,8 @@ export default function ResultsPage() {
               </GlassCard>
             ) : null}
         </div>
+          </>
+        )}
 
         <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
       </Section>

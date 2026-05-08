@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { isOwnerAdminEmail } from "@/lib/adminShared";
+import { fetchJsonWithTimeout } from "@/lib/clientFetch";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminNavLink({ className = "" }: { className: string }) {
@@ -13,14 +15,20 @@ export default function AdminNavLink({ className = "" }: { className: string }) 
     const check = async () => {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token ?? "";
+      const email = data.session?.user?.email ?? null;
       if (!token) {
-        if (mounted) setVisible(false);
+        if (mounted) setVisible(isOwnerAdminEmail(email));
         return;
       }
-      const response = await fetch("/api/admin/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (mounted) setVisible(response.ok);
+      try {
+        const { response } = await fetchJsonWithTimeout("/api/admin/me", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }, 10000);
+        if (mounted) setVisible(response.ok || isOwnerAdminEmail(email));
+      } catch {
+        if (mounted) setVisible(isOwnerAdminEmail(email));
+      }
     };
 
     check();

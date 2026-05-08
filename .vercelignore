@@ -4,11 +4,13 @@
 .next
 node_modules
 SUPABASETOKEN.txt
+SUPABASE_DB_PASSWORD.txt
 VERCELTOKEN.txt
 tmp_*
 patch.txt
 backups
 .codex-screens
+supabase/.temp
 resorts_bad_links.csv
 resorts_link_overrides.csv
 *.tsbuildinfo

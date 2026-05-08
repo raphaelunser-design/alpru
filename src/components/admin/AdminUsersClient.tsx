@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import { fetchJsonWithTimeout } from "@/lib/clientFetch";
 import { supabase } from "@/lib/supabase";
 
 type AdminUser = {
@@ -41,19 +42,23 @@ export default function AdminUsersClient() {
   async function loadUsers() {
     setLoading(true);
     setError("");
-    const headers = await authHeaders();
-    const response = await fetch("/api/admin/users", { headers });
-    const body = (await response.json().catch(() => null)) as { data?: AdminUser[]; error?: string } | null;
+    try {
+      const headers = await authHeaders();
+      if (!headers.Authorization) throw new Error("Admin-Session fehlt. Bitte erneut anmelden.");
+      const { response, body } = await fetchJsonWithTimeout<{ data?: AdminUser[]; error?: string }>(
+        "/api/admin/users",
+        { headers, cache: "no-store" },
+        12000
+      );
 
-    if (!response.ok) {
-      setError(body?.error ?? "Nutzer konnten nicht geladen werden.");
+      if (!response.ok) throw new Error(body?.error ?? "Nutzer konnten nicht geladen werden.");
+      setUsers(body?.data ?? []);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Nutzer konnten nicht geladen werden.");
       setUsers([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setUsers(body?.data ?? []);
-    setLoading(false);
   }
 
   useEffect(() => {

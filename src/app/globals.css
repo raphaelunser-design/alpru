@@ -40,7 +40,10 @@ body {
   font-family: var(--font-sans), "Segoe UI", sans-serif;
 }
 
-* {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   min-width: 0;
 }
 
@@ -53,10 +56,10 @@ h4 {
 }
 
 .glass-card {
-  border-radius: 0.5rem;
+  border-radius: 1.25rem;
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.3);
   backdrop-filter: blur(18px);
   transition:
     transform 180ms ease,
@@ -79,8 +82,8 @@ h4 {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.7rem;
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.85rem;
   white-space: nowrap;
   transition:
     background-color 160ms ease,
@@ -225,6 +228,30 @@ h4 {
   .nav-link:hover {
     transform: none;
   }
+}
+
+.alpivo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: rgba(125, 211, 252, 0.12);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.surface-lift {
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(125, 211, 252, 0.14), transparent 34%),
+    rgba(8, 17, 31, 0.56);
+  box-shadow: 0 22px 70px rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(18px);
 }
 
 .range-slider {

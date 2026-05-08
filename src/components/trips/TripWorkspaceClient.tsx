@@ -27,7 +27,6 @@ import {
   computeExpenseSummary,
   formatCurrency,
   formatDateRange,
-  getBestDateSummaries,
   getTripMemberName,
   type SkiTripAvailabilityRecord,
   type SkiTripAvailabilityStatus,
@@ -40,6 +39,8 @@ import {
 } from "@/lib/tripPlanner";
 import { loadTripBundleById, shouldFallbackToDemo } from "@/lib/tripPlannerData";
 import { supabase } from "@/lib/supabase";
+import type { ResortLoadResult } from "@/lib/resortRepository";
+import type { ResortSignalRow } from "@/lib/resortSignals";
 
 type ResortCandidate = {
   id: string;
@@ -208,14 +209,46 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
     load();
 
-    supabase
-      .from("resorts")
-      .select("id,slug,name,country,region,image_url,piste_km_total,piste_km,skipass_price_from,elevation_max_m")
-      .order("piste_km_total", { ascending: false })
-      .limit(60)
-      .then(({ data }) => {
+    fetch("/api/resorts", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          return {
+            resorts: [],
+            total: 0,
+            loaded: 0,
+            source: "fallback",
+            usingFallback: true,
+            fallbackReason: "error",
+            error: null,
+            pageSize: 0,
+            hasMore: false,
+          } as ResortLoadResult<ResortSignalRow>;
+        }
+        return (await response.json()) as ResortLoadResult<ResortSignalRow>;
+      })
+      .then((result) => {
         if (!mounted) return;
-        setResortCandidates((data ?? []) as ResortCandidate[]);
+        const candidates = (result.resorts ?? [])
+          .map(
+            (resort): ResortCandidate => ({
+              id: resort.id,
+              slug: resort.slug || resort.id,
+              name: resort.name,
+              country: resort.country,
+              region: resort.region ?? null,
+              image_url: resort.image_url ?? null,
+              piste_km_total: resort.piste_km_total ?? null,
+              piste_km: resort.piste_km ?? null,
+              skipass_price_from: resort.skipass_price_from ?? null,
+              elevation_max_m: resort.elevation_max_m ?? null,
+            })
+          )
+          .sort((a, b) => (b.piste_km_total ?? b.piste_km ?? 0) - (a.piste_km_total ?? a.piste_km ?? 0));
+        setResortCandidates(candidates);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setResortCandidates([]);
       });
 
     return () => {
@@ -557,7 +590,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (upsertError || !data) {
-      setError(upsertError?.message ?? "Verf?gbarkeit konnte nicht gespeichert werden.");
+      setError(upsertError?.message ?? "Verfügbarkeit konnte nicht gespeichert werden.");
       return;
     }
 
@@ -648,7 +681,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       .single();
 
     if (insertError || !data) {
-      setError(insertError?.message ?? "Resort konnte nicht hinzugef?gt werden.");
+      setError(insertError?.message ?? "Resort konnte nicht hinzugefügt werden.");
       return;
     }
 
@@ -827,7 +860,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
             isPinned: favorite.id === favoriteId ? nextPinned : nextPinned ? false : favorite.isPinned && favorite.id !== favoriteId ? favorite.isPinned : false,
           })),
         },
-        nextPinned ? "Favorit angeheftet." : "Anheftung gel?st."
+        nextPinned ? "Favorit angeheftet." : "Anheftung gelöst."
       );
       return;
     }
@@ -855,7 +888,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           }
         : currentBundle
     );
-    setToast(nextPinned ? "Favorit angeheftet." : "Anheftung gel?st.");
+    setToast(nextPinned ? "Favorit angeheftet." : "Anheftung gelöst.");
   }
 
   async function handleSaveSnapshot() {

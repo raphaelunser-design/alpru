@@ -1,4 +1,5 @@
 import type { AlpivoScoreResult, CategoryScores, ResortInput, ScoreCategory, UserPreferences } from "@/types/matching";
+import { calculateFestivalFit } from "@/lib/resortEvents";
 import { calculateEstimatedTripCost } from "./costModel";
 import { determineRecommendationType, generateMatchExplanations, getMatchLabel } from "./explanations";
 import { getDynamicWeights } from "./weights";
@@ -233,11 +234,42 @@ export function calculateTripTypeFitScore(resort: ResortInput, preferences: User
   return weightedAverage([{ value: distance, weight: 0.28 }, { value: piste, weight: 0.26 }, { value: budget, weight: 0.24 }, { value: snow, weight: 0.12 }, { value: infra, weight: 0.1 }]);
 }
 
+export function calculateFestivalFitScore(resort: ResortInput, preferences: UserPreferences = {}, notes = missingNotes()) {
+  const result = calculateFestivalFit(resort.events, {
+    partyPreference: preferences.partyPreference,
+    musicPreference: preferences.musicPreference,
+    tripStartDate: preferences.tripStartDate,
+    tripEndDate: preferences.tripEndDate,
+    apresSkiScore: resort.apresSkiScore,
+    crowdScore: resort.crowdScore,
+    wantsApresSki: preferences.wantsApresSki,
+    wantsQuiet: preferences.wantsQuiet,
+  });
+
+  if (
+    (preferences.partyPreference === "festival_event" || preferences.wantsFestival) &&
+    result.events.length === 0
+  ) {
+    addMissing(notes, "Keine Vibe-/Eventdaten hinterlegt - Festival-Fit wird vorsichtig bewertet.");
+  }
+
+  return result.score;
+}
+
 export function calculateAlpivoMatchScore(resort: ResortInput, preferences: UserPreferences = {}): AlpivoScoreResult {
   const notes = missingNotes();
   const estimatedCosts = calculateEstimatedTripCost(resort, preferences);
   estimatedCosts.assumptions.forEach((assumption) => {
-    if (assumption.toLowerCase().includes("geschätzt") || assumption.toLowerCase().includes("mangels")) addMissing(notes, assumption);
+    const normalized = assumption.toLowerCase();
+    if (
+      normalized.includes("geschätzt") ||
+      normalized.includes("geschaetzt") ||
+      normalized.includes("mangels") ||
+      normalized.includes("fehlt") ||
+      normalized.includes("noch nicht berechnet")
+    ) {
+      addMissing(notes, assumption);
+    }
   });
 
   const categoryScores: CategoryScores = {
@@ -252,9 +284,11 @@ export function calculateAlpivoMatchScore(resort: ResortInput, preferences: User
     infrastructure: calculateInfrastructureScore(resort, notes),
     valueForMoney: 0,
     tripTypeFit: 0,
+    festivalFit: 0,
   };
   categoryScores.valueForMoney = calculateValueForMoneyScore(resort, estimatedCosts.totalPerPerson, categoryScores);
   categoryScores.tripTypeFit = calculateTripTypeFitScore(resort, preferences, estimatedCosts);
+  categoryScores.festivalFit = calculateFestivalFitScore(resort, preferences, notes);
 
   const weights = getDynamicWeights(preferences);
   const weightedScores = Object.fromEntries(

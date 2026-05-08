@@ -25,14 +25,15 @@ function compactCost(value: number | null | undefined) {
 
 function strongestSignal(resort: CompassResort | undefined) {
   if (!resort) return null;
+  const fitProfile = resort.fitProfile || ({} as CompassResort["fitProfile"]);
   const entries = [
-    { label: "Pistenprofil", value: resort.fitProfile.slope ?? 0 },
-    { label: "Vibe", value: resort.fitProfile.vibe ?? 0 },
-    { label: "Schnee", value: resort.fitProfile.snow ?? resort.snowReliability ?? 0 },
-    { label: "Sommer-Gletscher", value: resort.fitProfile.summer ?? resort.summerGlacierScore ?? 0 },
-    { label: "Off-Piste", value: resort.fitProfile.offPiste ?? 0 },
-    { label: "Value", value: resort.fitProfile.value ?? resort.valueScore ?? 0 },
-    { label: "Komfort", value: resort.fitProfile.comfort ?? 0 },
+    { label: "Pistenprofil", value: fitProfile.slope ?? 0 },
+    { label: "Vibe", value: fitProfile.vibe ?? 0 },
+    { label: "Schnee", value: fitProfile.snow ?? resort.snowReliability ?? 0 },
+    { label: "Sommer-Gletscher", value: fitProfile.summer ?? resort.summerGlacierScore ?? 0 },
+    { label: "Off-Piste", value: fitProfile.offPiste ?? 0 },
+    { label: "Value", value: fitProfile.value ?? resort.valueScore ?? 0 },
+    { label: "Komfort", value: fitProfile.comfort ?? 0 },
   ].sort((a, b) => b.value - a.value);
   return entries[0];
 }
@@ -65,17 +66,17 @@ function Bar({ label, value }: { label: string; value: number }) {
 export default function AlpivoCompass({ results, totalResults }: AlpivoCompassProps) {
   const top = results[0];
   const topThree = results.slice(0, 3);
-  const profile = top.fitProfile;
+  const profile = top?.fitProfile ?? null;
   const topSignal = strongestSignal(top);
-  const topReason = top.reasons?.[0] ?? "Der Score passt am besten zu deinem aktuellen Profil.";
-  const topDrawback = top.drawbacks?.[0] ?? "Preise, Verf?gbarkeit und Pistenkarte vor der Buchung pr?fen.";
+  const topReason = top?.reasons?.[0] ?? "Der Score passt am besten zu deinem aktuellen Profil.";
+  const topDrawback = top?.drawbacks?.[0] ?? "Preise, Verfügbarkeit und Pistenkarte vor der Buchung prüfen.";
 
   return (
     <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
       <div className="rounded-lg border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_52px_rgba(2,6,23,0.32)]">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Alpivo Compass</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">
-          {top ? `${top.name} f?hrt dein Ranking an` : "Noch kein Match berechnet"}
+          {top ? `${top.name} führt dein Ranking an` : "Match-Fit wird vorbereitet"}
         </h2>
         <p className="mt-3 text-sm text-slate-300">{coachText(results)}</p>
 
@@ -134,7 +135,7 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
             <h2 className="mt-2 text-2xl font-semibold text-white">Top 3 auf einen Blick</h2>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-xs text-slate-300">
-            {totalResults} Ergebnisse nach Filterung
+            {totalResults > 0 ? `${totalResults} Ergebnisse nach Filterung` : "Noch keine Vergleichsliste"}
           </div>
         </div>
 
@@ -172,7 +173,7 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
                   Grund: {resort.reasons?.[0] ?? "starker Profil-Fit"}
                 </div>
                 <div className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-2">
-                  Haken: {resort.drawbacks?.[0] ?? "Details pr?fen"}
+                          Haken: {resort.drawbacks?.[0] ?? "Details prüfen"}
                 </div>
               </div>
             </Link>

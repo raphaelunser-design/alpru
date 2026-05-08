@@ -1,4 +1,5 @@
 import type { AlpivoScoreResult, ResortInput, UserPreferences } from "@/types/matching";
+import { calculateFestivalFit, musicPreferenceLabel } from "@/lib/resortEvents";
 import { formatEuro, formatPercentDelta } from "./scoringUtils";
 
 export function getMatchLabel(totalScore: number) {
@@ -17,6 +18,9 @@ export function determineRecommendationType(result: Pick<AlpivoScoreResult, "cat
   }
   if (scores.skillFit >= 84 && (preferences.skillLevel === "beginner" || preferences.wantsFamilyFriendly)) return "Beste Wahl für Anfänger";
   if (scores.apresSki >= 82 && (preferences.wantsApresSki || (preferences.priorities?.apresSki ?? 0) >= 4)) return "Beste Wahl für Après-Ski";
+  if (scores.festivalFit >= 84 && (preferences.partyPreference === "festival_event" || preferences.wantsFestival)) {
+    return "Beste Wahl für Events";
+  }
   if (scores.crowd >= 82 && preferences.wantsQuiet) return "Beste ruhige Alternative";
   if (scores.offPiste >= 82 && preferences.wantsOffPiste) return "Beste Off-Piste-Option";
   if (scores.tripTypeFit >= 82 && scores.pisteFit >= 60 && scores.valueForMoney >= 70) return "Gute kleine Alternative";
@@ -33,6 +37,16 @@ export function generateMatchExplanations(
   const warnings: string[] = [];
   const scores = partial.categoryScores;
   const costs = partial.estimatedCosts;
+  const festivalFit = calculateFestivalFit(resort.events, {
+    partyPreference: preferences.partyPreference,
+    musicPreference: preferences.musicPreference,
+    tripStartDate: preferences.tripStartDate,
+    tripEndDate: preferences.tripEndDate,
+    apresSkiScore: resort.apresSkiScore,
+    crowdScore: resort.crowdScore,
+    wantsApresSki: preferences.wantsApresSki,
+    wantsQuiet: preferences.wantsQuiet,
+  });
 
   if (preferences.budgetPerPerson && scores.budget >= 70) {
     reasons.push(`Passt gut zu deinem Budget: geschätzt ${formatEuro(costs.totalPerPerson)} p.P. bei ${formatEuro(preferences.budgetPerPerson)} Budget.`);
@@ -53,6 +67,16 @@ export function generateMatchExplanations(
   if (scores.weatherSnow >= 78) reasons.push("Schnee- und Höhenlagen-Signale sprechen für verlässlichere Bedingungen.");
   if (scores.apresSki >= 78 && preferences.wantsApresSki) reasons.push("Starker Après-Ski-Fit für Gruppen und Abende nach dem Skitag.");
   if (scores.offPiste >= 78 && preferences.wantsOffPiste) reasons.push("Off-Piste-Potenzial ist im Vergleich zu ähnlichen Resorts überdurchschnittlich.");
+  if (scores.festivalFit >= 78 && (preferences.partyPreference === "festival_event" || preferences.wantsFestival)) {
+    reasons.push(
+      festivalFit.exactTripEvent || festivalFit.seasonalTripEvent
+        ? "Passt gut, weil im Reisezeitraum ein Event/Festival stattfindet."
+        : "Passt gut, weil Events und Festival-Vibe für dieses Resort hinterlegt sind."
+    );
+  }
+  if (scores.festivalFit >= 74 && preferences.musicPreference && preferences.musicPreference !== "any" && festivalFit.musicFit) {
+    reasons.push(`Starker Fit für ${musicPreferenceLabel(preferences.musicPreference)}.`);
+  }
   if (scores.tripTypeFit >= 80 && (resort.pisteKmTotal ?? 0) > 0 && (resort.pisteKmTotal ?? 0) < 80) {
     reasons.push("Auch ein kleineres Skigebiet wird positiv bewertet, weil Reisetyp, Budget und Anreise gut zusammenpassen.");
   }
@@ -67,6 +91,16 @@ export function generateMatchExplanations(
     warnings.push("Off-Piste-Eignung ist nur eine grobe Orientierung. Lawinenlage und lokale Sicherheitshinweise müssen separat geprüft werden.");
   }
   if (scores.distance < 45 && preferences.tripType === "day_trip") warnings.push("Für einen Tagestrip ist die Anreise voraussichtlich ein klarer Nachteil.");
+
+  if (
+    (festivalFit.exactTripEvent || festivalFit.seasonalTripEvent) &&
+    (preferences.partyPreference === "festival_event" || preferences.partyPreference === "party_places" || preferences.wantsFestival)
+  ) {
+    warnings.push("Achtung: Eventzeitraum kann teurer und voller sein.");
+  }
+  if (preferences.partyPreference === "quiet_no_events" && festivalFit.hasMajorPartyEvent && scores.festivalFit < 55) {
+    warnings.push("Weniger geeignet, wenn ihr Ruhe sucht.");
+  }
 
   return {
     reasons: Array.from(new Set(reasons)).slice(0, 5),

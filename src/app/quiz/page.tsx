@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
@@ -12,6 +10,15 @@ import Section from "@/components/Section";
 import RangeSlider from "@/components/RangeSlider";
 import SelectControl from "@/components/SelectControl";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
+import {
+  MATCH_PREF_DEFAULTS,
+  buildMatchPayload,
+  buildResortQuery,
+  setLatestMatchSnapshot,
+  type MatchResultError,
+  type MatchResultMeta,
+} from "@/lib/matching/matchPayload";
+import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
 import { supabase } from "@/lib/supabase";
 import type { TripStyle } from "@/lib/resortSignals";
 import { useSiteContent } from "@/lib/useSiteContent";
@@ -36,6 +43,8 @@ type Prefs = {
   panorama: number;
   summerGlacier: number;
   offPiste: number;
+  partyPreference: PartyPreference;
+  musicPreference: MusicPreference;
   foodSpendLevel: "budget" | "standard" | "comfort";
   rentalMode: "own" | "rent";
   travelMode: "car" | "train" | "bus" | "flight";
@@ -74,38 +83,28 @@ const countryOptions = ALPINE_COUNTRIES_DE.map((country) => ({
   label: country === "all" ? "Alle Länder" : country,
 }));
 
-const defaultPrefs: Prefs = {
-  tripStyle: "balanced",
-  tripStartDate: null,
-  tripEndDate: null,
-  budgetMin: 250,
-  budgetMax: 450,
-  peopleCount: 2,
-  apres: 3,
-  emptySlopes: 3,
-  infrastructure: 3,
-  huts: 3,
-  snowpark: 2,
-  easyRuns: 3,
-  challenging: 2,
-  snowReliability: 3,
-  valueForMoney: 3,
-  family: 2,
-  panorama: 3,
-  summerGlacier: 0,
-  offPiste: 0,
-  foodSpendLevel: "standard",
-  rentalMode: "own",
-  travelMode: "car",
-  excludeCountries: [],
-  excludeGlacier: false,
-  excludePremium: false,
-  excludeFamilyOnly: false,
-};
+const defaultPrefs: Prefs = { ...MATCH_PREF_DEFAULTS };
 
 const BUDGET_MIN = 150;
 const BUDGET_MAX = 900;
 const BUDGET_STEP = 25;
+const partyOptions: Array<{ value: PartyPreference; label: string }> = [
+  { value: "indifferent", label: "Egal, Hauptsache gutes Skigebiet" },
+  { value: "some_apres", label: "Ein bisschen Après-Ski wäre gut" },
+  { value: "party_places", label: "Wir suchen bewusst Party-Orte" },
+  { value: "festival_event", label: "Wir wollen ein Festival oder Event mitnehmen" },
+  { value: "quiet_no_events", label: "Wir wollen eher Ruhe und keine großen Events" },
+];
+
+const musicOptions: Array<{ value: MusicPreference; label: string }> = [
+  { value: "edm_electronic", label: "EDM / Electronic" },
+  { value: "techno_house", label: "Techno / House" },
+  { value: "apres_schlager", label: "Après-Ski / Schlager" },
+  { value: "pop_mainstream", label: "Pop / Mainstream" },
+  { value: "rock_indie_live", label: "Rock / Indie / Livebands" },
+  { value: "hiphop_urban", label: "Hip-Hop / Urban" },
+  { value: "any", label: "Egal" },
+];
 const exclusionCountryOptions = ["Frankreich", "Schweiz", "Österreich", "Italien", "Deutschland"];
 
 const tripProfiles: Array<{
@@ -155,6 +154,8 @@ const tripProfiles: Array<{
       valueForMoney: 2,
       family: 1,
       panorama: 3,
+      partyPreference: "party_places",
+      musicPreference: "any",
     },
     filters: { minPisteKm: "35" },
   },
@@ -243,6 +244,8 @@ const tripProfiles: Array<{
       valueForMoney: 3,
       family: 3,
       panorama: 5,
+      partyPreference: "quiet_no_events",
+      musicPreference: "any",
     },
     filters: { minPisteKm: "8" },
   },
@@ -322,6 +325,54 @@ function SliderRow(props: { label: string; hint?: string; value: number; onChang
   );
 }
 
+function ProfileIcon({ profile }: { profile: TripStyle }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8,
+  };
+
+  if (profile === "budget") {
+    return (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+        <path {...common} d="M4 8h16v10H4V8Zm3-3h10v3H7V5Zm3 8h.01M15 12h3m-3 3h3" />
+      </svg>
+    );
+  }
+
+  if (profile === "apres") {
+    return (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+        <path {...common} d="M7 5h10l-1 7a4 4 0 0 1-8 0L7 5Zm5 11v3m-4 0h8M5 5h14" />
+      </svg>
+    );
+  }
+
+  if (profile === "family") {
+    return (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+        <path {...common} d="M12 20s7-4 7-10V6l-7-3-7 3v4c0 6 7 10 7 10Zm-3-9h6m-6 3h4" />
+      </svg>
+    );
+  }
+
+  if (profile === "glacier" || profile === "offpiste") {
+    return (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+        <path {...common} d="m3 19 7-13 3.2 5.8L16 8l5 11H3Zm7-13 1.6 6 2.5-.2" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+      <path {...common} d="M12 3v18m6-15H9.5a3 3 0 0 0 0 6H14a3 3 0 0 1 0 6H6m11-8 3 3-3 3" />
+    </svg>
+  );
+}
+
 function signalLabel(value: number) {
   if (value >= 5) return "max";
   if (value >= 4) return "hoch";
@@ -363,78 +414,18 @@ export default function QuizPage() {
   });
   const [hydrated, setHydrated] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
+  const [calendarMonths, setCalendarMonths] = useState(1);
   const [dnaStatus, setDnaStatus] = useState<"idle" | "loading" | "saved" | "local" | "error">("idle");
   const [dnaMessage, setDnaMessage] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     const rawPrefs = localStorage.getItem(STORAGE_KEY);
     if (rawPrefs) {
       try {
-        const saved = JSON.parse(rawPrefs) as Partial<Prefs> & { needRental: boolean; budget: number };
-        const rentalMode =
-          typeof saved.rentalMode === "string"
-            ? saved.rentalMode === "rent"
-              ? "rent"
-              : "own"
-            : saved.needRental
-              ? "rent"
-              : "own";
-
-        const travelMode =
-          saved.travelMode === "train" || saved.travelMode === "bus" || saved.travelMode === "flight"
-            ? saved.travelMode
-            : "car";
-
-        const budgetMin = Number(saved.budgetMin ?? defaultPrefs.budgetMin);
-        const budgetMax = Number(saved.budgetMax ?? saved.budget ?? defaultPrefs.budgetMax);
-
-        const nextPrefs: Prefs = {
-          ...defaultPrefs,
-          ...saved,
-          tripStyle:
-            saved.tripStyle === "budget" ||
-            saved.tripStyle === "apres" ||
-            saved.tripStyle === "family" ||
-            saved.tripStyle === "sport" ||
-            saved.tripStyle === "premium" ||
-            saved.tripStyle === "quiet" ||
-            saved.tripStyle === "powder" ||
-            saved.tripStyle === "glacier" ||
-            saved.tripStyle === "offpiste"
-              ? saved.tripStyle
-              : "balanced",
-          budgetMin,
-          budgetMax,
-          peopleCount: Number(saved.peopleCount ?? defaultPrefs.peopleCount),
-          apres: Number(saved.apres ?? defaultPrefs.apres),
-          emptySlopes: Number(saved.emptySlopes ?? defaultPrefs.emptySlopes),
-          infrastructure: Number(saved.infrastructure ?? defaultPrefs.infrastructure),
-          huts: Number(saved.huts ?? defaultPrefs.huts),
-          snowpark: Number(saved.snowpark ?? defaultPrefs.snowpark),
-          easyRuns: Number(saved.easyRuns ?? defaultPrefs.easyRuns),
-          challenging: Number(saved.challenging ?? defaultPrefs.challenging),
-          snowReliability: Number(saved.snowReliability ?? defaultPrefs.snowReliability),
-          valueForMoney: Number(saved.valueForMoney ?? defaultPrefs.valueForMoney),
-          family: Number(saved.family ?? defaultPrefs.family),
-          panorama: Number(saved.panorama ?? defaultPrefs.panorama),
-          summerGlacier: Number(saved.summerGlacier ?? defaultPrefs.summerGlacier),
-          offPiste: Number(saved.offPiste ?? defaultPrefs.offPiste),
-          foodSpendLevel:
-            saved.foodSpendLevel === "budget" || saved.foodSpendLevel === "comfort" || saved.foodSpendLevel === "standard"
-              ? saved.foodSpendLevel
-              : "standard",
-          tripStartDate: saved.tripStartDate ?? null,
-          tripEndDate: saved.tripEndDate ?? null,
-          rentalMode,
-          travelMode,
-          excludeCountries: Array.isArray(saved.excludeCountries)
-            ? saved.excludeCountries.filter((entry): entry is string => typeof entry === "string")
-            : [],
-          excludeGlacier: Boolean(saved.excludeGlacier),
-          excludePremium: Boolean(saved.excludePremium),
-          excludeFamilyOnly: Boolean(saved.excludeFamilyOnly),
-        };
+        const nextPrefs: Prefs = buildMatchPayload(JSON.parse(rawPrefs));
         setPrefs(nextPrefs);
 
         const from = parseIsoDate(nextPrefs.tripStartDate);
@@ -450,11 +441,11 @@ export default function QuizPage() {
     const rawFilters = localStorage.getItem(FILTER_STORAGE_KEY);
     if (rawFilters) {
       try {
-        const saved = JSON.parse(rawFilters) as Partial<Prefilters> & { country: string };
+        const saved = buildResortQuery(JSON.parse(rawFilters));
         setPrefilters({
-          countryFilter: saved.countryFilter ?? saved.country ?? "all",
-          minPisteKm: saved.minPisteKm ?? "",
-          maxDriveHours: saved.maxDriveHours ?? "",
+          countryFilter: saved.countryFilter,
+          minPisteKm: saved.minPisteKm,
+          maxDriveHours: saved.maxDriveHours,
         });
       } catch {
         // ignore invalid storage
@@ -486,13 +477,19 @@ export default function QuizPage() {
       }
       if (!saved?.preferences) return;
 
-      const nextPrefs = { ...defaultPrefs, ...(saved.preferences as Partial<Prefs>) };
+      const nextPrefs: Prefs = buildMatchPayload(saved.preferences);
       setPrefs(nextPrefs);
       const from = parseIsoDate(nextPrefs.tripStartDate);
       const to = parseIsoDate(nextPrefs.tripEndDate);
       setDateRange(from || to ? { from, to } : undefined);
       if (saved?.filters && typeof saved.filters === "object") {
-        setPrefilters((current) => ({ ...current, ...(saved.filters as Partial<Prefilters>) }));
+        const savedFilters = buildResortQuery(saved.filters);
+        setPrefilters((current) => ({
+          ...current,
+          countryFilter: savedFilters.countryFilter,
+          minPisteKm: savedFilters.minPisteKm,
+          maxDriveHours: savedFilters.maxDriveHours,
+        }));
       }
       setDnaStatus("saved");
       setDnaMessage("Gespeicherte Alpivo DNA aus deinem Profil geladen.");
@@ -504,11 +501,22 @@ export default function QuizPage() {
   }, []);
 
   useEffect(() => {
+    const updateCalendarMonths = () => setCalendarMonths(window.innerWidth >= 1024 ? 2 : 1);
+    updateCalendarMonths();
+    window.addEventListener("resize", updateCalendarMonths);
+    return () => window.removeEventListener("resize", updateCalendarMonths);
+  }, []);
+
+  useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buildMatchPayload(prefs)));
+    } catch {
+      // Storage can be unavailable in some mobile/private contexts. Submit keeps an in-memory handoff as fallback.
+    }
     if (dnaStatus === "saved") return;
     setDnaStatus(userId ? "local" : "idle");
-  }, [prefs, hydrated]);
+  }, [prefs, hydrated, dnaStatus, userId]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -526,27 +534,33 @@ export default function QuizPage() {
         // ignore invalid storage
       }
     }
-    localStorage.setItem(
-      FILTER_STORAGE_KEY,
-      JSON.stringify({
-        ...originFields,
-        query: "",
-        countryFilter: prefilters.countryFilter,
-        regionFilter: "all",
-        budgetFilter: "all",
-        profileFilter: "all",
-        sortBy: "match",
-        maxDriveHours: prefilters.maxDriveHours,
-        minPisteKm: prefilters.minPisteKm,
-        maxPisteKm: "",
-        apresMin: "0",
-        quietMin: "0",
-      })
-    );
+    try {
+      localStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify(
+          buildResortQuery({
+            ...originFields,
+            countryFilter: prefilters.countryFilter,
+            maxDriveHours: prefilters.maxDriveHours,
+            minPisteKm: prefilters.minPisteKm,
+          })
+        )
+      );
+    } catch {
+      // ignore unavailable client storage; the submit handoff still carries normalized filters
+    }
   }, [prefilters, hydrated]);
 
   async function onSubmit() {
-    const existingFilters = localStorage.getItem(FILTER_STORAGE_KEY);
+    setSubmitting(true);
+    setSubmitError("");
+
+    let existingFilters: string | null = null;
+    try {
+      existingFilters = localStorage.getItem(FILTER_STORAGE_KEY);
+    } catch {
+      existingFilters = null;
+    }
     let originFields = {};
     if (existingFilters) {
       try {
@@ -560,40 +574,154 @@ export default function QuizPage() {
         // ignore invalid storage
       }
     }
-    const mergedFilters = {
+    const payload = buildMatchPayload(prefs);
+    const mergedFilters = buildResortQuery({
       ...originFields,
-      query: "",
       countryFilter: prefilters.countryFilter,
-      regionFilter: "all",
-      budgetFilter: "all",
-      profileFilter: "all",
-      sortBy: "match",
       maxDriveHours: prefilters.maxDriveHours,
       minPisteKm: prefilters.minPisteKm,
-      maxPisteKm: "",
-      apresMin: "0",
-      quietMin: "0",
-      budgetMin: String(prefs.budgetMin),
-      budgetMax: String(prefs.budgetMax),
-    };
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(mergedFilters));
-
-    const res = await fetch("/api/match", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(prefs),
+      budgetMin: payload.budgetMin,
+      budgetMax: payload.budgetMax,
+      // Match budget is scoring context. It becomes a hard Results filter only after the user moves that Results control.
+      budgetFilterActive: false,
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      alert("Fehler beim Matching");
-      return;
-    }
+    try {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(mergedFilters));
+        localStorage.removeItem("alpivo_results_error");
+      } catch {
+        // Some mobile/private browsers can reject storage writes; in-memory handoff below keeps client navigation working.
+      }
 
-    sessionStorage.setItem("ski_results", JSON.stringify(data.results));
-    localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(data.results));
-    localStorage.setItem("alpivo_excluded_results", JSON.stringify(data.excluded ?? []));
-    router.push("/results");
+      const res = await fetch("/api/match", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        const message = typeof data?.error === "string" ? data.error : "Fehler beim Matching";
+        throw Object.assign(new Error(message), { status: res.status });
+      }
+
+      const results = Array.isArray(data.results) ? data.results : [];
+      const excluded = Array.isArray(data.excluded) ? data.excluded : [];
+      const resultMeta: MatchResultMeta = {
+        createdAt: new Date().toISOString(),
+        source: data.source ?? "unknown",
+        usingFallback: Boolean(data.usingFallback),
+        total: data.total ?? results.length,
+        loaded: data.loaded ?? results.length,
+        resultCount: results.length,
+        excludedCount: excluded.length,
+        prefs: payload,
+        filters: mergedFilters,
+      };
+      setLatestMatchSnapshot({ results, excluded, meta: resultMeta });
+
+      if (process.env.NODE_ENV !== "production" && results.length === 0) {
+        console.warn("[alpivo-match] match returned zero visible resorts", {
+          params: payload,
+          filters: mergedFilters,
+          excludedCount: excluded.length,
+          source: data.source,
+          supabaseError: data.error ?? data.fallbackReason ?? null,
+        });
+      }
+
+      try {
+        sessionStorage.setItem("ski_results", JSON.stringify(results));
+        localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
+        localStorage.setItem("alpivo_excluded_results", JSON.stringify(excluded));
+        localStorage.setItem("alpivo_results_meta", JSON.stringify(resultMeta));
+        localStorage.removeItem("alpivo_results_error");
+      } catch {
+        // In-memory snapshot above protects the mobile flow when Web Storage is blocked.
+      }
+
+      if (userId) {
+        const compactResults = (results as Array<{
+          id: string;
+          slug: string;
+          name: string;
+          country: string;
+          region: string | null;
+          matchPct: number;
+          budgetStatus?: string;
+        }>)
+          .slice(0, 50)
+          .map((result) => ({
+            id: result.id,
+            slug: result.slug,
+            name: result.name,
+            country: result.country,
+            region: result.region,
+            matchPct: result.matchPct,
+            budgetStatus: result.budgetStatus ?? null,
+          }));
+
+        const { error: persistError } = await supabase.from("profile_preferences").upsert(
+          {
+            user_id: userId,
+            preferences: payload,
+            filters: {
+              ...prefilters,
+              resultFilters: mergedFilters,
+              lastMatch: resultMeta,
+            },
+            exclusions: {
+              excludeCountries: payload.excludeCountries,
+              excludeGlacier: payload.excludeGlacier,
+              excludePremium: payload.excludePremium,
+              excludeFamilyOnly: payload.excludeFamilyOnly,
+              lastResults: compactResults,
+              lastExcludedCount: excluded.length,
+            },
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+
+        if (persistError) {
+          setDnaStatus("local");
+          setDnaMessage("Match lokal gespeichert. Profil-Speicherung ist fehlgeschlagen.");
+        } else {
+          setDnaStatus("saved");
+          setDnaMessage("Match und Alpivo DNA im Profil gespeichert.");
+        }
+      } else {
+        setDnaStatus("local");
+        setDnaMessage("Nicht eingeloggt: Match bleibt nur lokal auf diesem Geraet gespeichert.");
+      }
+
+      router.push("/results");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Fehler beim Matching";
+      const status = typeof error === "object" && error && "status" in error ? Number((error as { status: unknown }).status) : undefined;
+      const matchError: MatchResultError = {
+        message,
+        status: Number.isFinite(status) ? status : undefined,
+        createdAt: new Date().toISOString(),
+        prefs: payload,
+        filters: mergedFilters,
+      };
+      setLatestMatchSnapshot({ results: [], excluded: [], error: matchError });
+      setSubmitError("Der Match konnte gerade nicht berechnet werden. Die Ergebnisseite zeigt Details und einen neuen Versuch.");
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[alpivo-match] client submit failed", { params: payload, filters: mergedFilters, error: message, status });
+      }
+      try {
+        localStorage.setItem("alpivo_results_error", JSON.stringify(matchError));
+      } catch {
+        // ignore unavailable storage
+      }
+      router.push("/results");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function saveDnaToProfile() {
@@ -604,17 +732,18 @@ export default function QuizPage() {
     }
     setDnaStatus("loading");
     setDnaMessage("DNA wird gespeichert...");
+    const payload = buildMatchPayload(prefs);
 
     const { error } = await supabase.from("profile_preferences").upsert(
       {
         user_id: userId,
-        preferences: prefs,
-        filters: prefilters,
+        preferences: payload,
+        filters: buildResortQuery(prefilters),
         exclusions: {
-          excludeCountries: prefs.excludeCountries,
-          excludeGlacier: prefs.excludeGlacier,
-          excludePremium: prefs.excludePremium,
-          excludeFamilyOnly: prefs.excludeFamilyOnly,
+          excludeCountries: payload.excludeCountries,
+          excludeGlacier: payload.excludeGlacier,
+          excludePremium: payload.excludePremium,
+          excludeFamilyOnly: payload.excludeFamilyOnly,
         },
         updated_at: new Date().toISOString(),
       },
@@ -657,6 +786,19 @@ export default function QuizPage() {
       { label: "Value", value: prefs.valueForMoney },
       { label: "Schnee", value: prefs.snowReliability },
       { label: "Vibe", value: Math.max(prefs.apres, prefs.huts, prefs.panorama) },
+      {
+        label: "Events",
+        value:
+          prefs.partyPreference === "festival_event"
+            ? 5
+            : prefs.partyPreference === "party_places"
+              ? 4
+              : prefs.partyPreference === "some_apres"
+                ? 3
+                : prefs.partyPreference === "quiet_no_events"
+                  ? 0
+                  : 1,
+      },
       { label: "Ruhe", value: prefs.emptySlopes },
       { label: "Sport", value: prefs.challenging },
       { label: "Easy", value: Math.max(prefs.easyRuns, prefs.family) },
@@ -680,28 +822,30 @@ export default function QuizPage() {
         </div>
       </BackgroundHero>
 
-      <Section className="space-y-6">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Section className="space-y-6 pb-32 md:pb-10">
+        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-2 sm:grid-cols-4">
           {[
-            ["1", "Reisetyp"],
-            ["2", "Rahmen"],
-            ["3", "Anreise"],
-            ["4", "Feintuning"],
+            ["1", "Profil"],
+            ["2", "Grenzen"],
+            ["3", "Budget"],
+            ["4", "Profi"],
           ].map(([step, label]) => (
-            <div key={step} className="rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3">
-              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Schritt {step}</div>
-              <div className="mt-1 text-sm font-semibold text-white">{label}</div>
+            <div key={step} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/34 px-2.5 py-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-200 text-xs font-bold text-slate-950">{step}</span>
+              <span className="truncate text-sm font-semibold text-white">{label}</span>
             </div>
           ))}
         </div>
 
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-6">
         <GlassCard className="interactive-card p-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 1</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Wähle deinen Skitag-Typ</h2>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                Ein Profil reicht für den Start. Alpivo setzt die wichtigsten Gewichtungen automatisch.
+              <h2 className="mt-2 text-2xl font-semibold text-white">Wähle euren Ski-Trip-Typ</h2>
+              <p className="mt-2 max-w-[19.5rem] text-sm leading-6 text-slate-300 sm:max-w-2xl">
+                Ein Profil reicht. Budget, Personen und Datum machen den Match konkret.
               </p>
             </div>
             <div className="rounded-lg border border-sky-200/20 bg-sky-200/10 px-4 py-3 text-sm text-sky-50">
@@ -715,18 +859,34 @@ export default function QuizPage() {
               return (
                 <button
                   key={profile.id}
-                  className={`min-w-0 rounded-lg border p-4 text-left transition ${
+                  className={`min-w-0 rounded-2xl border p-4 text-left transition ${
                     active
-                      ? "border-sky-200 bg-sky-200/[0.14] shadow-[0_18px_48px_rgba(56,189,248,0.12)]"
-                      : "border-white/10 bg-white/[0.05] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10"
+                      ? "border-sky-100 bg-sky-200 text-slate-950 shadow-[0_22px_52px_rgba(125,211,252,0.24)]"
+                      : "border-white/10 bg-white/[0.055] text-white hover:-translate-y-0.5 hover:border-sky-200/30 hover:bg-white/10"
                   }`}
                   onClick={() => applyTripProfile(profile)}
                 >
-                  <div className="break-words text-sm font-semibold text-white">{profile.title}</div>
-                  <p className="mt-2 max-w-full break-words text-sm text-slate-300">{profile.subtitle}</p>
+                  <div
+                    className={`grid h-11 w-11 place-items-center rounded-2xl border ${
+                      active ? "border-slate-950/10 bg-white/70 text-slate-950" : "border-sky-200/20 bg-sky-200/10 text-sky-100"
+                    }`}
+                  >
+                    <ProfileIcon profile={profile.id} />
+                  </div>
+                  <div className={`mt-4 break-words text-base font-semibold ${active ? "text-slate-950" : "text-white"}`}>
+                    {profile.title}
+                  </div>
+                  <p className={`mt-2 max-w-full break-words text-sm leading-6 ${active ? "text-slate-700" : "text-slate-300"}`}>
+                    {profile.subtitle}
+                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {profile.tags.map((tag) => (
-                      <span key={tag} className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] text-slate-200">
+                      <span
+                        key={tag}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                          active ? "border-slate-950/10 bg-white/55 text-slate-800" : "border-white/10 bg-white/10 text-slate-200"
+                        }`}
+                      >
                         {tag}
                       </span>
                     ))}
@@ -734,6 +894,73 @@ export default function QuizPage() {
                 </button>
               );
             })}
+          </div>
+        </GlassCard>
+
+        <GlassCard className="interactive-card p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Vibe & Events</p>
+              <h2 className="mt-2 text-xl font-semibold text-white">Wie wichtig sind euch Party, Musik oder Festivals?</h2>
+            </div>
+            <div className="max-w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1 text-xs leading-5 text-slate-300 md:max-w-[22rem]">
+              {partyOptions.find((option) => option.value === prefs.partyPreference)?.label}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-2 lg:grid-cols-5">
+            {partyOptions.map((option) => {
+              const active = prefs.partyPreference === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`min-h-[74px] rounded-xl border px-3 py-3 text-left text-sm leading-5 transition ${
+                    active
+                      ? "border-sky-200 bg-sky-200 text-slate-950 shadow-[0_16px_42px_rgba(125,211,252,0.18)]"
+                      : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-sky-200/30 hover:bg-white/[0.09]"
+                  }`}
+                  onClick={() =>
+                    setPrefs((current) => ({
+                      ...current,
+                      partyPreference: option.value,
+                      apres:
+                        option.value === "quiet_no_events"
+                          ? Math.min(current.apres, 1)
+                          : option.value === "party_places" || option.value === "festival_event"
+                            ? Math.max(current.apres, 4)
+                            : current.apres,
+                      emptySlopes: option.value === "quiet_no_events" ? Math.max(current.emptySlopes, 4) : current.emptySlopes,
+                    }))
+                  }
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 border-t border-white/10 pt-5">
+            <div className="text-sm font-medium text-white">Welche Musikrichtung passt zu euch?</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {musicOptions.map((option) => {
+                const active = prefs.musicPreference === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
+                      active
+                        ? "border-sky-200 bg-sky-200 text-slate-950"
+                        : "border-white/10 bg-white/[0.045] text-slate-200 hover:border-sky-200/30 hover:bg-sky-200/10"
+                    }`}
+                    onClick={() => setPrefs((current) => ({ ...current, musicPreference: option.value }))}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </GlassCard>
 
@@ -783,23 +1010,23 @@ export default function QuizPage() {
 
           <GlassCard className="interactive-card p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Orientierung</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">So liest Alpivo deine Auswahl</h2>
+            <h2 className="mt-2 text-xl font-semibold text-white">Was Alpivo daraus macht</h2>
             <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-2">
               <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
                 <div className="font-medium text-white">Score wird gewichtet</div>
-                <p className="mt-1">Dein Profil beeinflusst Value, Schnee, Vibe, Komfort, Gletscher-Signale und Pistenprofil direkt.</p>
+                <p className="mt-1">Profil und Budget steuern die Sortierung. Harte Grenzen schneiden die Liste danach sauber zu.</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
                 <div className="font-medium text-white">Haken bleiben sichtbar</div>
                 <p className="mt-1">Ein hoher Match kann trotzdem teuer, voll oder für Anfänger schwächer sein.</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
-                <div className="font-medium text-white">Filter sind harte Grenzen</div>
-                <p className="mt-1">Land, Fahrzeit, Pistenkilometer und Budget schneiden die Ergebnisliste nach.</p>
+                <div className="font-medium text-white">Kosten werden konkreter</div>
+                <p className="mt-1">Datum, Personen und Anreise machen die Kosten pro Person greifbarer.</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
                 <div className="font-medium text-white">Feintuning bleibt optional</div>
-                <p className="mt-1">Du musst nicht jeden Regler anfassen. Für ein gutes Ergebnis reicht Profil plus Rahmen.</p>
+                <p className="mt-1">Du musst nicht jeden Regler anfassen. Profil plus Rahmen reichen für den ersten Match.</p>
               </div>
             </div>
           </GlassCard>
@@ -899,7 +1126,7 @@ export default function QuizPage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="interactive-card relative z-20 p-6">
+        <GlassCard id="alpivo-budget-panel" className="interactive-card relative z-20 p-6">
           <div className="mb-5">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 3</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Budget, Datum und Anreise</h2>
@@ -981,7 +1208,7 @@ export default function QuizPage() {
                     }}
                     locale={alpivoDayPickerLocale}
                     navLayout="after"
-                    numberOfMonths={1}
+                    numberOfMonths={calendarMonths}
                     weekStartsOn={1}
                     startMonth={new Date()}
                     disabled={{ before: new Date() }}
@@ -991,6 +1218,19 @@ export default function QuizPage() {
                 ) : (
                   <div className="h-48 animate-pulse rounded-xl bg-white/10" />
                 )}
+              </div>
+              <div className="sticky bottom-0 mt-3 flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-950/82 p-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:hidden">
+                <div className="grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
+                  <span>Anreise: <strong className="text-white">{dateRange?.from ? dateFormatter.format(dateRange.from) : "offen"}</strong></span>
+                  <span>Abreise: <strong className="text-white">{dateRange?.to ? dateFormatter.format(dateRange.to) : "offen"}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950"
+                  onClick={() => document.getElementById("alpivo-budget-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                >
+                  Datum übernehmen
+                </button>
               </div>
               <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                 <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">
@@ -1097,15 +1337,15 @@ export default function QuizPage() {
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 4</p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Feintuning</h2>
-              <p className="mt-1 text-sm text-slate-300">Nur öffnen, wenn du gezielt stärker eingreifen willst.</p>
+              <h2 className="mt-2 text-xl font-semibold text-white">Für Fortgeschrittene</h2>
+              <p className="mt-1 text-sm text-slate-300">Optionales Feintuning für Schnee, Value, Ruhe und Spezialwünsche.</p>
             </div>
             <button
               className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
               type="button"
               onClick={() => setShowFineTuning((current) => !current)}
             >
-              {showFineTuning ? "Feintuning schlie?en" : "Feintuning ?ffnen"}
+              {showFineTuning ? "Fortgeschrittene schließen" : "Fortgeschrittene öffnen"}
             </button>
           </div>
 
@@ -1189,12 +1429,74 @@ export default function QuizPage() {
             </div>
           </div>
           <button
-            className="button-lift rounded-lg bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white"
+            className="button-lift rounded-lg bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
+            disabled={submitting}
             onClick={onSubmit}
           >
-            Ergebnisse anzeigen
+            {submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen"}
           </button>
+          {submitError ? (
+            <div className="text-sm leading-6 text-amber-100 md:max-w-sm">{submitError}</div>
+          ) : null}
         </GlassCard>
+          </div>
+
+          <aside className="hidden xl:block">
+            <div className="sticky top-28 space-y-4">
+              <GlassCard className="p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Live Summary</p>
+                <h2 className="mt-2 text-xl font-semibold text-white">{activeProfile?.title ?? "Balanced"}</h2>
+                <div className="mt-4 grid gap-2 text-sm text-slate-300">
+                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                    <span>Zeitraum</span>
+                    <span className="text-right font-semibold text-white">{rangeSummary}</span>
+                  </div>
+                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                    <span>Budget</span>
+                    <span className="font-semibold text-white">{prefs.budgetMin}-{prefs.budgetMax} EUR</span>
+                  </div>
+                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                    <span>Gruppe</span>
+                    <span className="font-semibold text-white">{prefs.peopleCount} Personen</span>
+                  </div>
+                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                    <span>Anreise</span>
+                    <span className="font-semibold text-white">
+                      {prefs.travelMode === "car" ? "Auto" : prefs.travelMode === "train" ? "Zug" : prefs.travelMode === "bus" ? "Bus" : "Flug"}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className="button-lift mt-4 w-full rounded-xl bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
+                  disabled={submitting}
+                  onClick={onSubmit}
+                >
+                  {submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen"}
+                </button>
+                {submitError ? <div className="mt-3 text-sm leading-6 text-amber-100">{submitError}</div> : null}
+              </GlassCard>
+            </div>
+          </aside>
+        </div>
+
+        <div className="sticky bottom-24 z-30 rounded-2xl border border-sky-200/25 bg-slate-950/90 p-3 shadow-[0_18px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-white">{activeProfile?.title ?? "Balanced"}</div>
+              <div className="mt-0.5 truncate text-xs text-slate-400">
+                {prefs.peopleCount} Personen · {prefs.budgetMin}-{prefs.budgetMax} EUR · {rangeSummary}
+              </div>
+            </div>
+            <button
+              className="min-h-11 shrink-0 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950 disabled:opacity-70"
+              disabled={submitting}
+              onClick={onSubmit}
+            >
+              {submitting ? "..." : "Match"}
+            </button>
+          </div>
+          {submitError ? <div className="mt-2 text-xs leading-5 text-amber-100">{submitError}</div> : null}
+        </div>
       </Section>
     </div>
   );

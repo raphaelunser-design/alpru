@@ -170,7 +170,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
             {loading ? "berechnet..." : formatDuration(route?.durationSeconds)}
           </span>
           <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1">
-            {loading ? "Route l?dt" : formatDistance(route?.distanceMeters)}
+            {loading ? "Route lädt" : formatDistance(route?.distanceMeters)}
           </span>
           {route?.source === "fallback" ? (
             <span className="rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-amber-100">

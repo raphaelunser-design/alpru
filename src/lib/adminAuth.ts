@@ -1,11 +1,13 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { normalizeEmail } from "@/lib/adminShared";
+import { getUserFromAccessToken } from "@/lib/authUser";
 import { ensureProfileForUser, roleForEmail } from "@/lib/profiles";
 
 function getTokenFromRequest(req: Request) {
-  const authHeader = (req.headers.get("authorization") || "").replace("Bearer ", "");
-  const headerToken = req.headers.get("x-admin-token");
-  const urlToken = new URL(req.url).searchParams.get("token");
+  const authHeader = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const headerToken = (req.headers.get("x-admin-token") || "").trim();
+  const urlToken = (new URL(req.url).searchParams.get("token") || "").trim();
   return authHeader || headerToken || urlToken || "";
 }
 
@@ -19,7 +21,7 @@ function isEmailAllowed(email: string) {
 }
 
 async function isEmailAdmin(email: string) {
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeEmail(email);
   if (!normalized) return false;
   if (roleForEmail(normalized) === "admin") return true;
   if (isEmailAllowed(normalized)) return true;
@@ -45,15 +47,17 @@ export async function getAdminStatus(req: Request) {
 
   // Email-based admin via Supabase Auth
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (!error && data.user && data.user.email) {
-      const email = data.user.email.toLowerCase();
-      const profile = await ensureProfileForUser(data.user);
+    const user = await getUserFromAccessToken(token);
+    if (user?.email) {
+      const email = normalizeEmail(user.email);
+      const profile = await ensureProfileForUser(user);
       const profileIsAdmin = profile?.role === "admin";
       return { isAdmin: profileIsAdmin || (await isEmailAdmin(email)), email };
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[alpivo-admin] admin status check failed", { error });
+    }
   }
 
   // Optional fallback: explicit ADMIN_TOKEN

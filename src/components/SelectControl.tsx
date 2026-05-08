@@ -79,7 +79,7 @@ export default function SelectControl({
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className="min-w-0">
-          <span className="block truncate font-medium">{selected.label ?? "Ausw?hlen"}</span>
+        <span className="block truncate font-medium">{selected.label ?? "Auswählen"}</span>
           {selected.description ? <span className="mt-0.5 block truncate text-xs text-slate-400">{selected.description}</span> : null}
         </span>
         <span className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-slate-950/40 text-slate-300">

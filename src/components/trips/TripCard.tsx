@@ -25,7 +25,7 @@ export default function TripCard({ bundle }: TripCardProps) {
     null;
   const imageUrl = heroResort?.imageUrl ?? "/bg/skilandschaft.png";
   const title = repairText(bundle.trip.title) ?? bundle.trip.title;
-  const description = repairText(bundle.trip.description) ?? "Gruppenplanung f?r Ski, Resorts und Kosten.";
+  const description = repairText(bundle.trip.description) ?? "Gruppenplanung für Ski, Resorts und Kosten.";
   const favoriteNames = bundle.favorites.map((favorite) => repairText(bundle.resorts[favorite.resortSlug]?.name) ?? favorite.resortSlug);
   const levelLabel = repairText(tripLevelLabels[bundle.trip.skiLevel]) ?? tripLevelLabels[bundle.trip.skiLevel];
   const bestDateLabel = bestDate ? repairText(bestDate.fitLabel) ?? bestDate.fitLabel : null;
@@ -65,7 +65,7 @@ export default function TripCard({ bundle }: TripCardProps) {
                 {bestDate ? formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "Noch offen"}
               </div>
               <div className="text-xs leading-5 text-slate-400">
-                {bestDate ? `${bestDateLabel}, ${bestDate.availableCount}x verf?gbar` : "Termine abstimmen"}
+          {bestDate ? `${bestDateLabel}, ${bestDate.availableCount}x verfügbar` : "Termine abstimmen"}
               </div>
             </div>
             <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">

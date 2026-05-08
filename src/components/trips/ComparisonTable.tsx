@@ -145,7 +145,7 @@ export default function ComparisonTable({ rows }: ComparisonTableProps) {
                     <div className="font-semibold text-white">{row.resort && typeof row.resort.matchPct === "number" ? row.resort.matchPct : 52}% Alpivo</div>
                     <div className="mt-2 grid gap-1 text-xs text-slate-400">
                       <span>{row.resort && row.resort.pisteKm ? `${row.resort.pisteKm} km Pisten` : "Pisten-km offen"}</span>
-                      <span>{row.resort && row.resort.elevationMaxM ? `bis ${row.resort.elevationMaxM} m` : "H?henlage offen"}</span>
+          <span>{row.resort && row.resort.elevationMaxM ? `bis ${row.resort.elevationMaxM} m` : "Höhenlage offen"}</span>
                       <span>{snowScore !== null ? `Schneesicherheit ${formatPercent(snowScore)}` : "Schneesicherheit offen"}</span>
                     </div>
                   </td>

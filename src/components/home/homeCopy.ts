@@ -45,36 +45,36 @@ type HomeCopy = {
 export const homeCopy = {
   de: {
     hero: {
-      badge: "Beta-Version · Alpine Skigebiete · Kosten & Wetter als Orientierung",
-      kicker: "Ski-Trip-Entscheidungsmaschine",
-      title: "Finde dein perfektes Skigebiet.",
+      badge: "Ski-Trip-Assistent",
+      kicker: "Ski-Trip-Assistent",
+      title: "Findet den Ski-Trip, der wirklich zu euch passt.",
       subtitle:
-        "Alpivo vergleicht Skigebiete nach Budget, Anreise, Wetter, Kosten und deinen persönlichen Präferenzen, damit du schneller die beste Ski-Entscheidung triffst.",
+        "Budget, Anreise, Wetter, Après-Ski, Pisten und Unterkunft - in einem Match.",
       primary: "Match starten",
-      secondary: "So funktioniert's",
+      secondary: "So funktioniert Alpivo",
       stats: [
-        ["Kosten", "Skipass, Anreise, Essen, Unterkunft"],
-        ["Wetter", "Schnee, Berg/Tal, Saisongefühl"],
-        ["Score", "Stärken, Schwächen, Empfehlung"],
+        ["3 Min.", "Profil, Budget, Personen, Datum"],
+        ["Kosten p. P.", "Skipass, Unterkunft, Anreise, Essen"],
+        ["Erklärt", "Score, Gründe, möglicher Haken"],
       ],
     },
     values: [
-      ["Budget realistisch einschätzen", "Skipass, Unterkunft, Anreise und Essen transparent pro Person kalkulieren."],
-      ["Nicht nur die großen Resorts", "Alpivo bewertet auch kleinere Skigebiete fair nach Preis-Leistung, Entfernung und Reiseziel."],
-      ["Besser entscheiden", "Du bekommst nicht nur Ergebnisse, sondern eine begründete Empfehlung mit Score."],
+      ["Zu viele Skigebiete. Zu viele Preise. Zu wenig Überblick.", "Alpivo macht aus Optionen eine klare Empfehlung statt einer weiteren Filterliste."],
+      ["Budget, Entfernung, Wetter, Pisten, Unterkunft, Après-Ski und Events", "Die Faktoren werden gemeinsam bewertet, nicht isoliert nebeneinander gelegt."],
+      ["Ein Match-Score, der erklärbar bleibt", "Du bekommst Gründe, Kosten und Haken statt nur ein Prozentzeichen."],
     ],
     how: {
       kicker: "So funktioniert's",
-      title: "In 3 Schritten zu deinem Ski-Match",
-      intro: "Der Einstieg bleibt bewusst kurz. Die Details entstehen erst im Ergebnis, wenn sie wirklich bei der Entscheidung helfen.",
+      title: "Vom Gefühl zum logisch erklärten Match",
+      intro: "Alpivo kombiniert eure Gruppenbedürfnisse mit Resort-, Kosten-, Wetter- und Reise-Signalen.",
       steps: [
-        ["01", "Präferenzen wählen", "Sag Alpivo, was dir wichtig ist: Budget, Entfernung, Après-Ski, Pisten, Wetter, Off-Piste und Erfahrungslevel."],
-        ["02", "Skigebiete vergleichen", "Alpivo kombiniert deine Angaben mit Kosten-, Wetter- und Resortdaten."],
-        ["03", "Beste Option finden", "Du erhältst eine verständliche Empfehlung mit Score, Stärken, Schwächen und Kostenübersicht."],
+        ["01", "Präferenzen wählen", "Vibe, Budget, Zeitraum, Anreise und Ski-Level reichen für den ersten Match."],
+        ["02", "Score aufbauen", "Alpivo gewichtet Budget, Wetter, Schnee, Pisten, Unterkunft, Events und Entfernung gemeinsam."],
+        ["03", "Entscheiden", "Du erhältst Top-Resorts mit Kosten p. P., Fahrzeit, Gründen und einem klaren Haken."],
       ],
     },
     example: {
-      kicker: "USP sichtbar",
+      kicker: "Top-Match Preview",
       title: "Keine Liste. Eine begründete Entscheidung.",
       intro:
         "Alpivo zeigt nicht nur, welches Skigebiet weit oben steht. Du siehst, warum es passt, wo der Haken liegt und welche Kosten pro Person realistisch werden können.",
@@ -83,7 +83,7 @@ export const homeCopy = {
       subtitle: "Beispiel für Gruppen mit Budget- und Après-Ski-Fokus",
       scoreLabel: "von 100",
       reasonsTitle: "Warum es passt",
-      reasons: ["Kurze Anreise", "Starkes Après-Ski", "Gute Schneesicherheit", "Viele Pistenkilometer"],
+      reasons: ["Kurze Anreise", "Starkes Après-Ski", "Gute Schneesicherheit"],
       warningTitle: "Achtung",
       warning: "Höhere Kosten in der Hauptsaison.",
       costsTitle: "Kosten p. P. Beispiel",
@@ -98,7 +98,7 @@ export const homeCopy = {
     },
     cta: {
       kicker: "Bereit für den Match",
-      title: "Starte mit wenigen Fragen. Die Details kommen danach.",
+      title: "Starte deinen ersten Match.",
       text: "Alpivo führt dich von Präferenzen zu einem klaren Ergebnis, statt dich direkt mit allen Filtern zu überladen.",
       button: "Match starten",
     },

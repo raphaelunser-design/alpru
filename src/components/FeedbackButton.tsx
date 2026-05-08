@@ -60,7 +60,7 @@ export default function FeedbackButton() {
   }
 
   return (
-    <div className="fixed bottom-20 right-3 z-40 md:bottom-5 md:right-5">
+    <div className="fixed bottom-20 right-3 z-40 hidden md:block md:bottom-5 md:right-5">
       {open ? (
         <div className="mb-3 w-[min(calc(100vw-1.5rem),360px)] rounded-2xl border border-white/15 bg-slate-950/94 p-4 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.5)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">

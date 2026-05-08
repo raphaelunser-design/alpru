@@ -11,6 +11,8 @@ import SelectControl from "@/components/SelectControl";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
 import { supabase } from "@/lib/supabase";
+import type { ResortLoadResult } from "@/lib/resortRepository";
+import type { ResortSignalRow } from "@/lib/resortSignals";
 import { toIsoDate, tripFocusOptions, type SkiTripFocus, type SkiTripLevel } from "@/lib/tripPlanner";
 
 type ResortCandidate = {
@@ -106,14 +108,46 @@ export default function TripCreateClient() {
       setUserEmail(data.user?.email ?? null);
     });
 
-    supabase
-      .from("resorts")
-      .select("slug,name,country,region,piste_km_total,piste_km,skipass_price_from,apres_score,beginner_score,elevation_max_m")
-      .order("piste_km_total", { ascending: false })
-      .limit(24)
-      .then(({ data }) => {
+    fetch("/api/resorts", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          return {
+            resorts: [],
+            total: 0,
+            loaded: 0,
+            source: "fallback",
+            usingFallback: true,
+            fallbackReason: "error",
+            error: null,
+            pageSize: 0,
+            hasMore: false,
+          } as ResortLoadResult<ResortSignalRow>;
+        }
+        return (await response.json()) as ResortLoadResult<ResortSignalRow>;
+      })
+      .then((result) => {
         if (!mounted) return;
-        setResortCandidates((data ?? []) as ResortCandidate[]);
+        const candidates = (result.resorts ?? [])
+          .map(
+            (resort): ResortCandidate => ({
+              slug: resort.slug || resort.id,
+              name: resort.name,
+              country: resort.country,
+              region: resort.region ?? null,
+              piste_km_total: resort.piste_km_total ?? null,
+              piste_km: resort.piste_km ?? null,
+              skipass_price_from: resort.skipass_price_from ?? null,
+              apres_score: resort.apres_score ?? null,
+              beginner_score: resort.beginner_score ?? null,
+              elevation_max_m: resort.elevation_max_m ?? null,
+            })
+          )
+          .sort((a, b) => (getCandidatePisteKm(b) ?? 0) - (getCandidatePisteKm(a) ?? 0));
+        setResortCandidates(candidates);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setResortCandidates([]);
       });
 
     return () => {
@@ -309,7 +343,7 @@ export default function TripCreateClient() {
                             active ? "border-sky-200/35 bg-sky-200/15 text-sky-50" : "border-white/10 bg-slate-950/30 text-slate-300"
                           }`}
                         >
-                          {active ? "ausgew?hlt" : "hinzuf?gen"}
+                          {active ? "ausgewählt" : "hinzufügen"}
                         </span>
                       </div>
                       <p className="mt-3 text-sm leading-relaxed text-slate-300">{getCandidateReason(candidate)}</p>
@@ -402,7 +436,7 @@ export default function TripCreateClient() {
               {dateRange && dateRange.from ? (
                 <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-300">
                   Ausgewählt: {toIsoDate(dateRange.from)}
-                  {dateRange.to ? ` bis ${toIsoDate(dateRange.to)}` : " - bitte noch ein Enddatum w?hlen"}
+                  {dateRange.to ? ` bis ${toIsoDate(dateRange.to)}` : " - bitte noch ein Enddatum wählen"}
                 </div>
               ) : null}
             </div>

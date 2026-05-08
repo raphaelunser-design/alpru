@@ -8,7 +8,7 @@ export default function PageTransition({ children }: { children: React.ReactNode
   const reduceMotion = useReducedMotion();
 
   const transition = reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" as const };
-  const initial = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 };
+  const initial = { opacity: 1, y: 0 };
   const animate = { opacity: 1, y: 0 };
   const exit = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 };
 

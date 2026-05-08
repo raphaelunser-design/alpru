@@ -1,4 +1,12 @@
 import { calculateAlpivoMatchScore } from "@/lib/matching/alpivoScore";
+import {
+  calculateFestivalFit,
+  deriveEventBadges,
+  normalizeResortEvents,
+  type MusicPreference,
+  type PartyPreference,
+  type ResortEvent,
+} from "@/lib/resortEvents";
 import type { AlpivoScoreResult, ResortInput, UserPreferences } from "@/types/matching";
 
 export type BudgetStatus = "green" | "yellow" | "red";
@@ -36,6 +44,8 @@ export type MatchPreferences = Partial<{
   panorama: number;
   summerGlacier: number;
   offPiste: number;
+  partyPreference: PartyPreference;
+  musicPreference: MusicPreference;
   foodSpendLevel: "budget" | "standard" | "comfort";
   needRental: boolean;
   rentalMode: "own" | "rent";
@@ -82,6 +92,7 @@ export type ResortSignalRow = {
   park_score: number | null;
   beginner_score: number | null;
   advanced_score: number | null;
+  resort_events?: ResortEvent[] | null;
 };
 
 export type ResortVibeTag = {
@@ -176,6 +187,7 @@ export type ResortDecision = {
   fitProfile: {
     slope: number;
     vibe: number;
+    festival: number;
     snow: number;
     summer: number;
     offPiste: number;
@@ -184,6 +196,9 @@ export type ResortDecision = {
   };
   tripStyleHint: string;
   vibeTags: ResortVibeTag[];
+  eventBadges: string[];
+  events: ResortEvent[];
+  festivalFitScore: number;
   bestFor: string[];
   reasons: string[];
   drawbacks: string[];
@@ -1071,12 +1086,24 @@ function toAlpivoUserPreferences(prefs: MatchPreferences = {}): UserPreferences 
   const tripType = deriveTripTypeForAlpivo(prefs);
   const budget = resolveBudgetCap(prefs);
   const skillLevel = deriveSkillLevelForAlpivo(prefs);
+  const partyPreference = prefs.partyPreference ?? (prefs.tripStyle === "apres" ? "party_places" : prefs.tripStyle === "quiet" ? "quiet_no_events" : "indifferent");
+  const wantsFestival = partyPreference === "festival_event";
+  const wantsApresSki =
+    (prefs.apres ?? 0) >= 4 ||
+    prefs.tripStyle === "apres" ||
+    partyPreference === "some_apres" ||
+    partyPreference === "party_places" ||
+    partyPreference === "festival_event";
+  const wantsQuiet = (prefs.emptySlopes ?? 0) >= 4 || prefs.tripStyle === "quiet" || partyPreference === "quiet_no_events";
   return {
     tripType,
     days: tripDays(prefs),
     people: Math.max(1, Math.round(Number(prefs.peopleCount ?? 1))),
     budgetPerPerson: budget > 0 ? budget : undefined,
     skillLevel,
+    hasTripDates: Boolean(prefs.tripStartDate && prefs.tripEndDate),
+    tripStartDate: prefs.tripStartDate ?? null,
+    tripEndDate: prefs.tripEndDate ?? null,
     priorities: {
       budget: prefs.valueForMoney ?? (prefs.tripStyle === "budget" ? 5 : 3),
       distance: tripType === "day_trip" ? 5 : tripType === "weekend" ? 4 : 2,
@@ -1092,11 +1119,15 @@ function toAlpivoUserPreferences(prefs: MatchPreferences = {}): UserPreferences 
     travelMode: mapTravelModeForAlpivo(prefs.travelMode),
     foodStyle: prefs.foodSpendLevel ?? "standard",
     accommodationStyle: deriveAccommodationStyleForAlpivo(prefs),
-    wantsApresSki: (prefs.apres ?? 0) >= 4 || prefs.tripStyle === "apres",
+    wantsApresSki,
+    wantsFestival,
     wantsOffPiste: (prefs.offPiste ?? 0) >= 4 || prefs.tripStyle === "offpiste",
-    wantsQuiet: (prefs.emptySlopes ?? 0) >= 4 || prefs.tripStyle === "quiet",
+    wantsQuiet,
     wantsSnowpark: (prefs.snowpark ?? 0) >= 4,
     wantsFamilyFriendly: (prefs.family ?? 0) >= 4 || prefs.tripStyle === "family" || skillLevel === "beginner",
+    needsRental: prefs.rentalMode === "rent" || Boolean(prefs.needRental),
+    partyPreference,
+    musicPreference: prefs.musicPreference ?? "any",
   };
 }
 
@@ -1124,6 +1155,7 @@ function toAlpivoResortInput(resort: ResortSignalRow): ResortInput {
     snowparkScore: resort.park_score ?? undefined,
     crowdScore: resort.crowd_score ?? undefined,
     snowReliabilityScore: deriveSnowReliability(resort),
+    events: normalizeResortEvents(resort.resort_events),
   };
 }
 
@@ -1140,9 +1172,30 @@ export function deriveResortDecision(
   const summerGlacierScore = deriveSummerGlacierScore(resort);
   const infrastructureProfile = deriveInfrastructureProfile(resort);
   const exclusionReasons = deriveExclusionReasons(prefs, resort, cost);
+  const events = normalizeResortEvents(resort.resort_events);
+  const festivalFit = calculateFestivalFit(events, {
+    partyPreference: prefs.partyPreference,
+    musicPreference: prefs.musicPreference,
+    tripStartDate: prefs.tripStartDate,
+    tripEndDate: prefs.tripEndDate,
+    apresSkiScore: resort.apres_score,
+    crowdScore: resort.crowd_score,
+    wantsApresSki: (prefs.apres ?? 0) >= 4 || prefs.tripStyle === "apres",
+    wantsQuiet: (prefs.emptySlopes ?? 0) >= 4 || prefs.tripStyle === "quiet",
+  });
+  const festivalFitScore = clamp((alpivoScore.categoryScores.festivalFit ?? festivalFit.score) / 100);
+  const eventBadges = deriveEventBadges(events, 1 - scoreValue(resort.crowd_score));
   const resolvedImageUrl = (resort.hero_image_url || "").trim() || (resort.image_url || "").trim() || null;
   const combinedReasons = Array.from(new Set([...alpivoScore.reasons, ...deriveReasons(prefs, resort, cost)]));
   const combinedWarnings = Array.from(new Set([...alpivoScore.warnings, ...deriveDrawbacks(resort, budgetClass, prefs)]));
+  const bestFor = Array.from(
+    new Set([
+      ...deriveBestFor(resort, budgetClass),
+      ...(eventBadges.includes("Junge Gruppen") ? ["Junge Gruppen"] : []),
+      ...(eventBadges.includes("Festival") ? ["Festival-Trips"] : []),
+      ...(eventBadges.includes("Live-Musik") ? ["Live-Musik"] : []),
+    ])
+  ).slice(0, 4);
 
   return {
     id: resort.id,
@@ -1175,10 +1228,16 @@ export function deriveResortDecision(
     budgetStatus: deriveBudgetStatus(budgetCap, cost.totalMin, cost.totalMax),
     budgetClass,
     slopeProfile: deriveSlopeProfile(resort),
-    fitProfile: deriveFitProfile(prefs, resort, cost),
+    fitProfile: {
+      ...deriveFitProfile(prefs, resort, cost),
+      festival: festivalFitScore,
+    },
     tripStyleHint: deriveTripStyleHint(prefs.tripStyle),
     vibeTags: deriveVibeTags(resort),
-    bestFor: deriveBestFor(resort, budgetClass),
+    eventBadges,
+    events,
+    festivalFitScore,
+    bestFor,
     reasons: combinedReasons.slice(0, 4),
     drawbacks: combinedWarnings.slice(0, 3),
     exclusionReasons,
@@ -1230,3 +1289,33 @@ export const resortSignalSelect = [
   "beginner_score",
   "advanced_score",
 ].join(",");
+
+export const resortEventSelect = [
+  "resort_events(",
+  [
+    "id",
+    "resort_id",
+    "name",
+    "event_type",
+    "music_genres",
+    "vibe_tags",
+    "start_date",
+    "end_date",
+    "recurring_month",
+    "location_name",
+    "altitude_m",
+    "ticket_required",
+    "ticket_price_from",
+    "official_url",
+    "short_description",
+    "best_for",
+    "not_ideal_for",
+    "data_quality",
+    "last_checked_at",
+    "created_at",
+    "updated_at",
+  ].join(","),
+  ")",
+].join("");
+
+export const resortSignalSelectWithEvents = [resortSignalSelect, resortEventSelect].join(",");

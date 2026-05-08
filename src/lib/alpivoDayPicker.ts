@@ -4,7 +4,7 @@ export const alpivoDayPickerLocale = de;
 
 export const alpivoDayPickerClassNames = {
   root: "alpivo-calendar-root",
-  months: "grid gap-5 xl:grid-cols-2",
+  months: "grid gap-5 lg:grid-cols-2",
   month: "min-w-0 space-y-3",
   month_caption: "flex min-h-10 items-center justify-center px-2 text-center",
   caption_label: "text-sm font-semibold text-white",

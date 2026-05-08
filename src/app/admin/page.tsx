@@ -42,6 +42,13 @@ export default function AdminHome() {
           </Link>
         </GlassCard>
         <GlassCard className="p-5">
+          <h2 className="text-lg font-semibold text-white">Vibe & Events</h2>
+          <p className="mt-2 text-sm text-slate-300">Eventliste nach Resort, Datum, Genre und Datenqualität.</p>
+          <Link className="mt-4 inline-flex text-sm text-white underline" href="/admin/events">
+            Events ansehen
+          </Link>
+        </GlassCard>
+        <GlassCard className="p-5">
           <h2 className="text-lg font-semibold text-white">Skipass Preise</h2>
           <p className="mt-2 text-sm text-slate-300">Manuelle Tagespreise + Stand aktualisieren.</p>
           <Link className="mt-4 inline-flex text-sm text-white underline" href="/admin/prices">

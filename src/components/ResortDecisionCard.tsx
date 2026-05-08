@@ -63,6 +63,26 @@ function formatCost(value: number | null | undefined) {
   return `${number.format(Math.round(safe))} €`;
 }
 
+function qualityLabel(value: "real" | "estimated" | "missing" | undefined) {
+  if (value === "real") return "echt";
+  if (value === "estimated") return "geschaetzt";
+  if (value === "missing") return "fehlt";
+  return "geschaetzt";
+}
+
+function formatCostComponent(
+  value: number | null | undefined,
+  quality: "real" | "estimated" | "missing" | undefined,
+  note: string | undefined,
+  missingLabel: string
+) {
+  if (quality === "missing") return note || missingLabel;
+  const safe = safeNumber(value);
+  if (safe === null) return missingLabel;
+  if (safe === 0 && quality !== "real") return note || missingLabel;
+  return formatCost(safe);
+}
+
 function scoreDetailLabel(category: string) {
   const labels: Record<string, string> = {
     budget: "Budget",
@@ -76,6 +96,7 @@ function scoreDetailLabel(category: string) {
     infrastructure: "Infrastruktur",
     valueForMoney: "Preis-Leistung",
     tripTypeFit: "Trip-Fit",
+    festivalFit: "Vibe & Events",
   };
   return labels[category] || category;
 }
@@ -106,7 +127,7 @@ function formatDriveHours(value: number | null | undefined) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2">
+    <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2">
       <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
       <div className="mt-1 text-sm font-semibold text-white">{value}</div>
     </div>
@@ -131,6 +152,7 @@ function strongestSignal(resort: CardResort) {
   const entries = [
     { label: "Pistenprofil", value: pickSignal(fitProfile.slope) },
     { label: "Vibe", value: pickSignal(fitProfile.vibe) },
+    { label: "Events", value: pickSignal(fitProfile.festival, resort.festivalFitScore) },
     { label: "Schnee", value: pickSignal(fitProfile.snow, resort.snowReliability) },
     { label: "Sommer-Gletscher", value: pickSignal(fitProfile.summer, resort.summerGlacierScore) },
     { label: "Off-Piste", value: pickSignal(fitProfile.offPiste) },
@@ -230,14 +252,33 @@ export default function ResortDecisionCard({
         : "-";
   const compactReasons = reasons.slice(0, compact ? 1 : 3);
   const primaryVibeTags = vibeTags.slice(0, compact ? 2 : 3);
+  const eventBadges = resort.eventBadges?.slice(0, compact ? 2 : 4) ?? [];
   const layoutClass = compact ? "grid" : "grid lg:grid-cols-[minmax(230px,0.34fr)_1fr]";
   const imageClass = compact
     ? "relative block min-h-[168px] overflow-hidden bg-cover bg-center"
     : "relative block min-h-[185px] overflow-hidden bg-cover bg-center lg:min-h-full";
   const firstAssumption = algorithmCosts && algorithmCosts.assumptions ? algorithmCosts.assumptions[0] : null;
+  const costQuality = algorithmCosts?.componentQuality;
+  const costNotes = algorithmCosts?.componentNotes;
+  const transportQuality = typeof routeFuelPerPerson === "number" ? "estimated" : costQuality?.transport;
+  const transportNote = typeof routeFuelPerPerson === "number" ? "Transport berechnet" : costNotes?.transport;
+  const transportValue =
+    typeof routeFuelPerPerson === "number"
+      ? routeFuelPerPerson
+      : algorithmCosts
+        ? algorithmCosts.transportPerPerson
+        : cost.travelMin;
+  const costQualityLabels = [
+    `Skipass: ${qualityLabel(costQuality?.skiPass ?? (cost.passSource === "stored" ? "real" : "estimated"))}`,
+    `Unterkunft: ${qualityLabel(costQuality?.accommodation)}`,
+    `Transport: ${qualityLabel(transportQuality)}`,
+    `Essen: ${qualityLabel(costQuality?.foodDrink)}`,
+    `Leihmaterial: ${qualityLabel(costQuality?.rental)}`,
+    `Extras: ${qualityLabel(costQuality?.extras)}`,
+  ];
 
   return (
-    <article className="group overflow-hidden rounded-lg border border-white/10 bg-slate-950/60 shadow-[0_18px_45px_rgba(2,6,23,0.28)] transition duration-200 hover:border-sky-200/30 hover:shadow-[0_22px_55px_rgba(56,189,248,0.12)]">
+    <article className="group overflow-hidden rounded-2xl border border-white/10 bg-slate-950/58 shadow-[0_24px_70px_rgba(2,6,23,0.28)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-200/30 hover:shadow-[0_26px_72px_rgba(56,189,248,0.14)]">
       <div className={layoutClass}>
         <Link
           href={`/resort/${encodeURIComponent(resort.slug)}`}
@@ -246,21 +287,21 @@ export default function ResortDecisionCard({
           aria-label={`${resort.name} öffnen`}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/10 via-slate-950/18 to-slate-950/78 transition duration-300 group-hover:from-slate-950/0" />
-          <div className="absolute left-3 top-3 rounded-lg border border-white/20 bg-slate-950/60 px-3 py-2 text-white shadow-lg backdrop-blur">
+          <div className="absolute left-3 top-3 rounded-2xl border border-white/20 bg-slate-950/60 px-3 py-2 text-white shadow-lg backdrop-blur">
             <div className="text-2xl font-semibold leading-none">{match}%</div>
             <div className="mt-1 text-[10px] uppercase tracking-wide text-white/70">Alpivo Score</div>
           </div>
           <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-2">
-            <span className={`rounded-lg border px-2.5 py-1 text-[11px] backdrop-blur ${budgetClass(resort.budgetStatus)}`}>
+            <span className={`rounded-full border px-2.5 py-1 text-[11px] backdrop-blur ${budgetClass(resort.budgetStatus)}`}>
               {budgetLabel(resort.budgetStatus)}
             </span>
             {resort.tripStyleHint ? (
-              <span className="rounded-lg border border-white/15 bg-slate-950/55 px-2.5 py-1 text-[11px] text-white backdrop-blur">
+              <span className="rounded-full border border-white/15 bg-slate-950/55 px-2.5 py-1 text-[11px] text-white backdrop-blur">
                 {resort.tripStyleHint}
               </span>
             ) : null}
             {resort.recommendationType ? (
-              <span className="rounded-lg border border-sky-200/25 bg-sky-200/15 px-2.5 py-1 text-[11px] text-sky-50 backdrop-blur">
+              <span className="rounded-full border border-sky-200/25 bg-sky-200/15 px-2.5 py-1 text-[11px] text-sky-50 backdrop-blur">
                 {resort.recommendationType}
               </span>
             ) : null}
@@ -287,8 +328,17 @@ export default function ResortDecisionCard({
               </div>
             ) : null}
           </div>
+          {eventBadges.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {eventBadges.map((badge) => (
+                <span key={badge} className="rounded-full border border-sky-200/20 bg-sky-200/[0.09] px-2.5 py-1 text-[11px] text-sky-50">
+                  {badge}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
-          <div className="rounded-lg border border-sky-200/15 bg-sky-200/[0.07] p-3">
+          <div className="rounded-2xl border border-sky-200/15 bg-sky-200/[0.07] p-3">
             <div className="flex flex-wrap items-center gap-2 text-xs text-sky-100/80">
               <span className="font-semibold uppercase tracking-wide">Alpivo-Urteil</span>
               {!compact ? (
@@ -322,19 +372,70 @@ export default function ResortDecisionCard({
           </div>
 
           {!compact && (resort.cost || algorithmCosts) ? (
-            <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Kostenbreakdown p. P.</div>
                 <div className="text-[11px] text-slate-500">
                   Essen: {cost.foodLevel === "budget" ? "sparsam" : cost.foodLevel === "comfort" ? "Komfort" : "Standard"}
                 </div>
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-5">
-                <Stat label="Unterkunft" value={formatCost(algorithmCosts ? algorithmCosts.accommodationPerPerson : cost.accommodationMin)} />
-                <Stat label="Skipass" value={formatCost(algorithmCosts ? algorithmCosts.skiPassPerPerson : cost.passMin)} />
-                <Stat label="Transport" value={formatCost(typeof routeFuelPerPerson === "number" ? routeFuelPerPerson : algorithmCosts ? algorithmCosts.transportPerPerson : cost.travelMin)} />
-                <Stat label="Essen" value={formatCost(algorithmCosts ? algorithmCosts.foodDrinkPerPerson : cost.foodMin)} />
-                <Stat label="Extras" value={formatCost(algorithmCosts ? algorithmCosts.extrasPerPerson : (cost.rentalMin || 0) + (cost.parkingMin || 0))} />
+              <div className="mt-3 grid gap-2 sm:grid-cols-6">
+                <Stat
+                  label="Unterkunft"
+                  value={formatCostComponent(
+                    algorithmCosts ? algorithmCosts.accommodationPerPerson : cost.accommodationMin,
+                    costQuality?.accommodation,
+                    costNotes?.accommodation,
+                    "Unterkunft noch nicht berechnet"
+                  )}
+                />
+                <Stat
+                  label="Skipass"
+                  value={formatCostComponent(
+                    algorithmCosts ? algorithmCosts.skiPassPerPerson : cost.passMin,
+                    costQuality?.skiPass ?? (cost.passSource === "stored" ? "real" : "estimated"),
+                    costNotes?.skiPass,
+                    "Skipass noch nicht berechnet"
+                  )}
+                />
+                <Stat
+                  label="Transport"
+                  value={formatCostComponent(transportValue, transportQuality, transportNote, "Transport noch nicht berechnet")}
+                />
+                <Stat
+                  label="Essen"
+                  value={formatCostComponent(
+                    algorithmCosts ? algorithmCosts.foodDrinkPerPerson : cost.foodMin,
+                    costQuality?.foodDrink,
+                    costNotes?.foodDrink,
+                    "Essen & Trinken noch nicht berechnet"
+                  )}
+                />
+                <Stat
+                  label="Leihmaterial"
+                  value={formatCostComponent(
+                    algorithmCosts ? algorithmCosts.rentalPerPerson : cost.rentalMin,
+                    costQuality?.rental,
+                    costNotes?.rental,
+                    "Leihmaterial noch nicht berechnet"
+                  )}
+                />
+                <Stat
+                  label="Extras"
+                  value={formatCostComponent(
+                    algorithmCosts ? algorithmCosts.extrasPerPerson : cost.parkingMin,
+                    costQuality?.extras,
+                    costNotes?.extras,
+                    "Extras/Puffer noch nicht berechnet"
+                  )}
+                />
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
+                {costQualityLabels.map((label) => (
+                  <span key={label} className="rounded-full border border-white/10 bg-slate-950/35 px-2 py-0.5">
+                    {label}
+                  </span>
+                ))}
               </div>
               <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
                 Vertrauen: {confidenceLabel(algorithmCosts ? algorithmCosts.confidence : undefined)}. {firstAssumption ? firstAssumption : `Unterkunft und Essen sind Länder-/Budget-Schätzungen, Skipass ist ${cost.passSource === "stored" ? "gepflegt" : "geschätzt"}.`}
@@ -343,7 +444,7 @@ export default function ResortDecisionCard({
           ) : null}
 
           <div className={`grid gap-3 text-sm text-slate-200 ${compact ? "" : "md:grid-cols-[1.15fr_0.85fr]"}`}>
-            <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3">
               <div className="text-xs uppercase tracking-wide text-slate-400">Warum passt es</div>
               <ul className="mt-2 space-y-1.5">
                 {compactReasons.map((reason) => (
@@ -354,7 +455,7 @@ export default function ResortDecisionCard({
                 ))}
               </ul>
             </div>
-            <div className="rounded-lg border border-amber-200/15 bg-amber-200/[0.055] p-3">
+            <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.055] p-3">
               <div className="text-xs uppercase tracking-wide text-amber-100/75">Vor Buchung prüfen</div>
               <p className="mt-2 text-sm leading-relaxed text-slate-200">{drawbacks[0]}</p>
               {!compact && resort.missingDataNotes && resort.missingDataNotes[0] ? (
@@ -386,17 +487,17 @@ export default function ResortDecisionCard({
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
               {canShowRoute ? (
                 <button
-                  className="button-lift rounded-lg border border-white/15 px-4 py-2 text-center text-sm font-semibold text-white transition hover:border-sky-200/35 hover:bg-sky-200/10"
+                  className="button-lift rounded-xl border border-white/15 px-4 py-2 text-center text-sm font-semibold text-white transition hover:border-sky-200/35 hover:bg-sky-200/10"
                   onClick={() => setShowRoute((prev) => !prev)}
                 >
                   {showRoute ? "Route schließen" : "Route anzeigen"}
                 </button>
               ) : null}
               <Link
-                className="button-lift rounded-lg bg-sky-200 px-4 py-2 text-center text-sm font-semibold text-slate-950 transition hover:bg-white"
+                className="button-lift rounded-xl bg-sky-200 px-4 py-2 text-center text-sm font-semibold text-slate-950 transition hover:bg-white"
                 href={`/resort/${encodeURIComponent(resort.slug)}`}
               >
-                Details öffnen
+                Details ansehen
               </Link>
             </div>
           </div>

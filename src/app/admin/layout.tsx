@@ -25,6 +25,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link className="hover:text-white" href="/admin/resorts">
               Resorts
             </Link>
+            <Link className="hover:text-white" href="/admin/events">
+              Events
+            </Link>
             <Link className="hover:text-white" href="/admin/prices">
               Preise
             </Link>
@@ -33,6 +36,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
             <Link className="hover:text-white" href="/admin/media">
               Media
+            </Link>
+            <Link className="hover:text-white" href="/account">
+              Konto
             </Link>
             <Link className="hover:text-white" href="/resorts">
               Zur Site

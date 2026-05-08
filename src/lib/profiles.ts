@@ -1,5 +1,6 @@
 import "server-only";
 import type { User } from "@supabase/supabase-js";
+import { isOwnerAdminEmail, normalizeEmail } from "@/lib/adminShared";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type ProfileRole = "user" | "admin";
@@ -15,14 +16,8 @@ export type ProfileRecord = {
   last_seen_at: string | null;
 };
 
-export const OWNER_ADMIN_EMAIL = "raphaelunser@gmail.com";
-
-export function normalizeEmail(email: string | null | undefined) {
-  return String(email || "").trim().toLowerCase();
-}
-
 export function roleForEmail(email: string | null | undefined): ProfileRole {
-  return normalizeEmail(email) === OWNER_ADMIN_EMAIL ? "admin" : "user";
+  return isOwnerAdminEmail(email) ? "admin" : "user";
 }
 
 function fallbackDisplayName(user: Pick<User, "email" | "user_metadata">) {

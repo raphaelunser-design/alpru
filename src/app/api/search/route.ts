@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { loadAllResortRows } from "@/lib/resortRepository";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -65,30 +66,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: [] }, { headers: cacheHeaders });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    return NextResponse.json({ error: "Supabase-Konfiguration fehlt." }, { status: 500 });
-  }
-
-  const supabase = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  const source = await loadAllResortRows(supabaseAdmin, { orderBy: "name" });
+  const rows = source.resorts.filter((row) => {
+    const haystack = [row.name, row.country, row.region, row.slug].map((value) => normalize(value)).join(" ");
+    return haystack.includes(normalizedQuery);
   });
 
-  const pattern = `%${term}%`;
-  const { data, error } = await supabase
-    .from("resorts")
-    .select("id,slug,name,country,region,piste_km,piste_km_total,hero_image_url,image_url,skipass_price_from")
-    .or(`name.ilike.${pattern},country.ilike.${pattern},region.ilike.${pattern},slug.ilike.${pattern}`)
-    .limit(24)
-    .returns<ResortSearchRow[]>();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const results = (data ?? [])
+  const results = (rows as ResortSearchRow[])
     .map((row) => {
       const pisteKm = row.piste_km_total ?? row.piste_km ?? null;
 
@@ -105,7 +89,15 @@ export async function GET(req: Request) {
     })
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "de"))
     .slice(0, 8)
-    .map(({ score: _score, ...item }) => item);
+    .map((item) => ({
+      type: item.type,
+      title: item.title,
+      subtitle: item.subtitle,
+      href: item.href,
+      imageUrl: item.imageUrl,
+      meta: item.meta,
+      price: item.price,
+    }));
 
-  return NextResponse.json({ results }, { headers: cacheHeaders });
+  return NextResponse.json({ results, source: source.source, total: source.total, usingFallback: source.usingFallback }, { headers: cacheHeaders });
 }

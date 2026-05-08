@@ -1,8 +1,12 @@
+import type { MusicPreference, PartyPreference, ResortEvent } from "@/lib/resortEvents";
+
 export type TripType = "day_trip" | "weekend" | "multi_day" | "week";
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert" | "mixed";
 export type TravelMode = "car" | "train" | "bus" | "unknown";
 export type SpendStyle = "budget" | "standard" | "comfort";
 export type CostConfidence = "low" | "medium" | "high";
+export type CostDataQuality = "real" | "estimated" | "missing";
+export type CostComponent = "skiPass" | "accommodation" | "transport" | "foodDrink" | "rental" | "extras";
 
 export type UserPreferences = {
   origin?: {
@@ -29,13 +33,20 @@ export type UserPreferences = {
     comfort?: number;
   };
   travelMode?: TravelMode;
+  hasTripDates?: boolean;
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
   foodStyle?: SpendStyle;
   accommodationStyle?: SpendStyle;
   wantsApresSki?: boolean;
+  wantsFestival?: boolean;
   wantsOffPiste?: boolean;
   wantsQuiet?: boolean;
   wantsSnowpark?: boolean;
   wantsFamilyFriendly?: boolean;
+  needsRental?: boolean;
+  partyPreference?: PartyPreference;
+  musicPreference?: MusicPreference;
 };
 
 export type ResortInput = {
@@ -68,6 +79,7 @@ export type ResortInput = {
   freshSnow24h?: number;
   distanceKm?: number;
   driveMinutes?: number;
+  events?: ResortEvent[];
 };
 
 export type ScoreCategory =
@@ -81,7 +93,8 @@ export type ScoreCategory =
   | "offPiste"
   | "infrastructure"
   | "valueForMoney"
-  | "tripTypeFit";
+  | "tripTypeFit"
+  | "festivalFit";
 
 export type CategoryScores = Record<ScoreCategory, number>;
 
@@ -91,7 +104,10 @@ export type EstimatedTripCosts = {
   skiPassPerPerson: number;
   transportPerPerson: number;
   foodDrinkPerPerson: number;
+  rentalPerPerson: number;
   extrasPerPerson: number;
+  componentQuality: Record<CostComponent, CostDataQuality>;
+  componentNotes: Partial<Record<CostComponent, string>>;
   confidence: CostConfidence;
   assumptions: string[];
 };

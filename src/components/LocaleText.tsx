@@ -6,7 +6,7 @@ import type { SupportedLocale } from "@/lib/i18n";
 const navCopy = {
   de: {
     match: "Match starten",
-    trip: "Ski-Trip planen",
+    trip: "Trips",
     results: "Ergebnisse",
     map: "Karte",
     resorts: "Resorts",

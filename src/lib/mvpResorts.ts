@@ -35,9 +35,22 @@ const mojibakeMap: Array<[string, string]> = [
   ["Â·", "·"],
 ];
 
+const germanDisplayFallbackMap: Array<[RegExp, string]> = [
+  [/\bOsterreich\b/g, "Österreich"],
+  [/\bOesterreich\b/g, "Österreich"],
+  [/\bSolden\b/g, "Sölden"],
+  [/\bKitzbuhel\b/g, "Kitzbühel"],
+  [/\bKitzbuehel\b/g, "Kitzbühel"],
+  [/\bSudtirol\b/g, "Südtirol"],
+  [/\bSuedtirol\b/g, "Südtirol"],
+  [/\bGraubunden\b/g, "Graubünden"],
+  [/\bGraubuenden\b/g, "Graubünden"],
+];
+
 export function repairText(value: string | null | undefined) {
   if (!value) return value || null;
-  return mojibakeMap.reduce((text, [broken, fixed]) => text.replaceAll(broken, fixed), value);
+  const decoded = mojibakeMap.reduce((text, [broken, fixed]) => text.replaceAll(broken, fixed), value);
+  return germanDisplayFallbackMap.reduce((text, [pattern, fixed]) => text.replace(pattern, fixed), decoded);
 }
 
 function slugify(value: string) {
@@ -182,7 +195,7 @@ export function sanitizeResortRows<T extends ResortSignalRow>(rows: T[] | null |
   return (rows || []).map((row) => sanitizeResortRow(row));
 }
 
-export function mergeWithMvpResorts<T extends ResortSignalRow>(rows: T[] | null | undefined, minimum = 35): ResortSignalRow[] {
+export function mergeWithMvpResorts<T extends ResortSignalRow>(rows: T[] | null | undefined, minimum = 0): ResortSignalRow[] {
   const sanitized = sanitizeResortRows(rows);
   const bySlug = new Set(sanitized.map((row) => row.slug).filter(Boolean));
   const merged: ResortSignalRow[] = [...sanitized];

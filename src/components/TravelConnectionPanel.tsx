@@ -632,14 +632,14 @@ export default function TravelConnectionPanel({
             <div className="mt-4 rounded-lg border border-sky-200/15 bg-sky-200/[0.07] p-3 text-sm text-slate-200">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-white">
-                  {driveLabel || "Stra?enroute verf?gbar"}
+                  {driveLabel || "Straßenroute verfügbar"}
                   {distanceLabel ? ` · ${distanceLabel}` : ""}
                 </span>
                 <button
                   className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
                   onClick={() => setShowRoute((prev) => !prev)}
                 >
-                  {showRoute ? "Route schlie?en" : "Route anzeigen"}
+                  {showRoute ? "Route schließen" : "Route anzeigen"}
                 </button>
               </div>
               {routeState.status === "error" ? <div className="mt-2 text-[11px] text-red-200">{routeState.error}</div> : null}
@@ -807,10 +807,10 @@ export default function TravelConnectionPanel({
           <div className="mt-4 grid gap-3 text-xs text-slate-400 sm:grid-cols-2">
             <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
               {apiState.status === "loading"
-                ? "Travel-Providerstatus wird gepr?ft..."
+                ? "Travel-Providerstatus wird geprüft..."
                 : apiState.status === "error"
                   ? apiState.error
-                  : (apiState.data && apiState.data.note ? apiState.data.note : "API-Slot: Live-Fahrplan, Dauer, Umstiege, Preis und Buchungslink k?nnen sp?ter pro Provider erg?nzt werden.")}
+                  : (apiState.data && apiState.data.note ? apiState.data.note : "API-Slot: Live-Fahrplan, Dauer, Umstiege, Preis und Buchungslink können später pro Provider ergänzt werden.")}
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
               Partnerlink möglich, wenn ein Anbieter Provision zahlt. Der Nutzerpreis soll gleich bleiben; keine Bannerwerbung.

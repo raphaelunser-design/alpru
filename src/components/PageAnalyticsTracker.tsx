@@ -28,7 +28,8 @@ export default function PageAnalyticsTracker() {
     if (!pathname || pathname.startsWith("/api/")) return;
 
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    let idleId: number | null = null;
+    const run = async () => {
       if (cancelled) return;
       const sessionId = getSessionId();
       const { data } = await supabase.auth.getSession();
@@ -48,11 +49,22 @@ export default function PageAnalyticsTracker() {
         }),
         keepalive: true,
       }).catch(() => null);
-    }, 450);
+    };
+
+    const timer = window.setTimeout(() => {
+      if ("requestIdleCallback" in window) {
+        idleId = window.requestIdleCallback(run, { timeout: 2500 });
+      } else {
+        void run();
+      }
+    }, 1200);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      if (idleId !== null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
     };
   }, [pathname]);
 

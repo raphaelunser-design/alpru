@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { isOwnerAdminEmail } from "@/lib/adminShared";
+import { fetchJsonWithTimeout } from "@/lib/clientFetch";
+import { buildMatchPayload, buildResortQuery } from "@/lib/matching/matchPayload";
 import { supabase } from "@/lib/supabase";
 import type { ResortDecision, TripStyle } from "@/lib/resortSignals";
 
@@ -42,6 +45,12 @@ type FeedbackRow = {
 
 type AccountPayload = {
   profile: Profile | null;
+  preferences: {
+    preferences: Partial<StoredPrefs> | null;
+    filters: Record<string, unknown> | null;
+    exclusions: { lastResults?: ResortDecision[]; lastExcludedCount?: number } | null;
+    updated_at: string | null;
+  } | null;
   user: {
     id: string;
     email: string | null;
@@ -49,6 +58,14 @@ type AccountPayload = {
     last_sign_in_at: string | null;
   };
   feedback: FeedbackRow[];
+  error?: string;
+};
+
+type AccountUser = AccountPayload["user"];
+
+type AccountPatchResponse = {
+  profile?: Profile | null;
+  preferences?: AccountPayload["preferences"];
   error?: string;
 };
 
@@ -161,6 +178,34 @@ function getRedirectUrl(authMode: "magic" | "recovery") {
   return url.toString();
 }
 
+function readStoredJson(key: string, storage: Storage) {
+  try {
+    const raw = storage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function compactAccountResults(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 50).map((result) => {
+    const row = result && typeof result === "object" ? (result as Partial<ResortDecision>) : {};
+    return {
+      id: String(row.id || ""),
+      slug: String(row.slug || ""),
+      name: String(row.name || ""),
+      country: String(row.country || ""),
+      region: typeof row.region === "string" ? row.region : null,
+      matchPct: Number.isFinite(Number(row.matchPct)) ? Number(row.matchPct) : 0,
+      budgetStatus: typeof row.budgetStatus === "string" ? row.budgetStatus : null,
+      tripStyleHint: typeof row.tripStyleHint === "string" ? row.tripStyleHint : null,
+      pisteKm: Number.isFinite(Number(row.pisteKm)) ? Number(row.pisteKm) : null,
+      reasons: Array.isArray(row.reasons) ? row.reasons.filter((item): item is string => typeof item === "string").slice(0, 3) : [],
+    };
+  }).filter((result) => result.id && result.slug && result.name);
+}
+
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4">
@@ -197,8 +242,26 @@ function ActionLink({ href, title, text }: { href: string; title: string; text: 
   );
 }
 
+const accountBenefits = [
+  "Alpivo DNA speichern",
+  "letzte Matches sichern",
+  "Favoriten speichern",
+  "Bewertungen abgeben",
+  "Gruppentrips verwalten",
+];
+
+function sessionUserFromSession(session: Session | null): AccountUser | null {
+  if (!session?.user) return null;
+  return {
+    id: session.user.id,
+    email: session.user.email ?? null,
+    created_at: session.user.created_at ?? null,
+    last_sign_in_at: session.user.last_sign_in_at ?? null,
+  };
+}
+
 export default function AccountPage() {
-  const router = useRouter();
+  const accountRequestRef = useRef(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayNameInput, setDisplayNameInput] = useState("");
@@ -206,48 +269,79 @@ export default function AccountPage() {
   const [authState, setAuthState] = useState<AuthState>({ status: "idle", message: "" });
   const [helperState, setHelperState] = useState<AuthState>({ status: "idle", message: "" });
   const [profileState, setProfileState] = useState<AuthState>({ status: "idle", message: "" });
+  const [accountSaveState, setAccountSaveState] = useState<AuthState>({ status: "idle", message: "" });
   const [recoveryState, setRecoveryState] = useState<AuthState>({ status: "idle", message: "" });
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState("");
   const [showRecoveryForm, setShowRecoveryForm] = useState(false);
   const [account, setAccount] = useState<AccountPayload | null>(null);
+  const [sessionUser, setSessionUser] = useState<AccountUser | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [prefs, setPrefs] = useState<StoredPrefs | null>(null);
   const [results, setResults] = useState<ResortDecision[]>([]);
 
-  async function authHeaders(): Promise<Record<string, string>> {
+  async function authHeaders(token?: string | null): Promise<Record<string, string>> {
+    if (token) return { Authorization: `Bearer ${token}` };
     const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token ?? "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const sessionToken = data.session?.access_token ?? "";
+    return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
   }
 
-  async function loadAccount(redirectAdmin = false) {
-    setAccountLoading(true);
-    const headers = await authHeaders();
-    if (!headers.Authorization) {
-      setAccount(null);
+  function applySessionShell(session: Session | null) {
+    const nextUser = sessionUserFromSession(session);
+    setSessionUser(nextUser);
+    if (session?.user?.email) setEmail((current) => current || session.user.email || "");
+    if (nextUser && !displayNameInput) setDisplayNameInput(nextUser.email?.split("@")[0] || "");
+  }
+
+  async function loadAccount(token?: string | null, options: { showSpinner?: boolean } = {}) {
+    const requestId = accountRequestRef.current + 1;
+    accountRequestRef.current = requestId;
+    const showSpinner = options.showSpinner ?? true;
+    if (showSpinner) setAccountLoading(true);
+
+    try {
+      const headers = await authHeaders(token);
+      if (requestId !== accountRequestRef.current) return null;
+      if (!headers.Authorization) {
+        setAccount(null);
+        setSessionUser(null);
+        setAccountLoading(false);
+        return null;
+      }
+
+      const { response, body } = await fetchJsonWithTimeout<AccountPayload>("/api/account/profile", { headers, cache: "no-store" }, 12000);
+      if (requestId !== accountRequestRef.current) return null;
+      if (!response.ok || !body) {
+        setAccount(null);
+        setAccountLoading(false);
+        return null;
+      }
+
+      setAccount(body);
+      setSessionUser(body.user);
+      if (body.preferences?.preferences) {
+        setPrefs({ ...defaultPrefs, ...body.preferences.preferences });
+      }
+      if (body.preferences?.exclusions?.lastResults?.length) {
+        setResults(body.preferences.exclusions.lastResults);
+      }
+      setDisplayNameInput(body.profile?.display_name || body.user.email?.split("@")[0] || "");
+      setEmail((current) => current || body.user.email || "");
       setAccountLoading(false);
+
+      return body;
+    } catch (error) {
+      if (requestId === accountRequestRef.current) {
+        setAccount(null);
+        setAccountLoading(false);
+        setHelperState({
+          status: "error",
+          message: error instanceof Error ? error.message : "Konto konnte nicht geladen werden.",
+        });
+      }
       return null;
     }
-
-    const response = await fetch("/api/account/profile", { headers });
-    const body = (await response.json().catch(() => null)) as AccountPayload | null;
-    if (!response.ok || !body) {
-      setAccount(null);
-      setAccountLoading(false);
-      return null;
-    }
-
-    setAccount(body);
-    setDisplayNameInput(body.profile?.display_name || body.user.email?.split("@")[0] || "");
-    setEmail((current) => current || body.user.email || "");
-    setAccountLoading(false);
-
-    if (redirectAdmin && body.profile?.role === "admin") {
-      router.push("/admin");
-    }
-
-    return body;
   }
 
   function cleanAuthUrl() {
@@ -296,16 +390,19 @@ export default function AccountPage() {
       }
 
       if (authCode) {
-        const { error } = await supabase.auth.exchangeCodeForSession(authCode);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
         if (error) {
           setHelperState({ status: "error", message: error.message });
           setAccountLoading(false);
           return;
         }
+        applySessionShell(data.session);
       }
 
       if (!mounted) return;
-      const loaded = await loadAccount(searchAuth === "magic");
+      const { data } = await supabase.auth.getSession();
+      applySessionShell(data.session);
+      const loaded = await loadAccount(data.session?.access_token ?? null);
       if (searchAuth === "magic" && loaded) {
         setHelperState({ status: "success", message: "Magic-Link bestätigt. Du bist jetzt in Alpivo eingeloggt." });
       }
@@ -314,12 +411,20 @@ export default function AccountPage() {
 
     initializeAuth();
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user?.email) setEmail((current) => current || session.user.email || "");
+      if (!mounted) return;
+      applySessionShell(session);
       if (event === "PASSWORD_RECOVERY") {
         setShowRecoveryForm(true);
         setRecoveryState({ status: "success", message: "Passwort-Reset aktiv. Lege jetzt dein neues Alpivo-Passwort fest." });
+        void loadAccount(session?.access_token ?? null, { showSpinner: false });
+        return;
       }
-      loadAccount(event === "SIGNED_IN");
+      if (event === "SIGNED_OUT") {
+        accountRequestRef.current += 1;
+        setAccount(null);
+        setSessionUser(null);
+        setAccountLoading(false);
+      }
     });
 
     return () => {
@@ -351,18 +456,19 @@ export default function AccountPage() {
 
   async function handleSignIn() {
     setAuthState({ status: "loading", message: "" });
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setAuthState({ status: "error", message: error.message });
       return;
     }
+    applySessionShell(data.session);
     setAuthState({ status: "success", message: "Erfolgreich angemeldet." });
-    await loadAccount(true);
+    await loadAccount(data.session?.access_token ?? null);
   }
 
   async function handleSignUp() {
     setAuthState({ status: "loading", message: "" });
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -376,11 +482,12 @@ export default function AccountPage() {
       setAuthState({ status: "error", message: error.message });
       return;
     }
+    applySessionShell(data.session);
     setAuthState({
       status: "success",
       message: "Account erstellt. Falls Supabase E-Mail-Bestätigung verlangt, bestätige bitte den Link in deiner Mail.",
     });
-    await loadAccount(true);
+    await loadAccount(data.session?.access_token ?? null);
   }
 
   async function handleMagicLink() {
@@ -452,36 +559,109 @@ export default function AccountPage() {
     setShowRecoveryForm(false);
     cleanAuthUrl();
     setRecoveryState({ status: "success", message: "Dein Alpivo-Passwort wurde aktualisiert." });
-    await loadAccount(false);
+    const { data } = await supabase.auth.getSession();
+    applySessionShell(data.session);
+    await loadAccount(data.session?.access_token ?? null);
   }
 
   async function handleProfileSave() {
     setProfileState({ status: "loading", message: "" });
-    const headers = await authHeaders();
-    const response = await fetch("/api/account/profile", {
-      method: "PATCH",
-      headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify({ displayName: displayNameInput }),
-    });
-    const body = (await response.json().catch(() => null)) as { profile?: Profile; error?: string } | null;
-    if (!response.ok) {
-      setProfileState({ status: "error", message: body?.error || "Profil konnte nicht gespeichert werden." });
-      return;
+    try {
+      const headers = await authHeaders();
+      if (!headers.Authorization) throw new Error("Bitte erneut einloggen, bevor du dein Profil speicherst.");
+      const { response, body } = await fetchJsonWithTimeout<AccountPatchResponse>(
+        "/api/account/profile",
+        {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ displayName: displayNameInput }),
+        },
+        12000
+      );
+      if (!response.ok) throw new Error(body?.error || "Profil konnte nicht gespeichert werden.");
+      setAccount((current) => (current && body?.profile ? { ...current, profile: body.profile } : current));
+      setProfileState({ status: "success", message: "Profil gespeichert." });
+    } catch (error) {
+      setProfileState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Profil konnte nicht gespeichert werden.",
+      });
     }
-    setAccount((current) => (current && body?.profile ? { ...current, profile: body.profile } : current));
-    setProfileState({ status: "success", message: "Profil gespeichert." });
+  }
+
+  async function handleAccountSnapshotSave() {
+    setAccountSaveState({ status: "loading", message: "" });
+    try {
+      const headers = await authHeaders();
+      if (!headers.Authorization) throw new Error("Bitte erneut einloggen, bevor du deine Alpivo DNA speicherst.");
+
+      const storedPrefs = readStoredJson("alpivo_quiz_prefs", window.localStorage);
+      const localPrefs = storedPrefs ?? prefs ?? defaultPrefs;
+      const localFilters = readStoredJson("alpivo_results_filters", window.localStorage) ?? {};
+      const storedResults =
+        readStoredJson("alpivo_results", window.localStorage) ??
+        readStoredJson("ski_results", window.sessionStorage) ??
+        results;
+      const compactResults = compactAccountResults(storedResults);
+
+      if (!storedPrefs && !prefs && compactResults.length === 0) {
+        throw new Error("Es gibt noch keinen lokalen Match, der gespeichert werden kann.");
+      }
+
+      const preferences = buildMatchPayload(localPrefs);
+      const filters = buildResortQuery(localFilters);
+      const { response, body } = await fetchJsonWithTimeout<AccountPatchResponse>(
+        "/api/account/profile",
+        {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({
+            preferences,
+            filters,
+            exclusions: {
+              lastResults: compactResults,
+              lastExcludedCount: compactResults.length,
+            },
+          }),
+        },
+        15000
+      );
+
+      if (!response.ok) throw new Error(body?.error || "Alpivo DNA konnte nicht im Konto gespeichert werden.");
+      setPrefs({ ...defaultPrefs, ...preferences });
+      if (compactResults.length) setResults(compactResults as ResortDecision[]);
+      setAccount((current) =>
+        current
+          ? {
+              ...current,
+              profile: body?.profile ?? current.profile,
+              preferences: body?.preferences ?? current.preferences,
+            }
+          : current
+      );
+      setAccountSaveState({ status: "success", message: "Alpivo DNA und letzte Matches im Konto gespeichert." });
+      await loadAccount(undefined, { showSpinner: false });
+    } catch (error) {
+      setAccountSaveState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Alpivo DNA konnte nicht gespeichert werden.",
+      });
+    }
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+    accountRequestRef.current += 1;
     setAccount(null);
+    setSessionUser(null);
     setAccountLoading(false);
     setAuthState({ status: "success", message: "Abgemeldet." });
   }
 
   const profile = account?.profile ?? null;
-  const user = account?.user ?? null;
+  const user = account?.user ?? sessionUser;
   const isLoggedIn = Boolean(user);
+  const isAdmin = profile?.role === "admin" || isOwnerAdminEmail(user?.email);
   const displayPrefs = prefs ?? defaultPrefs;
   const topResults = useMemo(() => results.slice(0, 3), [results]);
   const favorite = topResults[0];
@@ -495,6 +675,93 @@ export default function AccountPage() {
     { label: "Gletscher", value: displayPrefs.summerGlacier },
   ];
 
+  if (!accountLoading && !isLoggedIn) {
+    return (
+      <div className="space-y-8">
+        <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[330px]" imagePosition="center 48%">
+          <div className="mx-auto flex min-h-[310px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
+            <div className="max-w-3xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/70">Alpivo Konto</p>
+              <h1 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-5xl">Dein Alpivo Cockpit.</h1>
+              <p className="mt-3 max-w-[36rem] text-sm leading-6 text-white/78 md:text-base">
+                Dein Cockpit wird aktiv, sobald du deinen ersten Match startest oder dich einloggst.
+              </p>
+            </div>
+          </div>
+        </BackgroundHero>
+
+        <Section className="space-y-6">
+          <GlassCard className="p-6 md:p-8">
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Gastmodus</p>
+                <h2 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
+                  Match starten, speichern, später weiterplanen.
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  Ohne Login bleibt dein Match lokal im Browser. Mit Konto werden DNA, Feedback und Top-Matches deinem Profil zugeordnet.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  <ActionLink href="/quiz" title="Match speichern" text="Starte den Match und sichere ihn danach im Konto." />
+                  <ActionLink href="/trips" title="Freunde einladen" text="Plane Gruppentrips, sobald dein Board aktiv ist." />
+                  <ActionLink href="/feedback" title="Feedback geben" text="Melde Bugs, Design-Hinweise oder fehlende Daten." />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
+                <div className="flex gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+                  {(["signin", "signup", "magic"] as AccessMode[]).map((item) => (
+                    <button
+                      key={item}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                        mode === item ? "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/10"
+                      }`}
+                      onClick={() => setMode(item)}
+                    >
+                      {item === "signin" ? "Login" : item === "signup" ? "Registrieren" : "Magic Link"}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-3 text-sm">
+                  {mode === "signup" ? (
+                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" placeholder="Anzeigename, z. B. Raphael" value={displayNameInput} onChange={(event) => setDisplayNameInput(event.target.value)} />
+                  ) : null}
+                  <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="email" placeholder="E-Mail" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  {mode !== "magic" ? (
+                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="password" placeholder="Passwort" value={password} onChange={(event) => setPassword(event.target.value)} />
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4 text-xs leading-5 text-slate-300">
+                      Du bekommst einen sicheren Login-Link per E-Mail. Das ist für Beta-Tester oft der bequemste Einstieg.
+                    </div>
+                  )}
+                  <button
+                    className="button-lift rounded-xl bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
+                    onClick={mode === "signin" ? handleSignIn : mode === "signup" ? handleSignUp : handleMagicLink}
+                    disabled={authState.status === "loading" || helperState.status === "loading"}
+                  >
+                    {authState.status === "loading" || helperState.status === "loading"
+                      ? "Bitte warten..."
+                      : mode === "signin"
+                        ? "Einloggen"
+                        : mode === "signup"
+                          ? "Account erstellen"
+                          : "Magic-Link senden"}
+                  </button>
+                  {authState.message ? <div className={`rounded-xl border p-3 text-xs ${authState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{authState.message}</div> : null}
+                  {helperState.message ? <div className={`rounded-xl border p-3 text-xs ${helperState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{helperState.message}</div> : null}
+                  <button className="justify-self-start text-xs font-medium text-sky-100 transition hover:text-white" onClick={handlePasswordResetEmail} type="button">
+                    Passwort vergessen? Reset-Link senden
+                  </button>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+        </Section>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[330px]" imagePosition="center 48%">
@@ -504,35 +771,63 @@ export default function AccountPage() {
             <h1 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-5xl">
               {isLoggedIn ? `Willkommen, ${greetingName}.` : "Dein Alpivo Cockpit."}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/78">
-              Verwalte dein Profil, deine Beta-Rückmeldungen und deine letzten Ski-Matches an einem ruhigen Ort.
+            <p className="mt-3 max-w-[31ch] text-sm leading-6 text-white/78 sm:max-w-2xl">
+              Profil, Feedback und Ski-Matches an einem ruhigen Ort.
             </p>
           </div>
         </div>
       </BackgroundHero>
 
       <Section className="space-y-6">
+        {!accountLoading && !isLoggedIn ? (
+          <GlassCard className="p-6 md:p-8">
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Warum ein Konto?</p>
+                <h2 className="mt-3 max-w-[19.5rem] text-2xl font-semibold text-white sm:max-w-2xl md:text-3xl">
+                  Dein persönliches Ski-Trip-Cockpit.
+                </h2>
+                <p className="mt-3 max-w-[19.5rem] text-sm leading-7 text-slate-300 sm:max-w-2xl">
+                  Ohne Konto funktioniert der Match lokal. Mit Konto bleiben Profil, Favoriten, Matches und Gruppentrips verfügbar.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {accountBenefits.map((benefit) => (
+                  <div key={benefit} className="rounded-2xl border border-white/10 bg-white/[0.065] px-4 py-3 text-sm font-semibold text-white">
+                    {benefit}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </GlassCard>
+        ) : null}
+
         <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
           <GlassCard className="p-6">
             <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Accountstatus</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">
-                  {accountLoading ? "Session wird geprüft" : isLoggedIn ? "Eingeloggt und bereit" : "Noch nicht eingeloggt"}
+                  {accountLoading && isLoggedIn ? "Konto wird geladen" : accountLoading ? "Session wird geprüft" : isLoggedIn ? "Eingeloggt und bereit" : "Noch nicht eingeloggt"}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                   {isLoggedIn
                     ? "Danke, dass du Alpivo testest. Deine Feedbacks und Aktivitäten werden deinem Konto zugeordnet."
-                    : "Erstelle einen Account, damit Feedback, Gruppenplanung und spätere Favoriten sauber gespeichert bleiben."}
+                    : "Mit Konto bleiben Feedback, Favoriten und Gruppentrips gespeichert."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {profile?.role === "admin" ? (
+                {isAdmin ? (
+                  <span className="rounded-xl border border-sky-200/25 bg-sky-200/12 px-4 py-2 text-sm font-semibold text-sky-100">
+                    Admin-Berechtigung
+                  </span>
+                ) : null}
+                {isAdmin ? (
                   <Link
                     href="/admin"
                     className="button-lift rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
                   >
-                    Admin öffnen
+                    Zum Adminbereich
                   </Link>
                 ) : null}
                 {isLoggedIn ? (
@@ -570,53 +865,72 @@ export default function AccountPage() {
               </div>
             ) : null}
 
-            <div className="flex gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              {(["signin", "signup", "magic"] as AccessMode[]).map((item) => (
-                <button
-                  key={item}
-                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                    mode === item ? "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/10"
-                  }`}
-                  onClick={() => setMode(item)}
-                >
-                  {item === "signin" ? "Login" : item === "signup" ? "Registrieren" : "Magic Link"}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 grid gap-3 text-sm">
-              {mode === "signup" ? (
-                <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" placeholder="Anzeigename, z. B. Raphael" value={displayNameInput} onChange={(event) => setDisplayNameInput(event.target.value)} />
-              ) : null}
-              <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="email" placeholder="E-Mail" value={email} onChange={(event) => setEmail(event.target.value)} />
-              {mode !== "magic" ? (
-                <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="password" placeholder="Passwort" value={password} onChange={(event) => setPassword(event.target.value)} />
-              ) : (
-                <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4 text-xs leading-5 text-slate-300">
-                  Du bekommst einen sicheren Login-Link per E-Mail. Das ist für Beta-Tester oft der bequemste Einstieg.
+            {isLoggedIn ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Aktive Sitzung</p>
+                <h3 className="mt-2 text-lg font-semibold text-white">Du bist angemeldet</h3>
+                <p className="mt-2 break-all text-sm text-slate-300">{user?.email || "E-Mail wird geladen"}</p>
+                <p className="mt-3 text-xs leading-5 text-slate-400">
+                  {accountLoading ? "Profil, Feedback und gespeicherte Match-Daten laden im Hintergrund." : "Profil und Kontoübersicht sind verfügbar."}
+                </p>
+                {isAdmin ? (
+                  <Link
+                    href="/admin"
+                    className="mt-4 inline-flex rounded-xl border border-sky-200/25 bg-sky-200/12 px-4 py-2 text-sm font-semibold text-sky-100 hover:bg-sky-200/18"
+                  >
+                    Zum Adminbereich
+                  </Link>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+                  {(["signin", "signup", "magic"] as AccessMode[]).map((item) => (
+                    <button
+                      key={item}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                        mode === item ? "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/10"
+                      }`}
+                      onClick={() => setMode(item)}
+                    >
+                      {item === "signin" ? "Login" : item === "signup" ? "Registrieren" : "Magic Link"}
+                    </button>
+                  ))}
                 </div>
-              )}
-              <button
-                className="button-lift rounded-xl bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
-                onClick={mode === "signin" ? handleSignIn : mode === "signup" ? handleSignUp : handleMagicLink}
-                disabled={authState.status === "loading" || helperState.status === "loading"}
-              >
-                {authState.status === "loading" || helperState.status === "loading"
-                  ? "Bitte warten..."
-                  : mode === "signin"
-                    ? "Einloggen"
-                    : mode === "signup"
-                      ? "Account erstellen"
-                      : "Magic-Link senden"}
-              </button>
-              {authState.message ? <div className={`rounded-xl border p-3 text-xs ${authState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{authState.message}</div> : null}
-              {helperState.message ? <div className={`rounded-xl border p-3 text-xs ${helperState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{helperState.message}</div> : null}
-              {!isLoggedIn ? (
-                <button className="justify-self-start text-xs font-medium text-sky-100 transition hover:text-white" onClick={handlePasswordResetEmail} type="button">
-                  Passwort vergessen? Reset-Link senden
-                </button>
-              ) : null}
-            </div>
+
+                <div className="mt-4 grid gap-3 text-sm">
+                  {mode === "signup" ? (
+                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" placeholder="Anzeigename, z. B. Raphael" value={displayNameInput} onChange={(event) => setDisplayNameInput(event.target.value)} />
+                  ) : null}
+                  <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="email" placeholder="E-Mail" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  {mode !== "magic" ? (
+                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="password" placeholder="Passwort" value={password} onChange={(event) => setPassword(event.target.value)} />
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4 text-xs leading-5 text-slate-300">
+                      Du bekommst einen sicheren Login-Link per E-Mail. Das ist für Beta-Tester oft der bequemste Einstieg.
+                    </div>
+                  )}
+                  <button
+                    className="button-lift rounded-xl bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
+                    onClick={mode === "signin" ? handleSignIn : mode === "signup" ? handleSignUp : handleMagicLink}
+                    disabled={authState.status === "loading" || helperState.status === "loading"}
+                  >
+                    {authState.status === "loading" || helperState.status === "loading"
+                      ? "Bitte warten..."
+                      : mode === "signin"
+                        ? "Einloggen"
+                        : mode === "signup"
+                          ? "Account erstellen"
+                          : "Magic-Link senden"}
+                  </button>
+                  {authState.message ? <div className={`rounded-xl border p-3 text-xs ${authState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{authState.message}</div> : null}
+                  {helperState.message ? <div className={`rounded-xl border p-3 text-xs ${helperState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{helperState.message}</div> : null}
+                  <button className="justify-self-start text-xs font-medium text-sky-100 transition hover:text-white" onClick={handlePasswordResetEmail} type="button">
+                    Passwort vergessen? Reset-Link senden
+                  </button>
+                </div>
+              </>
+            )}
           </GlassCard>
         </div>
 
@@ -644,7 +958,7 @@ export default function AccountPage() {
                   </div>
                   <div>
                     <div className="text-xs text-slate-500">Rolle</div>
-                    <div className="mt-1 text-white">{profile?.role === "admin" ? "Admin" : "Nutzer"}</div>
+                    <div className="mt-1 text-white">{isAdmin ? "Admin" : "Nutzer"}</div>
                   </div>
                 </div>
                 <button className="button-lift justify-self-start rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60" onClick={handleProfileSave} disabled={profileState.status === "loading"}>
@@ -702,10 +1016,33 @@ export default function AccountPage() {
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Alpivo DNA</p>
                 <h2 className="mt-2 text-xl font-semibold text-white">Dein Match-Profil</h2>
               </div>
-              <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href="/quiz">
-                Match anpassen
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                {isLoggedIn ? (
+                  <button
+                    className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
+                    type="button"
+                    onClick={handleAccountSnapshotSave}
+                    disabled={accountSaveState.status === "loading"}
+                  >
+                    {accountSaveState.status === "loading" ? "Speichert..." : "DNA speichern"}
+                  </button>
+                ) : null}
+                <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href="/quiz">
+                  Match anpassen
+                </Link>
+              </div>
             </div>
+            {accountSaveState.message ? (
+              <div
+                className={`mt-4 rounded-xl border p-3 text-xs ${
+                  accountSaveState.status === "error"
+                    ? "border-red-300/30 bg-red-500/10 text-red-200"
+                    : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                }`}
+              >
+                {accountSaveState.message}
+              </div>
+            ) : null}
             <div className="mt-5 grid gap-3">
               {preferenceSignals.map((signal) => (
                 <PreferenceBar key={signal.label} label={signal.label} value={signal.value} />
@@ -765,7 +1102,7 @@ export default function AccountPage() {
                 ))
               ) : (
                 <div className="rounded-xl border border-white/10 bg-white/[0.06] p-5 text-sm leading-6 text-slate-300">
-                  Noch keine Ergebnisse gespeichert. Starte den Match, damit hier echte Empfehlungen auftauchen.
+                  Noch keine Matches im Cockpit. Starte den Match, damit hier echte Empfehlungen auftauchen.
                 </div>
               )}
             </div>

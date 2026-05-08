@@ -446,6 +446,7 @@ export default function ChecklistPage() {
   const completed = allVisibleItems.filter((item) => item.isChecked).length;
   const progress = allVisibleItems.length ? Math.round((completed / allVisibleItems.length) * 100) : 0;
   const remaining = Math.max(0, allVisibleItems.length - completed);
+  const nextRecommended = allVisibleItems.find((item) => !item.isChecked);
 
   const updateSettings = (updates: Partial<ChecklistSettings>) => {
     checklistStore.set({ ...state, settings: { ...state.settings, ...updates } });
@@ -612,6 +613,10 @@ export default function ChecklistPage() {
             </div>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/12">
               <div className="h-full rounded-full bg-sky-200 transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/32 p-3 text-xs leading-5 text-sky-50">
+              <span className="text-sky-100/70">Nächster Punkt: </span>
+              <span className="font-semibold text-white">{nextRecommended?.label ?? "Alles erledigt"}</span>
             </div>
             <button
               type="button"
@@ -840,17 +845,21 @@ function ChecklistRow({
             <>
               <button
                 type="button"
-                className="min-h-10 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.08]"
+                className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 text-slate-200 hover:bg-white/[0.08]"
                 onClick={onEdit}
+                aria-label={`${item.label} umbenennen`}
+                title="Umbenennen"
               >
-                Umbenennen
+                <span aria-hidden="true">...</span>
               </button>
               <button
                 type="button"
-                className="min-h-10 rounded-lg border border-rose-200/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-300/10"
+                className="grid h-10 w-10 place-items-center rounded-lg border border-rose-200/20 text-rose-100 hover:bg-rose-300/10"
                 onClick={onDelete}
+                aria-label={`${item.label} löschen`}
+                title="Löschen"
               >
-                Löschen
+                <span aria-hidden="true">×</span>
               </button>
             </>
           )}

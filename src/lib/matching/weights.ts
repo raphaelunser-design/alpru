@@ -13,6 +13,7 @@ export const baseWeights: Record<ScoreCategory, number> = {
   infrastructure: 0.06,
   valueForMoney: 0.1,
   tripTypeFit: 0.05,
+  festivalFit: 0.03,
 };
 
 function bump(weights: Record<ScoreCategory, number>, key: ScoreCategory, amount: number) {
@@ -83,6 +84,27 @@ export function getDynamicWeights(preferences: UserPreferences = {}) {
   if (preferences.wantsQuiet) bump(weights, "crowd", 0.07);
   if (preferences.wantsOffPiste) bump(weights, "offPiste", 0.09);
   if (preferences.wantsFamilyFriendly) bump(weights, "skillFit", 0.05);
+
+  if (preferences.partyPreference === "some_apres") {
+    bump(weights, "festivalFit", 0.04);
+    bump(weights, "apresSki", 0.02);
+  }
+  if (preferences.partyPreference === "party_places") {
+    bump(weights, "festivalFit", 0.08);
+    bump(weights, "apresSki", 0.03);
+  }
+  if (preferences.partyPreference === "festival_event" || preferences.wantsFestival) {
+    bump(weights, "festivalFit", 0.12);
+    bump(weights, "apresSki", 0.02);
+  }
+  if (preferences.partyPreference === "quiet_no_events") {
+    bump(weights, "festivalFit", 0.09);
+    bump(weights, "crowd", 0.04);
+    bump(weights, "apresSki", -0.02);
+  }
+  if (preferences.musicPreference && preferences.musicPreference !== "any" && preferences.partyPreference !== "indifferent") {
+    bump(weights, "festivalFit", 0.02);
+  }
 
   applySkillWeights(weights, preferences.skillLevel ?? "mixed");
   applyTripWeights(weights, preferences.tripType ?? "weekend");

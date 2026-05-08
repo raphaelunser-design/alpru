@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -12,20 +10,14 @@ import ApresSkiSpots, { type ApresSpot } from "@/components/ApresSkiSpots";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import PisteMapSection from "@/components/PisteMapSection";
+import ResortEventsSection from "@/components/ResortEventsSection";
 import ResortVibe from "@/components/ResortVibe";
 import Section from "@/components/Section";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
-import { deriveResortDecision, resortSignalSelect, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
-import { findMvpResortBySlug, sanitizeResortRow } from "@/lib/mvpResorts";
+import { deriveResortDecision, type MatchPreferences } from "@/lib/resortSignals";
+import type { ResortDetailResult, ResortDetailRow } from "@/lib/resortRepository";
 
-type Resort = ResortSignalRow & {
-  skipass_price_from: number | null;
-  skipass_price_currency: string | null;
-  skipass_price_last_checked: string | null;
-  skipass_price_note: string | null;
-  distance_km: number | null;
-  drive_hours: number | null;
-};
+type Resort = ResortDetailRow;
 
 type RatingStats = {
   avg: number | null;
@@ -41,9 +33,12 @@ type WeatherPointData = {
     temperature_c: number | null;
     apparent_temperature_c: number | null;
     wind_kph: number | null;
+    wind_gust_kph: number | null;
     precipitation_mm: number | null;
+    rain_mm: number | null;
     snowfall_cm: number | null;
     snowfall_24h_cm: number | null;
+    snow_depth_cm: number | null;
     weather_code: number | null;
     cloud_cover_pct: number | null;
     ski_hint: string;
@@ -53,8 +48,11 @@ type WeatherPointData = {
     temperature_c: number | null;
     apparent_temperature_c: number | null;
     wind_kph: number | null;
+    wind_gust_kph: number | null;
     precipitation_mm: number | null;
+    rain_mm: number | null;
     snowfall_cm: number | null;
+    snow_depth_cm: number | null;
     weather_code: number | null;
   }>;
   daily: Array<{
@@ -63,7 +61,9 @@ type WeatherPointData = {
     temp_min_c: number | null;
     snowfall_cm: number | null;
     precipitation_mm: number | null;
+    rain_mm: number | null;
     wind_max_kph: number | null;
+    wind_gust_max_kph: number | null;
   }>;
 };
 
@@ -77,9 +77,12 @@ type WeatherData = {
     temperature_c: number | null;
     apparent_temperature_c: number | null;
     wind_kph: number | null;
+    wind_gust_kph: number | null;
     precipitation_mm: number | null;
+    rain_mm: number | null;
     snowfall_cm: number | null;
     snowfall_24h_cm: number | null;
+    snow_depth_cm: number | null;
     weather_code: number | null;
     cloud_cover_pct: number | null;
     ski_hint: string;
@@ -90,12 +93,16 @@ type WeatherData = {
     temp_min_c: number | null;
     snowfall_cm: number | null;
     precipitation_mm: number | null;
+    rain_mm: number | null;
     wind_max_kph: number | null;
+    wind_gust_max_kph: number | null;
   }>;
-  weather_updated_at: string;
-  updated_at: string;
-  cache: string;
+  weather_updated_at?: string;
+  updated_at?: string;
+  cache?: string;
 };
+
+type WeatherStatus = "idle" | "loading" | "ready" | "missing_coordinates" | "unavailable" | "error";
 
 type SkipassPriceRow = {
   id: string;
@@ -158,19 +165,23 @@ const weatherLabels: Record<number, string> = {
   99: "Starkes Gewitter + Hagel",
 };
 
-const resortDetailSelect = [
-  resortSignalSelect,
-  "skipass_price_currency",
-  "skipass_price_last_checked",
-  "skipass_price_note",
-].join(",");
-
 const FILTER_STORAGE_KEY = "alpivo_results_filters";
 const QUIZ_STORAGE_KEY = "alpivo_quiz_prefs";
 
 function formatMaybeNumber(value: number | null | undefined, suffix = "") {
   if (value === null || value === undefined || Number.isNaN(value)) return "-";
   return `${new Intl.NumberFormat("de-DE").format(value)}${suffix}`;
+}
+
+function cleanNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function validCoordinate(value: number | string | null | undefined, min: number, max: number) {
+  const num = cleanNumber(value);
+  return num !== null && num >= min && num <= max ? num : null;
 }
 
 function weatherLabel(code: number | null | undefined) {
@@ -267,10 +278,6 @@ function pickPisteKm(resort: Resort) {
   return resort.piste_km_total ?? resort.piste_km ?? null;
 }
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
 function scoreDisplay(value: number | null | undefined, label: string) {
   if (value === null || value === undefined) return { title: label, value: "Daten in Arbeit" };
   return { title: label, value: `${Math.round(value * 100)}%` };
@@ -285,11 +292,15 @@ function glacierDisplay(value: number | null | undefined) {
 
 function WeatherPointCard({ point }: { point: WeatherPointData }) {
   const hourly = point.hourly?.slice(0, 6) ?? [];
-  const qualityLabel = point.data_quality === "fallback" ? "H?he gesch?tzt" : "h?henkorrigiert";
+  const qualityLabel = point.data_quality === "fallback" ? "Höhe geschätzt" : "höhenkorrigiert";
   const stats = [
     { label: "Wind", value: formatMaybeNumber(point.current.wind_kph, " km/h") },
+    { label: "Böen", value: formatMaybeNumber(point.current.wind_gust_kph, " km/h") },
+    { label: "Niederschlag", value: formatMaybeNumber(point.current.precipitation_mm, " mm") },
     { label: "Schnee 24h", value: formatMaybeNumber(point.current.snowfall_24h_cm, " cm") },
-    { label: "Wolken", value: formatMaybeNumber(point.current.cloud_cover_pct, " %") },
+    point.current.snow_depth_cm !== null && point.current.snow_depth_cm !== undefined
+      ? { label: "Schneehöhe", value: formatMaybeNumber(point.current.snow_depth_cm, " cm") }
+      : { label: "Wolken", value: formatMaybeNumber(point.current.cloud_cover_pct, " %") },
   ];
 
   return (
@@ -308,7 +319,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
         </div>
 
         <div className="w-fit max-w-full rounded-2xl border border-sky-200/20 bg-sky-200/[0.11] px-3.5 py-2 text-sm leading-snug text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
-          {point.current.ski_hint ?? "Bedingungen pr?fen"}
+          {point.current.ski_hint ?? "Bedingungen prüfen"}
         </div>
       </div>
 
@@ -327,7 +338,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         {stats.map((stat) => (
           <div key={stat.label} className="min-h-[78px] rounded-2xl border border-white/10 bg-slate-950/22 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
             <div className="text-xs text-slate-500">{stat.label}</div>
@@ -348,6 +359,7 @@ function WeatherPointCard({ point }: { point: WeatherPointData }) {
               <div className="text-slate-500">{formatWeatherHour(hour.time)}</div>
               <div className="mt-2 text-lg font-semibold leading-none text-white">{formatMaybeNumber(hour.temperature_c, "°")}</div>
               <div className="mt-2 text-[11px] text-sky-100">Schnee {formatMaybeNumber(hour.snowfall_cm, " cm")}</div>
+              <div className="mt-1 text-[11px] text-slate-400">Wind {formatMaybeNumber(hour.wind_kph, " km/h")}</div>
             </div>
           ))}
           </div>
@@ -367,6 +379,7 @@ export default function ResortDetail() {
   const [r, setR] = useState<Resort | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailError, setDetailError] = useState("");
+  const [usingFallbackDetail, setUsingFallbackDetail] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -377,6 +390,7 @@ export default function ResortDetail() {
   const [toast, setToast] = useState("");
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>("idle");
   const [weatherError, setWeatherError] = useState("");
   const [skipassPrices, setSkipassPrices] = useState<SkipassPriceRow[]>([]);
   const [skipassPriceHint, setSkipassPriceHint] = useState("");
@@ -447,9 +461,13 @@ export default function ResortDetail() {
   }, []);
 
   useEffect(() => {
-    (async () => {
+    let active = true;
+    const controller = new AbortController();
+
+    async function loadDetail() {
       setLoading(true);
       setDetailError("");
+      setUsingFallbackDetail(false);
 
       const safeSlug = slug.trim();
       if (!safeSlug) {
@@ -458,64 +476,117 @@ export default function ResortDetail() {
         return;
       }
 
-      const { data: bySlug, error: slugError } = await supabase
-        .from("resorts")
-        .select(resortDetailSelect)
-        .eq("slug", safeSlug)
-        .maybeSingle<Resort>();
+      try {
+        const response = await fetch(`/api/resorts/${encodeURIComponent(safeSlug)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = (await response.json().catch(() => null)) as ResortDetailResult | null;
+        if (!active) return;
 
-      if (slugError) {
-        setDetailError(slugError.message);
-      }
-
-      let resolved = bySlug ?? null;
-      if (!resolved && isUuid(safeSlug)) {
-        const { data: byId, error: idError } = await supabase
-          .from("resorts")
-          .select(resortDetailSelect)
-          .eq("id", safeSlug)
-          .maybeSingle<Resort>();
-
-        if (idError) {
-          setDetailError(idError.message);
-        }
-        resolved = byId ?? null;
-      }
-
-      if (resolved) {
-        setR(sanitizeResortRow(resolved));
-      } else {
-        const fallback = findMvpResortBySlug(safeSlug);
-        if (fallback) {
-          setR(fallback as unknown as Resort);
-          setDetailError("");
-        } else {
+        if (!response.ok || !result?.resort) {
           setR(null);
+          setDetailError(result?.error ?? (response.status === 404 ? "Resort nicht gefunden." : "Resort konnte nicht geladen werden."));
+          setUsingFallbackDetail(Boolean(result?.usingFallback));
+          return;
         }
-      }
 
-      setLoading(false);
-    })();
+        setR(result.resort);
+        setDetailError(result.error ?? "");
+        setUsingFallbackDetail(result.usingFallback);
+      } catch (error) {
+        if (!active) return;
+        if (error instanceof Error && error.name === "AbortError") return;
+        setR(null);
+        setDetailError(error instanceof Error ? error.message : "Resort konnte nicht geladen werden.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadDetail();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [slug]);
 
   useEffect(() => {
-    if (!slug) return;
+    if (loading) return;
     let mounted = true;
+
+    if (!slug || !r) {
+      setWeather(null);
+      setWeatherLoading(false);
+      setWeatherStatus("idle");
+      setWeatherError("");
+      return;
+    }
+
+    const lat = validCoordinate(r.lat, -90, 90);
+    const lon = validCoordinate(r.lon, -180, 180);
+
+    if (lat === null || lon === null) {
+      setWeather(null);
+      setWeatherLoading(false);
+      setWeatherStatus("missing_coordinates");
+      setWeatherError("Für dieses Skigebiet fehlen aktuell noch Wetterkoordinaten.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lon: String(lon),
+      timezone: "Europe/Berlin",
+    });
+    const baseElevation = cleanNumber(r.elevation_min_m);
+    const summitElevation = cleanNumber(r.elevation_max_m);
+    if (r.id) params.set("resortId", r.id);
+    if (baseElevation !== null) params.set("baseElevation", String(baseElevation));
+    if (summitElevation !== null) params.set("summitElevation", String(summitElevation));
+
     setWeatherLoading(true);
+    setWeatherStatus("loading");
     setWeatherError("");
 
-    fetch(`/api/resorts/${encodeURIComponent(slug)}/weather`)
+    fetch(`/api/weather/resort?${params.toString()}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error("Wetter konnte nicht geladen werden.");
-        return res.json();
+        const body = (await res.json().catch(() => null)) as { code?: string; error?: string } | WeatherData | null;
+        if (!res.ok) {
+          const error = new Error(
+            body && "error" in body && body.error
+              ? body.error
+              : "Der Wetterdienst ist temporär nicht erreichbar. Bitte später erneut versuchen."
+          ) as Error & { code?: string };
+          error.code = body && "code" in body ? body.code : undefined;
+          throw error;
+        }
+        return body;
       })
       .then((data) => {
         if (!mounted) return;
+        if (!data || !("valley" in data) || !("mountain" in data)) {
+          setWeather(null);
+          setWeatherStatus("error");
+          setWeatherError("Wetterdaten konnten nicht verarbeitet werden.");
+          return;
+        }
         setWeather(data as WeatherData);
+        setWeatherStatus("ready");
       })
-      .catch((err: Error) => {
+      .catch((err: Error & { code?: string }) => {
         if (!mounted) return;
-        setWeatherError(err.message);
+        setWeather(null);
+        if (err.code === "missing_coordinates") {
+          setWeatherStatus("missing_coordinates");
+          setWeatherError("Für dieses Skigebiet fehlen aktuell noch Wetterkoordinaten.");
+        } else if (err.code === "weather_unavailable") {
+          setWeatherStatus("unavailable");
+          setWeatherError("Der Wetterdienst ist temporär nicht erreichbar. Bitte später erneut versuchen.");
+        } else {
+          setWeatherStatus("error");
+          setWeatherError(err.message || "Wetterdaten konnten nicht geladen werden.");
+        }
       })
       .finally(() => {
         if (!mounted) return;
@@ -525,7 +596,7 @@ export default function ResortDetail() {
     return () => {
       mounted = false;
     };
-  }, [slug]);
+  }, [loading, slug, r]);
 
   useEffect(() => {
     if (!slug) return;
@@ -716,21 +787,22 @@ export default function ResortDetail() {
   const infrastructure = decision.infrastructureProfile;
   const skipassTrackingUrl = buildTrackingUrl(r.skipass_url);
   const skipassCurrency = (r.skipass_price_currency ?? "EUR").toUpperCase();
-  const skipassSymbol = skipassCurrency === "EUR" ? "?" : skipassCurrency;
+  const skipassSymbol = skipassCurrency === "EUR" ? "EUR" : skipassCurrency;
   const glacier = glacierDisplay(decision.summerGlacierScore);
   const strongestDecisionSignal = [
     { label: "Pistenprofil", value: decision.fitProfile.slope },
     { label: "Vibe", value: decision.fitProfile.vibe },
+    { label: "Vibe & Events", value: decision.fitProfile.festival },
     { label: "Schneesicherheit", value: decision.fitProfile.snow },
     { label: "Sommer-Gletscher", value: decision.fitProfile.summer },
     { label: "Off-Piste", value: decision.fitProfile.offPiste },
     { label: "Value", value: decision.fitProfile.value },
     { label: "Komfort", value: decision.fitProfile.comfort },
   ].sort((a, b) => b.value - a.value)[0];
-  const primaryReason = decision.reasons[0] ?? "Guter Kandidat f?r deinen Kriterienmix.";
-  const firstDrawback = decision.drawbacks[0] ?? "Preise, Verf?gbarkeit und Pistenkarte vor der Buchung pr?fen.";
+  const primaryReason = decision.reasons[0] ?? "Guter Kandidat für deinen Kriterienmix.";
+  const firstDrawback = decision.drawbacks[0] ?? "Preise, Verfügbarkeit und Pistenkarte vor der Buchung prüfen.";
   const decisionCostRange = `${formatNumber(decision.cost.totalMin, " €")} - ${formatNumber(decision.cost.totalMax, " €")}`;
-  const nextCheck = r.skipass_price_from ? "Zeitraum und Buchung pr?fen" : "Skipasspreise pr?fen";
+  const nextCheck = r.skipass_price_from ? "Zeitraum und Buchung prüfen" : "Skipasspreise prüfen";
 
   return (
     <div className="space-y-8">
@@ -754,7 +826,25 @@ export default function ResortDetail() {
             {decision.vibeTags.slice(0, 5).map((t) => (
               <span key={t.label}>{tag(t.label)}</span>
             ))}
+            {decision.eventBadges.slice(0, 3).map((label) => (
+              <span key={label}>{tag(label)}</span>
+            ))}
             <span>{tag(`${decision.matchPct}% Match`)}</span>
+            {usingFallbackDetail ? <span>{tag("Fallback-Daten")}</span> : null}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              className="rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white"
+              href={`/quiz?resort=${encodeURIComponent(r.slug || r.id)}`}
+            >
+              In Match übernehmen
+            </Link>
+            <Link
+              className="rounded-lg border border-white/15 bg-slate-950/35 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+              href={`/trips/new?resort=${encodeURIComponent(r.slug || r.id)}`}
+            >
+              Zum Trip hinzufügen
+            </Link>
           </div>
           {heroCredit ? (
             <div className="mt-4 w-fit max-w-full rounded-full border border-white/10 bg-slate-950/35 px-3 py-1.5 text-[11px] text-white/60 backdrop-blur">
@@ -796,6 +886,7 @@ export default function ResortDetail() {
               <div className="mt-5 flex flex-wrap gap-2">
                 {[
                   ["Wetter", "#wetter"],
+                  ["Events", "#events"],
                   ["Anreise", "#anreise"],
                   ["Skipass", "#skipass"],
                   ["Pistenkarte", "#pistenkarte"],
@@ -863,7 +954,15 @@ export default function ResortDetail() {
                 <div className="h-28 animate-pulse rounded-3xl bg-white/10" />
               </div>
             ) : weatherError ? (
-              <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+              <div
+                className={`mt-4 rounded-xl border p-3 text-sm ${
+                  weatherStatus === "missing_coordinates"
+                    ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+                    : weatherStatus === "unavailable"
+                      ? "border-sky-200/20 bg-sky-200/10 text-sky-100"
+                      : "border-red-500/30 bg-red-500/10 text-red-200"
+                }`}
+              >
                 {weatherError}
               </div>
             ) : weather ? (
@@ -881,10 +980,14 @@ export default function ResortDetail() {
                         {weatherLabel(weather.current.weather_code)}
                       </span>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-3 text-sm text-slate-200">
+                    <div className="mt-3 grid gap-3 text-sm text-slate-200 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                         <div className="text-xs text-slate-400">Wind</div>
                         <div className="mt-1 font-semibold text-white">{formatMaybeNumber(weather.current.wind_kph, " km/h")}</div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-xs text-slate-400">Böen</div>
+                        <div className="mt-1 font-semibold text-white">{formatMaybeNumber(weather.current.wind_gust_kph, " km/h")}</div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                         <div className="text-xs text-slate-400">Niederschlag</div>
@@ -893,8 +996,14 @@ export default function ResortDetail() {
                         </div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <div className="text-xs text-slate-400">Schnee 24h</div>
-                        <div className="mt-1 font-semibold text-white">{formatMaybeNumber(weather.current.snowfall_24h_cm, " cm")}</div>
+                        <div className="text-xs text-slate-400">
+                          {weather.current.snow_depth_cm !== null && weather.current.snow_depth_cm !== undefined ? "Schneehöhe" : "Schnee 24h"}
+                        </div>
+                        <div className="mt-1 font-semibold text-white">
+                          {weather.current.snow_depth_cm !== null && weather.current.snow_depth_cm !== undefined
+                            ? formatMaybeNumber(weather.current.snow_depth_cm, " cm")
+                            : formatMaybeNumber(weather.current.snowfall_24h_cm, " cm")}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -924,8 +1033,17 @@ export default function ResortDetail() {
                             <span className="font-medium text-slate-200">{formatMaybeNumber(day.snowfall_cm, " cm")}</span>
                           </div>
                           <div className="flex items-center justify-between gap-3">
+                            <span>Niederschlag</span>
+                            <span className="font-medium text-slate-200">{formatMaybeNumber(day.precipitation_mm, " mm")}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
                             <span>Wind</span>
-                            <span className="font-medium text-slate-200">{formatMaybeNumber(day.wind_max_kph, " km/h")}</span>
+                            <span className="font-medium text-slate-200">
+                              {formatMaybeNumber(day.wind_max_kph, " km/h")}
+                              {day.wind_gust_max_kph !== null && day.wind_gust_max_kph !== undefined
+                                ? ` / ${formatMaybeNumber(day.wind_gust_max_kph, " km/h")}`
+                                : ""}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -958,6 +1076,12 @@ export default function ResortDetail() {
         </div>
 
         <ResortVibe decision={decision} />
+
+        <ResortEventsSection
+          events={r.resort_events}
+          tripStartDate={travelPrefs.tripStartDate}
+          tripEndDate={travelPrefs.tripEndDate}
+        />
 
         <ApresSkiSpots
           resortName={r.name}

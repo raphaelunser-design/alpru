@@ -14,6 +14,11 @@ function CheckIcon() {
 export default function ExampleMatchCard() {
   const locale = useClientLocale();
   const copy = homeCopy[locale].example;
+  const previews = [
+    ["#1", "Saalbach-Hinterglemm", "87", "830 EUR", "3 h 20", "Après + Pisten"],
+    ["#2", "Serfaus-Fiss-Ladis", "82", "760 EUR", "3 h 45", "Family + Komfort"],
+    ["#3", "Obertauern", "79", "710 EUR", "3 h 10", "Schnee + Weekend"],
+  ];
 
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-16 md:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
@@ -82,6 +87,36 @@ export default function ExampleMatchCard() {
           </div>
         </div>
       </article>
+
+      <div className="grid gap-3 lg:col-span-2 md:grid-cols-3">
+        {previews.map(([rank, resort, score, cost, drive, vibe]) => (
+          <article key={rank} className="surface-lift rounded-2xl p-4 transition hover:-translate-y-1 hover:border-sky-200/28">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{rank} Top-Resort</div>
+                <h3 className="mt-2 text-lg font-semibold text-white">{resort}</h3>
+              </div>
+              <div className="rounded-2xl border border-sky-200/25 bg-sky-200/10 px-3 py-2 text-center">
+                <div className="text-2xl font-semibold text-white">{score}</div>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-sky-100">Score</div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl border border-white/10 bg-white/[0.055] p-3 text-slate-300">
+                <span className="block text-slate-500">Kosten p. P.</span>
+                <strong className="mt-1 block text-white">{cost}</strong>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.055] p-3 text-slate-300">
+                <span className="block text-slate-500">Fahrzeit</span>
+                <strong className="mt-1 block text-white">{drive}</strong>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-emerald-200/20 bg-emerald-200/10 px-3 py-2 text-xs font-semibold text-emerald-50">
+              {vibe}
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

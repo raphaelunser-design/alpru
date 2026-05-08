@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import { fetchJsonWithTimeout } from "@/lib/clientFetch";
 import { supabase } from "@/lib/supabase";
 import type { AlpivoAccessMode } from "@/lib/accessModeShared";
 
@@ -41,20 +42,17 @@ export default function AccessModeCard() {
   }
 
   async function loadMode(nextToken = token) {
-    const accessToken = nextToken || (await readToken());
-    if (!accessToken) {
-      setLoading(false);
-      setError("Admin-Session fehlt. Bitte erneut anmelden.");
-      return;
-    }
-
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/access-mode", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const body = (await response.json().catch(() => null)) as AccessModeResponse | null;
+      const accessToken = nextToken || (await readToken());
+      if (!accessToken) throw new Error("Admin-Session fehlt. Bitte erneut anmelden.");
+
+      const { response, body } = await fetchJsonWithTimeout<AccessModeResponse>(
+        "/api/admin/access-mode",
+        { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+        12000
+      );
       if (!response.ok) throw new Error(body?.error || "Access Mode konnte nicht geladen werden.");
       setMode(body?.mode ?? null);
       setSource(body?.source);
@@ -76,15 +74,18 @@ export default function AccessModeCard() {
     setError("");
     setMessage("");
     try {
-      const response = await fetch("/api/admin/access-mode", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+      const { response, body } = await fetchJsonWithTimeout<AccessModeResponse>(
+        "/api/admin/access-mode",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ mode: nextMode }),
         },
-        body: JSON.stringify({ mode: nextMode }),
-      });
-      const body = (await response.json().catch(() => null)) as AccessModeResponse | null;
+        12000
+      );
       if (!response.ok) throw new Error(body?.error || "Access Mode konnte nicht gespeichert werden.");
       setMode(nextMode);
       setSource("supabase");

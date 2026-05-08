@@ -23,7 +23,6 @@ export default function ScoreRing({ value, label = "Match Score", size = "md", c
   const safeValue = Math.max(0, Math.min(100, value));
   const startValue = reduceMotion || safeValue === 0 ? safeValue : Math.max(1, Math.round(safeValue * 0.72));
   const current = useMotionValue(startValue);
-  const rounded = useTransform(current, (latest) => Math.round(latest));
   const ref = useRef<HTMLDivElement | null>(null);
   const inView = useInView(ref, { once: true, amount: 0.45 });
   const gradientId = useId().replace(/:/g, "");
@@ -65,7 +64,7 @@ export default function ScoreRing({ value, label = "Match Score", size = "md", c
         </defs>
       </svg>
       <div className="text-center">
-        <motion.div className={`${config.text} font-semibold leading-none text-white`}>{rounded}</motion.div>
+        <div className={`${config.text} font-semibold leading-none text-white`}>{Math.round(safeValue)}</div>
         <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-100/78">{label}</div>
       </div>
     </div>

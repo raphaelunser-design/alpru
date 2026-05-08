@@ -142,6 +142,40 @@ h4 {
   box-shadow: 0 16px 32px rgba(2, 6, 23, 0.28);
 }
 
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(125, 211, 252, 0.75);
+  outline-offset: 3px;
+}
+
+.ski-track-line {
+  transform-origin: left center;
+  animation: trackDraw 720ms ease both;
+}
+
+.ski-track-line::after {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  height: 9px;
+  width: 9px;
+  border-radius: 999px;
+  background: #86efac;
+  box-shadow: 0 0 22px rgba(134, 239, 172, 0.55);
+  content: "";
+}
+
+@keyframes trackDraw {
+  from {
+    opacity: 0.35;
+    transform: scaleX(0.15);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 .hero-shell {
   isolation: isolate;
 }
@@ -219,7 +253,8 @@ h4 {
   .hero-media,
   .hero-content,
   .animate-rise,
-  .stagger-children > * {
+  .stagger-children > *,
+  .ski-track-line {
     animation: none !important;
   }
 

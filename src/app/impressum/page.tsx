@@ -12,7 +12,7 @@ export default function ImpressumPage() {
           mit den korrekten Pflichtangaben ergänzen.
         </p>
         <div className="mt-6 rounded-xl border border-amber-200/20 bg-amber-200/10 p-4 text-sm text-amber-50">
-          TODO: Name/Firma, Anschrift, Kontakt, Vertretungsberechtigte und ggf. Umsatzsteuer-ID eintragen.
+          Interner Platzhalter: Name/Firma, Anschrift, Kontakt, Vertretungsberechtigte und ggf. Umsatzsteuer-ID final ergänzen.
         </div>
       </GlassCard>
     </Section>

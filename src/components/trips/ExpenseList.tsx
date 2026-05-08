@@ -15,7 +15,7 @@ export default function ExpenseList({ bundle }: ExpenseListProps) {
       <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5 text-sm text-slate-300">
         <div className="text-sm font-semibold text-white">Noch keine Gruppenausgaben erfasst</div>
         <p className="mt-2 leading-6">
-          Ausgaben werden pro Beleg gespeichert, einem Zahler zugeordnet und auf die Gruppe verteilt. Offene Salden koennen danach
+          Ausgaben werden pro Beleg gespeichert, einem Zahler zugeordnet und auf die Gruppe verteilt. Offene Salden können danach
           manuell als ausgeglichen markiert werden.
         </p>
         {exampleFavorites.length ? (

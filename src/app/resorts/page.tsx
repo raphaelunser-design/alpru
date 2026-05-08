@@ -284,7 +284,7 @@ export default function ResortsPage() {
         <div className="flex flex-col justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-slate-300 md:flex-row md:items-center">
           <div>
             <span className="font-semibold text-white">
-              {loading ? "Resort-Auswahl wird vorbereitet ..." : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
+              {loading ? "Resortdaten werden kuratiert" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
             </span>
             {!loading && usingFallback ? <span className="text-amber-100"> · Fallback-Daten</span> : null}
             {!loading && filteredOutCount > 0 ? (

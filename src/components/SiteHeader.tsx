@@ -10,15 +10,15 @@ import Logo from "@/components/Logo";
 const appLinks = [
   { href: "/quiz", label: "Match", primary: true },
   { href: "/resorts", label: "Resorts", badge: "Beta" },
-  { href: "/trips", label: "Trips", badge: "Bald" },
+  { href: "/trips", label: "Trips", badge: "Beta" },
   { href: "/map", label: "Karte", badge: "Beta" },
   { href: "/account", label: "Konto" },
 ];
 
 const homeLinks = [
-  { href: "#so-funktionierts", label: "So funktioniert Alpivo" },
+  { href: "#so-funktionierts", label: "So funktioniert's" },
+  { href: "#beispiel-match", label: "Beispiel-Match" },
   { href: "#alpivo-story", label: "Über uns" },
-  { href: "/private-access", label: "Magazin" },
 ];
 
 export default function SiteHeader() {
@@ -34,7 +34,7 @@ export default function SiteHeader() {
       }
     >
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 md:px-6">
-        <Logo variant={isHome ? "light" : "default"} />
+        <Logo />
 
         {isHome ? (
           <>
@@ -57,7 +57,7 @@ export default function SiteHeader() {
             </nav>
             <Link
               href="/quiz"
-              className="button-lift ml-auto inline-flex min-h-10 items-center rounded-xl bg-sky-500 px-4 text-sm font-bold text-white shadow-[0_16px_36px_rgba(14,165,233,0.25)] hover:bg-sky-400 lg:hidden"
+              className="button-lift ml-auto hidden min-h-10 shrink-0 items-center rounded-xl bg-sky-500 px-4 text-sm font-bold text-white shadow-[0_16px_36px_rgba(14,165,233,0.25)] hover:bg-sky-400 sm:inline-flex lg:hidden"
             >
               Match starten
             </Link>

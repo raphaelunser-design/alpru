@@ -850,7 +850,10 @@ function ChecklistRow({
                 aria-label={`${item.label} umbenennen`}
                 title="Umbenennen"
               >
-                <span aria-hidden="true">...</span>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="m13.5 6.5 3 3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -859,7 +862,9 @@ function ChecklistRow({
                 aria-label={`${item.label} löschen`}
                 title="Löschen"
               >
-                <span aria-hidden="true">×</span>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 7h12m-9 0V5h6v2m-7 3 .5 8m7.5-8-.5 8M8 21h8a2 2 0 0 0 2-2l.6-12H5.4L6 19a2 2 0 0 0 2 2Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </>
           )}

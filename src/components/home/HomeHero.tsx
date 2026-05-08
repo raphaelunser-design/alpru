@@ -71,23 +71,23 @@ export default function HomeHero() {
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.18)_0%,rgba(2,6,23,0.30)_48%,rgba(2,6,23,0.82)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,12,28,0.86)_0%,rgba(2,12,28,0.48)_47%,rgba(2,12,28,0.12)_100%)]" />
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white via-white/84 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#07101e] via-[#07101e]/86 to-transparent" />
 
-      <div className="relative z-10 mx-auto grid min-h-[780px] w-full max-w-6xl items-center gap-9 px-4 pb-16 pt-28 md:min-h-[820px] md:px-6 md:pt-32 lg:grid-cols-[0.95fr_0.82fr]">
-        <div className="hero-content max-w-3xl">
+      <div className="relative z-10 mx-auto grid min-h-[780px] w-full max-w-6xl items-center gap-9 overflow-hidden px-4 pb-16 pt-28 md:min-h-[820px] md:px-6 md:pt-32 lg:grid-cols-[0.95fr_0.82fr]">
+        <div className="hero-content w-full max-w-[calc(100vw-2rem)] md:max-w-3xl">
           <h1 className="max-w-[12.5ch] text-4xl font-extrabold leading-[1.02] tracking-[-0.01em] text-white drop-shadow-[0_18px_46px_rgba(2,6,23,0.45)] sm:text-5xl md:text-6xl">
             Findet den Ski-Trip, der wirklich zu euch passt.
           </h1>
-          <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-white/88 md:text-xl md:leading-8">
-            Budget, Anreise, Wetter, Après-Ski, Pisten und Unterkunft – in einem Match.
+          <p className="mt-5 max-w-[calc(100vw-2rem)] text-base font-medium leading-7 text-white/88 sm:max-w-2xl md:text-xl md:leading-8">
+            Budget, Anreise, Schnee, Vibe und Unterkunft in einem klaren Match-Score – statt 20 offene Tabs.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/quiz"
-              className="button-lift inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-sky-500 px-7 text-base font-extrabold text-white shadow-[0_24px_60px_rgba(14,165,233,0.34)] hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-200/45"
+              className="button-lift inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-sky-500 px-7 text-base font-extrabold text-white shadow-[0_24px_60px_rgba(14,165,233,0.34)] hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-200/45 sm:w-auto"
             >
-              Match starten
+              Match in 3 Minuten starten
               <ArrowIcon />
             </Link>
             <a
@@ -100,7 +100,7 @@ export default function HomeHero() {
           </div>
         </div>
 
-        <article className="animate-rise overflow-hidden rounded-[1.65rem] border border-white/40 bg-white text-slate-950 shadow-[0_32px_100px_rgba(2,8,23,0.45)]">
+        <article className="animate-rise w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.65rem] border border-white/45 bg-white text-slate-950 shadow-[0_32px_100px_rgba(2,8,23,0.5)] lg:max-w-full">
           <div className="relative h-56 overflow-hidden sm:h-64">
             <Image
               src="/bg/site-hero.jpg"
@@ -114,12 +114,21 @@ export default function HomeHero() {
             <div className="absolute left-5 top-5 rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-950 shadow-lg">
               Top Match
             </div>
-            <div className="absolute bottom-5 left-5 right-28">
+            <div className="absolute bottom-5 left-5 right-24 sm:right-28">
               <h2 className="text-3xl font-extrabold leading-tight text-white drop-shadow-lg">Obertauern</h2>
               <p className="mt-1 text-sm font-semibold text-white/88">Salzburg, Österreich</p>
             </div>
-            <div className="absolute bottom-4 right-4">
-              <ScoreRing value={94} size="sm" label="Match" />
+            <div className="absolute bottom-3 right-3 origin-bottom-right scale-90 sm:bottom-4 sm:right-4 sm:scale-100">
+              <ScoreRing value={92} size="sm" label="Match" />
+            </div>
+          </div>
+
+          <div className="border-b border-slate-200 bg-slate-950 px-4 py-3 text-white sm:px-5">
+            <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-100/80 sm:gap-3 sm:text-xs sm:tracking-[0.14em]">
+              <span className="min-w-0 truncate">München</span>
+              <span className="h-px min-w-8 flex-1 bg-gradient-to-r from-sky-300 via-cyan-200 to-emerald-300" />
+              <span className="min-w-0 truncate">Obertauern</span>
+              <span className="shrink-0 rounded-full border border-white/16 bg-white/10 px-2 py-1 normal-case tracking-normal">3:45 h</span>
             </div>
           </div>
 

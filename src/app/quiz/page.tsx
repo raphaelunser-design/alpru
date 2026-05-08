@@ -107,6 +107,28 @@ const musicOptions: Array<{ value: MusicPreference; label: string }> = [
   { value: "any", label: "Egal" },
 ];
 const exclusionCountryOptions = ["Frankreich", "Schweiz", "Österreich", "Italien", "Deutschland"];
+const wizardSteps = [
+  {
+    label: "Profil",
+    title: "Wer plant den Ski-Trip?",
+    text: "Wählt euer Profil. Alpivo übernimmt sinnvolle Startwerte und ihr könnt danach feinjustieren.",
+  },
+  {
+    label: "Prioritäten",
+    title: "Was ist euch wichtig?",
+    text: "Legt Vibe, Events und die wichtigsten Match-Signale fest.",
+  },
+  {
+    label: "Details",
+    title: "Budget, Zeitraum und harte Grenzen",
+    text: "Setzt die planbaren Rahmenbedingungen, bevor Alpivo die Liste berechnet.",
+  },
+  {
+    label: "Ergebnis",
+    title: "Feinschliff und Match starten",
+    text: "Prüft die Zusammenfassung und öffnet dann eure Empfehlungen.",
+  },
+] as const;
 
 const tripProfiles: Array<{
   id: TripStyle;
@@ -128,7 +150,7 @@ const tripProfiles: Array<{
     badge: "Flexibel",
     title: "Smart Budget",
     subtitle: "Viel Skitag pro Euro, gute Value-Signale, kein Luxus-Fokus.",
-    tags: ["Value", "kurz", "clever"],
+    tags: ["Preis-Leistung", "kurze Wege", "clever planen"],
     prefs: {
       budgetMin: 150,
       budgetMax: 320,
@@ -180,7 +202,7 @@ const tripProfiles: Array<{
     badge: "Ruhig",
     title: "Family Calm",
     subtitle: "Einfachere Pisten, weniger Stress, gute Infrastruktur und planbare Kosten.",
-    tags: ["Familie", "easy", "ruhiger"],
+    tags: ["Familie", "leichte Pisten", "ruhiger"],
     prefs: {
       budgetMin: 220,
       budgetMax: 480,
@@ -206,7 +228,7 @@ const tripProfiles: Array<{
     badge: "Sport",
     title: "Big Mountain",
     subtitle: "Mehr Pisten, sportliches Profil, moderne Lifte und Höhenlage.",
-    tags: ["sportlich", "groß", "schnell"],
+    tags: ["sportlich", "großes Gebiet", "schnell"],
     prefs: {
       budgetMin: 320,
       budgetMax: 750,
@@ -232,7 +254,7 @@ const tripProfiles: Array<{
     badge: "Team",
     title: "Premium Alpine",
     subtitle: "Panorama, starke Infrastruktur, Hütten und schneesichere Höhenlage.",
-    tags: ["premium", "panorama", "komfort"],
+    tags: ["Premium", "Panorama", "Komfort"],
     prefs: {
       budgetMin: 450,
       budgetMax: 900,
@@ -258,7 +280,7 @@ const tripProfiles: Array<{
     badge: "Ruhig",
     title: "Quiet Escape",
     subtitle: "Ruhiger Alpen-Vibe, schöne Lage und weniger Trubel.",
-    tags: ["ruhig", "paar", "natur"],
+    tags: ["ruhig", "zu zweit", "Natur"],
     prefs: {
       budgetMin: 220,
       budgetMax: 520,
@@ -286,7 +308,7 @@ const tripProfiles: Array<{
     badge: "Schnee",
     title: "Summer Glacier",
     subtitle: "Hohe Lage, Gletscher-Signale und Resorts, bei denen Sommer-Ski realistischer ist.",
-    tags: ["Gletscher", "Sommer", "Schnee"],
+    tags: ["Gletscher-Fit", "hohe Lage", "Schnee"],
     prefs: {
       budgetMin: 280,
       budgetMax: 760,
@@ -313,7 +335,7 @@ const tripProfiles: Array<{
     badge: "Freeride",
     title: "Off-Piste Finder",
     subtitle: "Höhenlage, sportliches Gelände, Schnee und weniger Andrang für Fahrer abseits der Standardpiste.",
-    tags: ["freeride", "sportlich", "schnee"],
+    tags: ["Freeride", "sportlich", "Schnee"],
     prefs: {
       budgetMin: 320,
       budgetMax: 760,
@@ -411,10 +433,10 @@ function ProfileIcon({ profile }: { profile: TripStyle }) {
 }
 
 function signalLabel(value: number) {
-  if (value >= 5) return "max";
+  if (value >= 5) return "sehr hoch";
   if (value >= 4) return "hoch";
   if (value >= 2) return "mittel";
-  return "egal";
+  return "optional";
 }
 
 function parseIsoDate(value: string | null) {
@@ -451,6 +473,8 @@ export default function QuizPage() {
   });
   const [hydrated, setHydrated] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
   const [calendarMonths, setCalendarMonths] = useState(1);
   const [dnaStatus, setDnaStatus] = useState<"idle" | "loading" | "saved" | "local" | "error">("idle");
   const [dnaMessage, setDnaMessage] = useState("");
@@ -807,7 +831,7 @@ export default function QuizPage() {
   const rangeSummary = useMemo(() => {
     if (!dateRange?.from) return "Kein Datum gewählt";
     const fromLabel = dateFormatter.format(dateRange.from);
-    if (!dateRange.to) return `${fromLabel} – ...`;
+    if (!dateRange.to) return `${fromLabel} – Abreise offen`;
     return `${fromLabel} – ${dateFormatter.format(dateRange.to)}`;
   }, [dateRange]);
 
@@ -820,7 +844,7 @@ export default function QuizPage() {
 
   const tripDna = useMemo(
     () => [
-      { label: "Value", value: prefs.valueForMoney },
+      { label: "Preis-Leistung", value: prefs.valueForMoney },
       { label: "Schnee", value: prefs.snowReliability },
       { label: "Vibe", value: Math.max(prefs.apres, prefs.huts, prefs.panorama) },
       {
@@ -838,8 +862,8 @@ export default function QuizPage() {
       },
       { label: "Ruhe", value: prefs.emptySlopes },
       { label: "Sport", value: prefs.challenging },
-      { label: "Easy", value: Math.max(prefs.easyRuns, prefs.family) },
-      { label: "Gletscher", value: prefs.summerGlacier },
+      { label: "Leichte Pisten", value: Math.max(prefs.easyRuns, prefs.family) },
+      { label: "Gletscher-Fit", value: prefs.summerGlacier },
       { label: "Off-Piste", value: prefs.offPiste },
     ],
     [prefs]
@@ -861,6 +885,11 @@ export default function QuizPage() {
         .map(([label]) => label),
     [prefs]
   );
+  const currentWizardStep = wizardSteps[activeStep] ?? wizardSteps[0];
+  const isFinalStep = activeStep === wizardSteps.length - 1;
+  const goToPreviousStep = () => setActiveStep((current) => Math.max(0, current - 1));
+  const goToNextStep = () => setActiveStep((current) => Math.min(wizardSteps.length - 1, current + 1));
+  const primaryStepAction = isFinalStep ? onSubmit : goToNextStep;
 
   return (
     <div className="space-y-8">
@@ -876,28 +905,45 @@ export default function QuizPage() {
 
       <Section className="space-y-6 pb-32 md:pb-10">
         <div className="grid grid-cols-2 gap-2 rounded-[1.35rem] border border-white/18 bg-white p-2 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.12)] sm:grid-cols-4">
-          {[
-            ["1", "Profil"],
-            ["2", "Prioritäten"],
-            ["3", "Details"],
-            ["4", "Ergebnisse"],
-          ].map(([step, label]) => (
-            <div key={step} className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 ${step === "1" ? "bg-sky-50 text-sky-800" : "bg-slate-50 text-slate-500"}`}>
-              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-extrabold ${step === "1" ? "bg-sky-600 text-white" : "bg-white text-slate-500"}`}>{step}</span>
-              <span className="truncate text-sm font-extrabold">{label}</span>
-            </div>
-          ))}
+          {wizardSteps.map((step, index) => {
+            const active = index === activeStep;
+            const completed = index < activeStep;
+            return (
+              <button
+                key={step.label}
+                type="button"
+                className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition ${
+                  active
+                    ? "bg-sky-50 text-sky-800"
+                    : completed
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                }`}
+                onClick={() => setActiveStep(index)}
+                aria-current={active ? "step" : undefined}
+              >
+                <span
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
+                    active ? "bg-sky-600 text-white" : completed ? "bg-emerald-500 text-white" : "bg-white text-slate-500"
+                  }`}
+                >
+                  {index + 1}
+                </span>
+                <span className="truncate text-sm font-extrabold">{step.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-        <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.16)] md:p-6">
+        <section className={`${activeStep === 0 ? "" : "hidden"} rounded-[1.5rem] border border-slate-200 bg-white p-5 text-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.16)] md:p-6`}>
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Alpivo Match Wizard</p>
-              <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.01em] text-slate-950">Wer plant den Ski-Trip?</h2>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.01em] text-slate-950">{wizardSteps[0].title}</h2>
               <p className="mt-2 max-w-[19.5rem] text-sm leading-6 text-slate-600 sm:max-w-2xl">
-                Wählt euer Profil – wir passen den Match danach an.
+                {wizardSteps[0].text}
               </p>
             </div>
             <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-extrabold text-sky-900">
@@ -911,6 +957,7 @@ export default function QuizPage() {
               return (
                 <button
                   key={profile.id}
+                  type="button"
                   className={`group min-w-0 overflow-hidden rounded-[1.1rem] border bg-white text-left shadow-sm transition ${
                     active
                       ? "border-sky-500 ring-4 ring-sky-100"
@@ -951,7 +998,7 @@ export default function QuizPage() {
           </div>
         </section>
 
-        <GlassCard className="interactive-card p-6">
+        <GlassCard className={activeStep === 1 ? "interactive-card p-6" : "hidden"}>
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Vibe & Events</p>
@@ -1018,7 +1065,7 @@ export default function QuizPage() {
           </div>
         </GlassCard>
 
-        <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+        <div className={`${activeStep === 1 ? "grid" : "hidden"} gap-4 lg:grid-cols-[0.85fr_1.15fr]`}>
           <GlassCard className="interactive-card p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -1086,9 +1133,9 @@ export default function QuizPage() {
           </GlassCard>
         </div>
 
-        <GlassCard className="interactive-card relative z-50 overflow-visible p-6">
+        <GlassCard className={activeStep === 2 ? "interactive-card relative z-50 overflow-visible p-6" : "hidden"}>
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 2</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Details</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Harte Grenzen setzen</h2>
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1180,9 +1227,9 @@ export default function QuizPage() {
           </div>
         </GlassCard>
 
-        <GlassCard id="alpivo-budget-panel" className="interactive-card relative z-20 p-6">
+        <GlassCard id="alpivo-budget-panel" className={activeStep === 2 ? "interactive-card relative z-20 p-6" : "hidden"}>
           <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 3</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Details</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Budget, Datum und Anreise</h2>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -1387,10 +1434,10 @@ export default function QuizPage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-6">
+        <GlassCard className={activeStep === 3 ? "p-6" : "hidden"}>
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 4</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Ergebnis</p>
               <h2 className="mt-2 text-xl font-semibold text-white">Für Fortgeschrittene</h2>
               <p className="mt-1 text-sm text-slate-300">Optionales Feintuning für Schnee, Value, Ruhe und Spezialwünsche.</p>
             </div>
@@ -1406,9 +1453,9 @@ export default function QuizPage() {
           {!showFineTuning ? (
             <div className="mt-5 grid gap-2 text-sm text-slate-300 md:grid-cols-4">
               <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Schnee: {signalLabel(prefs.snowReliability)}</div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Value: {signalLabel(prefs.valueForMoney)}</div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Preis-Leistung: {signalLabel(prefs.valueForMoney)}</div>
               <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Vibe: {signalLabel(Math.max(prefs.apres, prefs.huts, prefs.panorama))}</div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Easy: {signalLabel(Math.max(prefs.easyRuns, prefs.family))}</div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2">Leichte Pisten: {signalLabel(Math.max(prefs.easyRuns, prefs.family))}</div>
             </div>
           ) : (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -1477,18 +1524,30 @@ export default function QuizPage() {
 
         <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-sm font-semibold text-white">Bereit für die Ergebnisliste</div>
+            <div className="text-sm font-semibold text-white">{currentWizardStep.title}</div>
             <div className="mt-1 text-xs text-slate-400">
-              {activeProfileLabel} · {prefs.peopleCount} Personen · {rangeSummary}
+              {currentWizardStep.text}
             </div>
           </div>
-          <button
-            className="button-lift rounded-lg bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
-            disabled={submitting}
-            onClick={onSubmit}
-          >
-            {submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen"}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {activeStep > 0 ? (
+              <button
+                className="rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                type="button"
+                onClick={goToPreviousStep}
+              >
+                Zurück
+              </button>
+            ) : null}
+            <button
+              className="button-lift rounded-lg bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
+              disabled={isFinalStep && submitting}
+              type="button"
+              onClick={primaryStepAction}
+            >
+              {isFinalStep ? (submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen") : "Weiter"}
+            </button>
+          </div>
           {submitError ? (
             <div className="text-sm leading-6 text-amber-100 md:max-w-sm">{submitError}</div>
           ) : null}
@@ -1519,19 +1578,20 @@ export default function QuizPage() {
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span className="font-semibold text-slate-500">Prioritäten Top 3</span>
-                    <ol className="mt-2 space-y-1 text-xs font-bold text-slate-900">
-                      {topPriorities.map((priority, index) => (
-                        <li key={priority}>{index + 1}. {priority}</li>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs font-bold text-slate-900">
+                      {topPriorities.map((priority) => (
+                        <li key={priority}>{priority}</li>
                       ))}
                     </ol>
                   </div>
                 </div>
                 <button
                   className="button-lift mt-4 w-full rounded-xl bg-sky-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-70"
-                  disabled={submitting}
-                  onClick={onSubmit}
+                  disabled={isFinalStep && submitting}
+                  onClick={primaryStepAction}
+                  type="button"
                 >
-                  {submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen"}
+                  {isFinalStep ? (submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen") : "Weiter"}
                 </button>
                 {submitError ? <div className="mt-3 text-sm leading-6 text-amber-100">{submitError}</div> : null}
               </div>
@@ -1548,13 +1608,38 @@ export default function QuizPage() {
               </div>
             </div>
             <button
-              className="min-h-11 shrink-0 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950 disabled:opacity-70"
-              disabled={submitting}
-              onClick={onSubmit}
+              className="min-h-11 shrink-0 rounded-xl border border-white/15 px-3 text-xs font-semibold text-white hover:bg-white/10"
+              type="button"
+              onClick={() => setMobileSummaryOpen((current) => !current)}
+              aria-expanded={mobileSummaryOpen}
             >
-              {submitting ? "..." : "Match"}
+              {mobileSummaryOpen ? "Weniger" : "Details"}
+            </button>
+            <button
+              className="min-h-11 shrink-0 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950 disabled:opacity-70"
+              disabled={isFinalStep && submitting}
+              onClick={primaryStepAction}
+              type="button"
+            >
+              {isFinalStep ? (submitting ? "..." : "Match") : "Weiter"}
             </button>
           </div>
+          {mobileSummaryOpen ? (
+            <div className="mt-3 grid gap-2 border-t border-white/10 pt-3 text-xs text-slate-300">
+              <div className="flex justify-between gap-3">
+                <span>Profil</span>
+                <span className="text-right font-semibold text-white">{activeProfileLabel}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Budget</span>
+                <span className="text-right font-semibold text-white">€ {prefs.budgetMin} – € {prefs.budgetMax}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Prioritäten</span>
+                <span className="text-right font-semibold text-white">{topPriorities.join(", ")}</span>
+              </div>
+            </div>
+          ) : null}
           {submitError ? <div className="mt-2 text-xs leading-5 text-amber-100">{submitError}</div> : null}
         </div>
       </Section>

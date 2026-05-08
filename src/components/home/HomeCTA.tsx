@@ -42,7 +42,7 @@ export default function HomeCTA() {
               href="/quiz"
               className="button-lift mt-6 inline-flex min-h-14 w-fit items-center gap-3 rounded-xl bg-sky-500 px-7 text-base font-extrabold text-white shadow-[0_22px_54px_rgba(14,165,233,0.28)] hover:bg-sky-400"
             >
-              Match starten
+              Match in 3 Minuten starten
               <ArrowIcon />
             </Link>
           </div>

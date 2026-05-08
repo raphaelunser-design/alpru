@@ -1770,7 +1770,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                       value={expenseForm.incurredOn}
                       onChange={(event) => setExpenseForm((current) => ({ ...current, incurredOn: event.target.value }))}
                     />
-                    <span className="text-xs text-slate-500">Optional: Wann wurde gezahltOhne Datum bleibt die Ausgabe trotzdem gültig.</span>
+                    <span className="text-xs text-slate-500">Optional: Wann wurde gezahlt? Ohne Datum bleibt die Ausgabe trotzdem gültig.</span>
                   </label>
                   <label className="grid gap-2 text-sm text-slate-300">
                     <span>Fälligkeitsdatum optional</span>

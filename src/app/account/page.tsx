@@ -808,12 +808,12 @@ export default function AccountPage() {
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Accountstatus</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">
-                  {accountLoading && isLoggedIn ? "Konto wird geladen" : accountLoading ? "Session wird geprüft" : isLoggedIn ? "Eingeloggt und bereit" : "Noch nicht eingeloggt"}
+                  {accountLoading && isLoggedIn ? "Konto wird geladen" : accountLoading ? "Cockpit wird vorbereitet" : isLoggedIn ? "Eingeloggt und bereit" : "Dein Cockpit wartet"}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                   {isLoggedIn
                     ? "Danke, dass du Alpivo testest. Deine Feedbacks und Aktivitäten werden deinem Konto zugeordnet."
-                    : "Mit Konto bleiben Feedback, Favoriten und Gruppentrips gespeichert."}
+                    : "Dein Cockpit wird aktiv, sobald du deinen ersten Match startest oder dich einloggst."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -841,12 +841,20 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label="Rolle" value={profile?.role === "admin" ? "Admin" : isLoggedIn ? "Beta Nutzer" : "Gast"} hint="Rechte in Alpivo" />
-              <StatCard label="Erstellt" value={formatShortDate(profile?.created_at || user?.created_at)} hint="Account-Anlage" />
-              <StatCard label="Aktivität" value={formatDate(profile?.last_seen_at || user?.last_sign_in_at, "Noch offen")} hint="Letzter bekannter Kontakt" />
-              <StatCard label="Top-Match" value={favorite ? `${favorite.matchPct}%` : "-"} hint={favorite?.name ?? "Noch kein Match"} />
-            </div>
+            {isLoggedIn ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard label="Rolle" value={profile?.role === "admin" ? "Admin" : "Beta Nutzer"} hint="Rechte in Alpivo" />
+                <StatCard label="Erstellt" value={formatShortDate(profile?.created_at || user?.created_at)} hint="Account-Anlage" />
+                <StatCard label="Aktivität" value={formatDate(profile?.last_seen_at || user?.last_sign_in_at, "Noch offen")} hint="Letzter bekannter Kontakt" />
+                <StatCard label="Top-Match" value={favorite ? `${favorite.matchPct}%` : "Noch offen"} hint={favorite?.name ?? "Starte zuerst einen Match"} />
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <ActionLink href="/quiz" title="Match starten" text="Erstelle dein erstes persönliches Alpivo Ergebnis." />
+                <ActionLink href="/trips" title="Tripboard ansehen" text="Sieh, wie Gruppentrips später organisiert werden." />
+                <ActionLink href="/feedback" title="Feedback geben" text="Melde Bugs, Design-Hinweise oder fehlende Daten." />
+              </div>
+            )}
           </GlassCard>
 
           <GlassCard className="p-6">

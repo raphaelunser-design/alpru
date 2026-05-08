@@ -13,7 +13,7 @@ export default function DatenschutzPage() {
           tatsächlichen Diensten, Kontaktangaben und Speicherfristen ergänzt werden.
         </p>
         <div className="mt-6 rounded-xl border border-amber-200/20 bg-amber-200/10 p-4 text-sm text-amber-50">
-          TODO: Verantwortlichen, Rechtsgrundlagen, Empfänger, Speicherdauer, Betroffenenrechte und Tracking-/Cookie-Hinweise finalisieren.
+          Interner Platzhalter: Verantwortlichen, Rechtsgrundlagen, Empfänger, Speicherdauer, Betroffenenrechte und Tracking-/Cookie-Hinweise finalisieren.
         </div>
       </GlassCard>
     </Section>

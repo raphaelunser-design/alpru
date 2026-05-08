@@ -239,10 +239,10 @@ export default function MapPage() {
             </div>
             <div className="nav-scroll flex w-full items-center gap-2 overflow-x-auto text-sm text-slate-300 sm:w-auto sm:flex-wrap sm:overflow-visible">
               <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5">
-                {loading ? "Resorts laden" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
+                {loading ? "Karten-Preview wird vorbereitet" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
               </span>
               <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-                {number.format(mappableCount)} auf Karte
+                {loading ? "Marker folgen" : mappableCount > 0 ? `${number.format(mappableCount)} auf Karte` : "Kartenansicht Beta"}
               </span>
               {usingFallback ? (
                 <span className="shrink-0 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-amber-100">
@@ -271,7 +271,7 @@ export default function MapPage() {
                     <div className="mt-1 text-sm text-slate-300">Name, Land oder Region</div>
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-300">
-                    {loading ? "Laden" : `${number.format(filtered.length)} Treffer`}
+                    {loading ? "Wird vorbereitet" : `${number.format(filtered.length)} Treffer`}
                   </div>
                 </div>
                 {!loading && filteredOutCount > 0 ? (

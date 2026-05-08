@@ -1,7 +1,7 @@
 "use client";
 
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
-import { useEffect } from "react";
+import { animate, motion, useInView, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { useEffect, useId, useRef } from "react";
 
 type ScoreRingProps = {
   value: number;
@@ -18,26 +18,31 @@ const sizeMap = {
 
 export default function ScoreRing({ value, label = "Match Score", size = "md", className = "" }: ScoreRingProps) {
   const reduceMotion = useReducedMotion();
-  const current = useMotionValue(reduceMotion ? value : 0);
-  const rounded = useTransform(current, (latest) => Math.round(latest));
   const config = sizeMap[size];
   const circumference = 2 * Math.PI * config.radius;
   const safeValue = Math.max(0, Math.min(100, value));
+  const startValue = reduceMotion || safeValue === 0 ? safeValue : Math.max(1, Math.round(safeValue * 0.72));
+  const current = useMotionValue(startValue);
+  const rounded = useTransform(current, (latest) => Math.round(latest));
+  const ref = useRef<HTMLDivElement | null>(null);
+  const inView = useInView(ref, { once: true, amount: 0.45 });
+  const gradientId = useId().replace(/:/g, "");
 
   useEffect(() => {
     if (reduceMotion) {
       current.set(safeValue);
       return;
     }
+    if (!inView) return;
 
     const controls = animate(current, safeValue, { duration: 0.9, ease: [0.22, 1, 0.36, 1] });
     return controls.stop;
-  }, [current, reduceMotion, safeValue]);
+  }, [current, inView, reduceMotion, safeValue]);
 
   const dashOffset = useTransform(current, (latest) => circumference * (1 - Math.max(0, Math.min(100, latest)) / 100));
 
   return (
-    <div className={`relative grid ${config.box} shrink-0 place-items-center ${className}`}>
+    <div ref={ref} className={`relative grid ${config.box} shrink-0 place-items-center ${className}`}>
       <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 128 128" aria-hidden="true">
         <circle cx="64" cy="64" r={config.radius} fill="none" stroke="rgba(255,255,255,0.13)" strokeWidth={config.stroke} />
         <motion.circle
@@ -45,14 +50,14 @@ export default function ScoreRing({ value, label = "Match Score", size = "md", c
           cy="64"
           r={config.radius}
           fill="none"
-          stroke="url(#alpivo-score-gradient)"
+          stroke={`url(#${gradientId})`}
           strokeLinecap="round"
           strokeWidth={config.stroke}
           strokeDasharray={circumference}
           style={{ strokeDashoffset: dashOffset }}
         />
         <defs>
-          <linearGradient id="alpivo-score-gradient" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradientId} x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
             <stop stopColor="#BAE6FD" />
             <stop offset="0.55" stopColor="#67E8F9" />
             <stop offset="1" stopColor="#86EFAC" />

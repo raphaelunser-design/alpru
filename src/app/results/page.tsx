@@ -104,6 +104,11 @@ const BUDGET_STEP = 25;
 const number = new Intl.NumberFormat("de-DE");
 const fallbackResultImage = "/bg/site-hero.jpg";
 
+function displayMatchScore(value: number | null | undefined, fallback = 72) {
+  const parsed = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return Math.max(1, Math.min(100, Math.round(parsed)));
+}
+
 function formatEuro(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "offen";
   return `€ ${number.format(Math.round(value))}`;
@@ -175,7 +180,7 @@ function PremiumResultsMoment({ resorts }: { resorts: PremiumResult[] }) {
               <p className="mt-1 text-sm font-semibold text-white/86">{resultLocation(top)}</p>
             </div>
             <div className="absolute bottom-4 right-4">
-              <ScoreRing value={Math.round(top.matchPct || 0)} size="sm" label="Match" />
+              <ScoreRing value={displayMatchScore(top.matchPct)} size="sm" label="Match" />
             </div>
           </div>
           <div className="grid divide-y divide-slate-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
@@ -221,7 +226,7 @@ function PremiumResultsMoment({ resorts }: { resorts: PremiumResult[] }) {
                   <p className="text-xs font-semibold text-white/78">{resultLocation(resort)}</p>
                 </div>
                 <div className="absolute bottom-4 right-4 rounded-full border border-white/35 bg-slate-950/42 px-3 py-2 text-center text-white backdrop-blur">
-                  <div className="text-xl font-extrabold">{Math.round(resort.matchPct || 0)}</div>
+                  <div className="text-xl font-extrabold">{displayMatchScore(resort.matchPct)}</div>
                   <div className="text-[9px] font-bold uppercase tracking-[0.12em]">Match</div>
                 </div>
               </div>
@@ -424,15 +429,16 @@ export default function ResultsPage() {
       };
 
       const finishNoStoredResults = (message = "") => {
+        const demoResults = createExampleResults(getMvpResorts());
         resetResultFilters();
         setUsingExampleResults(true);
-        setShowDemoResults(false);
-        setResults([]);
+        setShowDemoResults(true);
+        setResults(demoResults);
         setExcludedResults([]);
-        setTotalResortCount(0);
+        setTotalResortCount(demoResults.length);
         setResultMeta(null);
-        setUsingFallbackData(false);
-        setDataSourceError(message);
+        setUsingFallbackData(true);
+        setDataSourceError(message || "Demo-Ergebnisse aktiv, weil noch kein persönlicher Match gespeichert ist.");
         setLoadingResults(false);
       };
 
@@ -632,9 +638,13 @@ export default function ResultsPage() {
         });
       }
       if (results.length === 0 && !matchError) {
+        const demoResults = createExampleResults(getMvpResorts());
         setUsingExampleResults(true);
-        setShowDemoResults(false);
-        setDataSourceError("Der Match konnte nicht rechtzeitig geladen werden. Starte die Suche erneut oder lade die Demo.");
+        setShowDemoResults(true);
+        setResults(demoResults);
+        setTotalResortCount(demoResults.length);
+        setUsingFallbackData(true);
+        setDataSourceError("Der Match konnte nicht rechtzeitig geladen werden. Alpivo zeigt deshalb Beispiel-Ergebnisse statt eines Endlos-Laders.");
       }
       setLoadingResults(false);
     }, 12000);
@@ -1192,7 +1202,7 @@ export default function ResultsPage() {
           <GlassCard className="space-y-5 p-6 md:p-8">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Empfehlungen</p>
-              <h2 className="mt-3 text-2xl font-semibold text-white">Resorts und Empfehlungen werden geladen ...</h2>
+              <h2 className="mt-3 text-2xl font-semibold text-white">Empfehlungen werden vorbereitet</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                 Alpivo prüft gespeicherte Matches und bereitet passende Resortkarten vor.
               </p>
@@ -1228,7 +1238,7 @@ export default function ResultsPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Persönlicher Match</p>
                   <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">Noch kein persönlicher Match vorhanden</h2>
                   <p className="mt-4 max-w-[19.5rem] break-words text-sm leading-7 text-slate-300 sm:max-w-2xl md:text-base">
-                    Starte den Alpivo Match und erhalte passende Skigebiete inklusive Kosten, Anreise und Begründung.
+                    Starte den Match, um persönliche Empfehlungen zu sehen.
                   </p>
                   {dataSourceError ? (
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-amber-100">{dataSourceError}</p>

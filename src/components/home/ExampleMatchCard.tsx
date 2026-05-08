@@ -20,17 +20,17 @@ function ArrowIcon() {
 
 export default function ExampleMatchCard() {
   return (
-    <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-50 text-slate-950">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-16 md:px-6 md:py-20 lg:grid-cols-[1.05fr_0.82fr] lg:items-center">
+    <section id="beispiel-match" className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-[#081426] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(14,165,233,0.14),transparent_32%)]" />
+      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-16 md:px-6 md:py-20 lg:grid-cols-[1.05fr_0.82fr] lg:items-center">
         <Reveal>
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Ergebnis-Preview</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.01em] text-slate-950 md:text-4xl">
+            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-200">Ergebnis-Preview</p>
+            <h2 className="mt-3 max-w-[12ch] text-3xl font-extrabold tracking-[-0.01em] text-white md:text-5xl">
               Eure Top Matches
             </h2>
-            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-600">
-              Alpivo zeigt das beste Skigebiet prominent und hält Platz 2 und 3 als klare Alternativen sichtbar.
-              Score, Kosten, Fahrzeit und Begründung stehen direkt nebeneinander.
+            <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-300">
+              Top-Empfehlungen mit Gründen, Haken und Alternativen. Alpivo sortiert nicht nur, sondern erklärt, warum ein Resort zu eurer Gruppe passt.
             </p>
           </div>
         </Reveal>
@@ -50,7 +50,7 @@ export default function ExampleMatchCard() {
                   <p className="mt-1 text-sm font-semibold text-white/86">Salzburg, Österreich</p>
                 </div>
                 <div className="absolute bottom-4 right-4">
-                  <ScoreRing value={94} size="sm" label="Match" />
+                  <ScoreRing value={92} size="sm" label="Match" />
                 </div>
               </div>
               <div className="grid divide-y divide-slate-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">

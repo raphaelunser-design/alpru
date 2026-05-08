@@ -164,7 +164,7 @@ function strongestSignal(resort: CardResort) {
 
 function matchReadout(resort: CardResort) {
   const strongest = strongestSignal(resort);
-  const match = resort.matchPct || 0;
+  const match = displayMatchPct(resort.matchPct);
   if (resort.matchLabel && resort.recommendationType) return `${resort.matchLabel} · ${resort.recommendationType}.`;
   if (resort.matchLabel) return `${resort.matchLabel}, vor allem durch ${strongest.label}.`;
   if (match >= 75) return `Sehr starker Fit, vor allem durch ${strongest.label}.`;
@@ -188,6 +188,11 @@ function nextCheck(resort: CardResort) {
   if (comfortSignal < 0.42) return "Stressfaktoren prüfen";
   if (resort.pisteMapUrl || resort.openskimapUrl) return "Pistenkarte ansehen";
   return "Preise und Verfügbarkeit prüfen";
+}
+
+function displayMatchPct(value: number | null | undefined) {
+  const safe = safeNumber(value);
+  return safe === null ? 1 : Math.max(1, Math.min(100, Math.round(safe)));
 }
 
 export default function ResortDecisionCard({
@@ -242,7 +247,7 @@ export default function ResortDecisionCard({
       Number.isFinite(resort.lat) &&
       Number.isFinite(resort.lon)
   );
-  const match = resort.matchPct || 0;
+  const match = displayMatchPct(resort.matchPct);
   const location = [resort.region, resort.country].filter(Boolean).join(", ");
   const routeSummary =
     typeof driveHours === "number"

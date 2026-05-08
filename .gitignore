@@ -63,3 +63,4 @@ tmp*.log
 # local backups
 _backup_before_full_access/
 *_backup_before_full_access/
+supabase/.temp/

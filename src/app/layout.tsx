@@ -2,14 +2,11 @@ import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import AdminNavLink from "@/components/AdminNavLink";
 import FeedbackButton from "@/components/FeedbackButton";
-import GlobalSearch from "@/components/GlobalSearch";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
-import Logo from "@/components/Logo";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PageAnalyticsTracker from "@/components/PageAnalyticsTracker";
 import PageTransition from "@/components/PageTransition";
+import SiteHeader from "@/components/SiteHeader";
 import { brand } from "@/config/brand";
 
 const spaceGrotesk = Space_Grotesk({
@@ -43,33 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute inset-0 bg-[linear-gradient(180deg,#eef6ff_0%,#0d1b2e_34%,#06101e_100%)]" />
         </div>
-        <header className="sticky top-0 z-50 border-b border-white/35 bg-white/94 shadow-sm backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 md:px-6">
-            <Logo />
-            <nav className="nav-scroll ml-auto hidden min-w-0 items-center gap-1.5 overflow-x-auto text-sm font-semibold text-slate-700 lg:flex">
-              <Link className="nav-link border border-sky-200/70 bg-sky-100/80 text-slate-950 shadow-sm hover:bg-sky-200" href="/quiz">
-                Match
-              </Link>
-              <Link className="nav-link text-slate-600" href="/resorts">
-                Resorts <span className="alpivo-badge ml-1">Beta</span>
-              </Link>
-              <Link className="nav-link text-slate-600" href="/trips">
-                Trips <span className="alpivo-badge ml-1">Bald</span>
-              </Link>
-              <Link className="nav-link text-slate-600" href="/map">
-                Karte <span className="alpivo-badge ml-1">Beta</span>
-              </Link>
-              <Link className="nav-link text-slate-600" href="/account">Konto</Link>
-              <AdminNavLink className="nav-link text-slate-600" />
-            </nav>
-            <GlobalSearch variant="compact" className="hidden lg:block" />
-            <div className="hidden lg:block">
-              <LanguageSwitcher />
-            </div>
-          </div>
-        </header>
+        <SiteHeader />
 
-        <main className="w-full overflow-hidden py-4 md:py-6">
+        <main className="w-full overflow-hidden">
           <PageTransition>{children}</PageTransition>
         </main>
         <PageAnalyticsTracker />

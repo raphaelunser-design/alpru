@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -10,6 +11,7 @@ import Section from "@/components/Section";
 import RangeSlider from "@/components/RangeSlider";
 import AlpivoCompass from "@/components/AlpivoCompass";
 import ResortDecisionCard from "@/components/ResortDecisionCard";
+import ScoreRing from "@/components/ScoreRing";
 import SelectControl from "@/components/SelectControl";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
 import { deriveResortDecision, type MatchPreferences, type ResortDecision, type ResortSignalRow } from "@/lib/resortSignals";
@@ -27,6 +29,7 @@ import type { ResortLoadResult } from "@/lib/resortRepository";
 import { useSiteContent } from "@/lib/useSiteContent";
 
 type Result = ResortDecision;
+type PremiumResult = Result & { driveHours?: number | null };
 
 type SortKey = "match" | "price_low" | "price_high" | "drive_time" | "snow" | "value" | "festival" | "summer" | "offpiste";
 
@@ -99,6 +102,150 @@ const BUDGET_MIN = RESULT_BUDGET_MIN;
 const BUDGET_MAX = RESULT_BUDGET_MAX;
 const BUDGET_STEP = 25;
 const number = new Intl.NumberFormat("de-DE");
+const fallbackResultImage = "/bg/site-hero.jpg";
+
+function formatEuro(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "offen";
+  return `€ ${number.format(Math.round(value))}`;
+}
+
+function formatDrive(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "offen";
+  const minutes = Math.max(1, Math.round(value * 60));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours <= 0) return `${rest} min`;
+  return rest ? `${hours}:${String(rest).padStart(2, "0")} h` : `${hours}:00 h`;
+}
+
+function resultCost(resort: Result) {
+  const algorithm = resort.estimatedCosts || resort.alpivoScore?.estimatedCosts;
+  if (algorithm?.totalPerPerson) return algorithm.totalPerPerson;
+  return resort.cost?.totalMin ?? null;
+}
+
+function resultImage(resort: Result) {
+  return (resort.imageUrl || "").trim() || fallbackResultImage;
+}
+
+function resultLocation(resort: Result) {
+  return [resort.region, resort.country].filter(Boolean).join(", ");
+}
+
+function resultReason(resort: Result) {
+  return resort.reasons?.[0] || "Starker Mix aus Budget, Anreise, Schnee und Vibe.";
+}
+
+function ArrowIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PremiumResultsMoment({ resorts }: { resorts: PremiumResult[] }) {
+  const top = resorts[0];
+  if (!top) return null;
+  const alternatives = resorts.slice(1, 3);
+
+  return (
+    <section className="rounded-[1.65rem] border border-slate-200 bg-white p-4 text-slate-950 shadow-[0_30px_95px_rgba(15,23,42,0.16)] md:p-6">
+      <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Basierend auf euren Präferenzen</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.01em] text-slate-950">Eure Top Matches</h2>
+        </div>
+        <Link className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-extrabold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50" href="/quiz">
+          Match anpassen
+        </Link>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_0.72fr]">
+        <article className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)]">
+          <div className="relative h-80 overflow-hidden">
+            <Image src={resultImage(top)} alt={`${top.name} Top-Match Bild`} fill sizes="(min-width: 1024px) 680px, 92vw" className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/0 via-slate-950/8 to-slate-950/74" />
+            <span className="absolute left-4 top-4 grid h-12 w-12 place-items-center rounded-xl bg-emerald-300 text-xl font-extrabold text-emerald-950">1</span>
+            <span className="absolute right-4 top-4 rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-950">
+              Top Match
+            </span>
+            <div className="absolute bottom-5 left-5 right-28">
+              <h3 className="text-3xl font-extrabold text-white">{top.name}</h3>
+              <p className="mt-1 text-sm font-semibold text-white/86">{resultLocation(top)}</p>
+            </div>
+            <div className="absolute bottom-4 right-4">
+              <ScoreRing value={Math.round(top.matchPct || 0)} size="sm" label="Match" />
+            </div>
+          </div>
+          <div className="grid divide-y divide-slate-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            {[
+              [formatEuro(resultCost(top)), "pro Person"],
+              [formatDrive(top.driveHours), "Fahrzeit"],
+              ["Schneesicher", top.snowReliability && top.snowReliability > 0.7 ? "sehr gut" : "solide"],
+              ["Vibe & Events", top.festivalFitScore && top.festivalFitScore > 0.55 ? "lebendig" : "passend"],
+            ].map(([value, label]) => (
+              <div key={`${value}-${label}`} className="px-4 py-4">
+                <div className="text-sm font-extrabold text-slate-950">{value}</div>
+                <div className="mt-1 text-xs font-medium text-slate-500">{label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-4 p-5 md:grid-cols-[1fr_0.85fr]">
+            <div>
+              <h4 className="text-sm font-extrabold text-slate-950">Warum dieses Skigebiet zu euch passt</h4>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{resultReason(top)}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <h4 className="text-sm font-extrabold text-amber-950">Das könnte weniger ideal sein</h4>
+              <p className="mt-2 text-sm leading-6 text-amber-900">{top.drawbacks?.[0] || "Details vor Buchung prüfen."}</p>
+            </div>
+          </div>
+          <div className="border-t border-slate-200 p-5">
+            <Link href={`/resort/${encodeURIComponent(top.slug)}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-extrabold text-white transition hover:bg-sky-500">
+              Details ansehen
+              <ArrowIcon />
+            </Link>
+          </div>
+        </article>
+
+        <div className="grid gap-4">
+          {alternatives.map((resort, index) => (
+            <article key={resort.id} className="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+              <div className="relative h-44 overflow-hidden">
+                <Image src={resultImage(resort)} alt={`${resort.name} Match-Bild`} fill sizes="(min-width: 1024px) 420px, 92vw" className="object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-950/0 to-slate-950/64" />
+                <span className="absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-lg bg-sky-600 text-base font-extrabold text-white">{index + 2}</span>
+                <div className="absolute bottom-4 left-4 right-20">
+                  <h3 className="text-xl font-extrabold text-white">{resort.name}</h3>
+                  <p className="text-xs font-semibold text-white/78">{resultLocation(resort)}</p>
+                </div>
+                <div className="absolute bottom-4 right-4 rounded-full border border-white/35 bg-slate-950/42 px-3 py-2 text-center text-white backdrop-blur">
+                  <div className="text-xl font-extrabold">{Math.round(resort.matchPct || 0)}</div>
+                  <div className="text-[9px] font-bold uppercase tracking-[0.12em]">Match</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-4 text-xs">
+                <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <strong className="block text-slate-950">{formatEuro(resultCost(resort))}</strong>
+                  <span className="text-slate-500">pro Person</span>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <strong className="block text-slate-950">{formatDrive(resort.driveHours)}</strong>
+                  <span className="text-slate-500">Fahrzeit</span>
+                </div>
+                <Link href={`/resort/${encodeURIComponent(resort.slug)}`} className="col-span-2 inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-extrabold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50">
+                  Details ansehen
+                  <ArrowIcon />
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function createExampleResults(resorts: ResortSignalRow[]) {
   return resorts
@@ -1146,6 +1293,8 @@ export default function ResultsPage() {
           </>
         ) : (
           <>
+        {sorted.length > 0 ? <PremiumResultsMoment resorts={sorted} /> : null}
+
         {sorted.length > 0 ? <AlpivoCompass results={sorted} totalResults={sorted.length} /> : null}
 
         {usingExampleResults ? (
@@ -1163,52 +1312,6 @@ export default function ResultsPage() {
                 Match personalisieren
               </Link>
             </div>
-          </GlassCard>
-        ) : null}
-
-        {sorted.length > 0 ? (
-          <GlassCard className="space-y-5 p-5 md:p-6">
-            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/80">Produktmoment</p>
-                <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">Dein Alpivo Match ist da</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                  Top-Match zuerst, danach die besten Alternativen. Kosten, Fahrzeit, Wetter/Vibe-Signale und Haken bleiben sichtbar.
-                </p>
-              </div>
-              <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="/quiz">
-                Match feinjustieren
-              </Link>
-            </div>
-
-            <ResortDecisionCard
-              resort={sorted[0]}
-              peopleCount={peopleCount}
-              distanceKm={sorted[0].distanceKm}
-              driveHours={sorted[0].driveHours}
-              routeSource={sorted[0].routeSource}
-              origin={geo.location}
-            />
-
-            {sorted.length > 1 ? (
-              <div>
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Top 2 und Top 3</div>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {sorted.slice(1, 3).map((resort) => (
-                    <ResortDecisionCard
-                      key={`preview-${resort.id}`}
-                      resort={resort}
-                      peopleCount={peopleCount}
-                      distanceKm={resort.distanceKm}
-                      driveHours={resort.driveHours}
-                      routeSource={resort.routeSource}
-                      origin={geo.location}
-                      compact
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </GlassCard>
         ) : null}
 

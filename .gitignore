@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+/dist/
 
 # production
 /build
@@ -46,6 +47,7 @@ resorts_link_overrides.csv
 
 # vercel
 .vercel
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo
@@ -63,4 +65,3 @@ tmp*.log
 # local backups
 _backup_before_full_access/
 *_backup_before_full_access/
-supabase/.temp/

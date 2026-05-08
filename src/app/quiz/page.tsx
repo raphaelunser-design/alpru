@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
@@ -109,6 +110,10 @@ const exclusionCountryOptions = ["Frankreich", "Schweiz", "Österreich", "Italie
 
 const tripProfiles: Array<{
   id: TripStyle;
+  displayTitle: string;
+  displaySubtitle: string;
+  image: string;
+  badge: string;
   title: string;
   subtitle: string;
   tags: string[];
@@ -117,6 +122,10 @@ const tripProfiles: Array<{
 }> = [
   {
     id: "budget",
+    displayTitle: "Individuell",
+    displaySubtitle: "Entscheidet selbst, was zählt. Alpivo hält Budget, Anreise und Vibe sauber zusammen.",
+    image: "/bg/skilandschaft.png",
+    badge: "Flexibel",
     title: "Smart Budget",
     subtitle: "Viel Skitag pro Euro, gute Value-Signale, kein Luxus-Fokus.",
     tags: ["Value", "kurz", "clever"],
@@ -138,6 +147,10 @@ const tripProfiles: Array<{
   },
   {
     id: "apres",
+    displayTitle: "Freunde-Trip",
+    displaySubtitle: "Gemeinsame Zeit, gute Vibes und unvergessliche Abende.",
+    image: "/bg/banner-bild-4k.png",
+    badge: "Crew",
     title: "Après & Crew",
     subtitle: "Energie, Hütten, Gruppen-Vibe und genug Pisten für ein Wochenende.",
     tags: ["Party", "Gruppe", "Hütten"],
@@ -161,6 +174,10 @@ const tripProfiles: Array<{
   },
   {
     id: "family",
+    displayTitle: "Familien-Trip",
+    displaySubtitle: "Spaß für Groß und Klein, sicher und entspannt.",
+    image: "/bg/site-hero.jpg",
+    badge: "Ruhig",
     title: "Family Calm",
     subtitle: "Einfachere Pisten, weniger Stress, gute Infrastruktur und planbare Kosten.",
     tags: ["Familie", "easy", "ruhiger"],
@@ -183,6 +200,10 @@ const tripProfiles: Array<{
   },
   {
     id: "sport",
+    displayTitle: "Ski & Sport Club",
+    displaySubtitle: "Gemeinsame Leidenschaft, Wettkampf und Natur.",
+    image: "/images/ski.jpg",
+    badge: "Sport",
     title: "Big Mountain",
     subtitle: "Mehr Pisten, sportliches Profil, moderne Lifte und Höhenlage.",
     tags: ["sportlich", "groß", "schnell"],
@@ -205,6 +226,10 @@ const tripProfiles: Array<{
   },
   {
     id: "premium",
+    displayTitle: "Firmenausflug",
+    displaySubtitle: "Teamgefühl stärken, gemeinsam erleben.",
+    image: "/bg/site-hero.jpg",
+    badge: "Team",
     title: "Premium Alpine",
     subtitle: "Panorama, starke Infrastruktur, Hütten und schneesichere Höhenlage.",
     tags: ["premium", "panorama", "komfort"],
@@ -227,6 +252,10 @@ const tripProfiles: Array<{
   },
   {
     id: "quiet",
+    displayTitle: "Paar-Retreat",
+    displaySubtitle: "Zeit zu zweit, Erholung und besondere Momente.",
+    image: "/bg/site-hero.jpg",
+    badge: "Ruhig",
     title: "Quiet Escape",
     subtitle: "Ruhiger Alpen-Vibe, schöne Lage und weniger Trubel.",
     tags: ["ruhig", "paar", "natur"],
@@ -251,6 +280,10 @@ const tripProfiles: Array<{
   },
   {
     id: "glacier",
+    displayTitle: "Premium Alpine",
+    displaySubtitle: "Panorama, Höhenlage und schneesichere Signale.",
+    image: "/bg/skilandschaft.png",
+    badge: "Schnee",
     title: "Summer Glacier",
     subtitle: "Hohe Lage, Gletscher-Signale und Resorts, bei denen Sommer-Ski realistischer ist.",
     tags: ["Gletscher", "Sommer", "Schnee"],
@@ -274,6 +307,10 @@ const tripProfiles: Array<{
   },
   {
     id: "offpiste",
+    displayTitle: "Off-Piste Finder",
+    displaySubtitle: "Höhenlage, sportliches Gelände und weniger Andrang.",
+    image: "/images/ski.jpg",
+    badge: "Freeride",
     title: "Off-Piste Finder",
     subtitle: "Höhenlage, sportliches Gelände, Schnee und weniger Andrang für Fahrer abseits der Standardpiste.",
     tags: ["freeride", "sportlich", "schnee"],
@@ -809,6 +846,21 @@ export default function QuizPage() {
   );
 
   const activeProfile = tripProfiles.find((profile) => profile.id === prefs.tripStyle);
+  const activeProfileLabel = activeProfile?.displayTitle ?? activeProfile?.title ?? "Individuell";
+  const topPriorities = useMemo(
+    () =>
+      [
+        ["Après-Ski & Events", Math.max(prefs.apres, prefs.huts, prefs.partyPreference === "festival_event" ? 5 : 0)],
+        ["Pistenvielfalt", Math.max(prefs.challenging, prefs.easyRuns, prefs.infrastructure)],
+        ["Schneesicherheit", Math.max(prefs.snowReliability, prefs.summerGlacier)],
+        ["Ruhe & Komfort", Math.max(prefs.emptySlopes, prefs.panorama)],
+        ["Preis-Leistung", prefs.valueForMoney],
+      ]
+        .sort(([, a], [, b]) => Number(b) - Number(a))
+        .slice(0, 3)
+        .map(([label]) => label),
+    [prefs]
+  );
 
   return (
     <div className="space-y-8">
@@ -823,79 +875,81 @@ export default function QuizPage() {
       </BackgroundHero>
 
       <Section className="space-y-6 pb-32 md:pb-10">
-        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 rounded-[1.35rem] border border-white/18 bg-white p-2 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.12)] sm:grid-cols-4">
           {[
             ["1", "Profil"],
-            ["2", "Grenzen"],
-            ["3", "Budget"],
-            ["4", "Profi"],
+            ["2", "Prioritäten"],
+            ["3", "Details"],
+            ["4", "Ergebnisse"],
           ].map(([step, label]) => (
-            <div key={step} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/34 px-2.5 py-2">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-200 text-xs font-bold text-slate-950">{step}</span>
-              <span className="truncate text-sm font-semibold text-white">{label}</span>
+            <div key={step} className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 ${step === "1" ? "bg-sky-50 text-sky-800" : "bg-slate-50 text-slate-500"}`}>
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-extrabold ${step === "1" ? "bg-sky-600 text-white" : "bg-white text-slate-500"}`}>{step}</span>
+              <span className="truncate text-sm font-extrabold">{label}</span>
             </div>
           ))}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-        <GlassCard className="interactive-card p-6">
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.16)] md:p-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Schritt 1</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Wähle euren Ski-Trip-Typ</h2>
-              <p className="mt-2 max-w-[19.5rem] text-sm leading-6 text-slate-300 sm:max-w-2xl">
-                Ein Profil reicht. Budget, Personen und Datum machen den Match konkret.
+              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Alpivo Match Wizard</p>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.01em] text-slate-950">Wer plant den Ski-Trip?</h2>
+              <p className="mt-2 max-w-[19.5rem] text-sm leading-6 text-slate-600 sm:max-w-2xl">
+                Wählt euer Profil – wir passen den Match danach an.
               </p>
             </div>
-            <div className="rounded-lg border border-sky-200/20 bg-sky-200/10 px-4 py-3 text-sm text-sky-50">
-              Aktiv: {activeProfile?.title ?? "Balanced"}
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-extrabold text-sky-900">
+              Aktiv: {activeProfileLabel}
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {tripProfiles.map((profile) => {
               const active = prefs.tripStyle === profile.id;
               return (
                 <button
                   key={profile.id}
-                  className={`min-w-0 rounded-2xl border p-4 text-left transition ${
+                  className={`group min-w-0 overflow-hidden rounded-[1.1rem] border bg-white text-left shadow-sm transition ${
                     active
-                      ? "border-sky-100 bg-sky-200 text-slate-950 shadow-[0_22px_52px_rgba(125,211,252,0.24)]"
-                      : "border-white/10 bg-white/[0.055] text-white hover:-translate-y-0.5 hover:border-sky-200/30 hover:bg-white/10"
+                      ? "border-sky-500 ring-4 ring-sky-100"
+                      : "border-slate-200 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_22px_60px_rgba(14,165,233,0.12)]"
                   }`}
                   onClick={() => applyTripProfile(profile)}
                 >
-                  <div
-                    className={`grid h-11 w-11 place-items-center rounded-2xl border ${
-                      active ? "border-slate-950/10 bg-white/70 text-slate-950" : "border-sky-200/20 bg-sky-200/10 text-sky-100"
-                    }`}
-                  >
-                    <ProfileIcon profile={profile.id} />
+                  <div className="relative h-32 overflow-hidden">
+                    <Image src={profile.image} alt="" fill sizes="(min-width: 1280px) 260px, (min-width: 768px) 42vw, 92vw" className="object-cover transition duration-300 group-hover:scale-[1.04]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/12 to-transparent" />
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-700 shadow-sm">
+                      {profile.badge}
+                    </span>
+                    <span className={`absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full ${active ? "bg-sky-600 text-white" : "bg-white/90 text-slate-700"}`}>
+                      {active ? (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="m5 13 4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <ProfileIcon profile={profile.id} />
+                      )}
+                    </span>
                   </div>
-                  <div className={`mt-4 break-words text-base font-semibold ${active ? "text-slate-950" : "text-white"}`}>
-                    {profile.title}
-                  </div>
-                  <p className={`mt-2 max-w-full break-words text-sm leading-6 ${active ? "text-slate-700" : "text-slate-300"}`}>
-                    {profile.subtitle}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {profile.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                          active ? "border-slate-950/10 bg-white/55 text-slate-800" : "border-white/10 bg-white/10 text-slate-200"
-                        }`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                  <div className="p-4">
+                    <div className="break-words text-base font-extrabold text-slate-950">{profile.displayTitle}</div>
+                    <p className="mt-2 max-w-full break-words text-sm leading-6 text-slate-600">{profile.displaySubtitle}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {profile.tags.map((tag) => (
+                        <span key={tag} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </button>
               );
             })}
           </div>
-        </GlassCard>
+        </section>
 
         <GlassCard className="interactive-card p-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -1425,7 +1479,7 @@ export default function QuizPage() {
           <div>
             <div className="text-sm font-semibold text-white">Bereit für die Ergebnisliste</div>
             <div className="mt-1 text-xs text-slate-400">
-              {activeProfile?.title ?? "Balanced"} · {prefs.peopleCount} Personen · {rangeSummary}
+              {activeProfileLabel} · {prefs.peopleCount} Personen · {rangeSummary}
             </div>
           </div>
           <button
@@ -1443,38 +1497,44 @@ export default function QuizPage() {
 
           <aside className="hidden xl:block">
             <div className="sticky top-28 space-y-4">
-              <GlassCard className="p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Live Summary</p>
-                <h2 className="mt-2 text-xl font-semibold text-white">{activeProfile?.title ?? "Balanced"}</h2>
-                <div className="mt-4 grid gap-2 text-sm text-slate-300">
-                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+              <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.13)]">
+                <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Eure Auswahl (Live)</p>
+                <h2 className="mt-2 text-xl font-extrabold text-slate-950">{activeProfileLabel}</h2>
+                <div className="mt-4 grid gap-2 text-sm text-slate-600">
+                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span>Zeitraum</span>
-                    <span className="text-right font-semibold text-white">{rangeSummary}</span>
+                    <span className="text-right font-extrabold text-slate-950">{rangeSummary}</span>
                   </div>
-                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span>Abfahrt</span>
+                    <span className="font-extrabold text-slate-950">München</span>
+                  </div>
+                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span>Budget</span>
-                    <span className="font-semibold text-white">{prefs.budgetMin}-{prefs.budgetMax} EUR</span>
+                    <span className="font-extrabold text-slate-950">€ {prefs.budgetMin} – € {prefs.budgetMax}</span>
                   </div>
-                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span>Gruppe</span>
-                    <span className="font-semibold text-white">{prefs.peopleCount} Personen</span>
+                    <span className="font-extrabold text-slate-950">{prefs.peopleCount} Personen</span>
                   </div>
-                  <div className="flex justify-between rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
-                    <span>Anreise</span>
-                    <span className="font-semibold text-white">
-                      {prefs.travelMode === "car" ? "Auto" : prefs.travelMode === "train" ? "Zug" : prefs.travelMode === "bus" ? "Bus" : "Flug"}
-                    </span>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span className="font-semibold text-slate-500">Prioritäten Top 3</span>
+                    <ol className="mt-2 space-y-1 text-xs font-bold text-slate-900">
+                      {topPriorities.map((priority, index) => (
+                        <li key={priority}>{index + 1}. {priority}</li>
+                      ))}
+                    </ol>
                   </div>
                 </div>
                 <button
-                  className="button-lift mt-4 w-full rounded-xl bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
+                  className="button-lift mt-4 w-full rounded-xl bg-sky-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-70"
                   disabled={submitting}
                   onClick={onSubmit}
                 >
                   {submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen"}
                 </button>
                 {submitError ? <div className="mt-3 text-sm leading-6 text-amber-100">{submitError}</div> : null}
-              </GlassCard>
+              </div>
             </div>
           </aside>
         </div>
@@ -1482,7 +1542,7 @@ export default function QuizPage() {
         <div className="sticky bottom-24 z-30 rounded-2xl border border-sky-200/25 bg-slate-950/90 p-3 shadow-[0_18px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl md:hidden">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-white">{activeProfile?.title ?? "Balanced"}</div>
+              <div className="truncate text-sm font-semibold text-white">{activeProfileLabel}</div>
               <div className="mt-0.5 truncate text-xs text-slate-400">
                 {prefs.peopleCount} Personen · {prefs.budgetMin}-{prefs.budgetMax} EUR · {rangeSummary}
               </div>

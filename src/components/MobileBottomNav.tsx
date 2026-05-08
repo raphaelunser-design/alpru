@@ -17,6 +17,8 @@ export default function MobileBottomNav() {
   const pathname = usePathname();
   const locale = useClientLocale();
 
+  if (pathname === "/") return null;
+
   return (
     <nav
       className="fixed bottom-3 left-3 z-40 grid w-[366px] max-w-[calc(100vw-1.5rem)] grid-cols-[repeat(5,minmax(0,1fr))] overflow-hidden rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-[0_18px_60px_rgba(2,6,23,0.5)] backdrop-blur-xl md:hidden"

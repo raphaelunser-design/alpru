@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
@@ -7,9 +8,9 @@ import GlassCard from "@/components/GlassCard";
 import ResortDecisionCard from "@/components/ResortDecisionCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
-import { deriveResortDecision, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
+import { deriveResortDecision, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { useSiteContent } from "@/lib/useSiteContent";
 
 type Resort = ResortSignalRow;
@@ -19,13 +20,19 @@ const PAGE_SIZE = 60;
 
 const styleOptions = [
   { value: "all", label: "Alle" },
-  { value: "budget", label: "Günstig" },
+  { value: "budget", label: "Preis-Leistung" },
   { value: "premium", label: "Premium" },
   { value: "apres", label: "Après-Ski" },
-  { value: "festival", label: "Festival" },
+  { value: "festival", label: "Events" },
   { value: "quiet", label: "Ruhig" },
   { value: "snow", label: "Schneesicher" },
   { value: "glacier", label: "Gletscher" },
+];
+
+const viewOptions = [
+  { label: "Empfohlen", href: "/resorts", active: true },
+  { label: "Karte", href: "/map", active: false },
+  { label: "Vergleichen", href: "/trips/demo-trip-crew/compare", active: false },
 ];
 
 const libraryPrefs: MatchPreferences = {
@@ -65,14 +72,14 @@ const number = new Intl.NumberFormat("de-DE");
 
 function SkeletonCard() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 shadow-[0_18px_54px_rgba(2,6,23,0.22)]">
-      <div className="h-[168px] animate-pulse bg-white/10" />
+    <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-slate-950/58 shadow-[0_22px_70px_rgba(2,6,23,0.26)]">
+      <div className="h-[230px] animate-pulse bg-white/10" />
       <div className="space-y-3 p-4">
         <div className="h-5 w-2/3 animate-pulse rounded bg-white/10" />
-        <div className="h-20 animate-pulse rounded-lg bg-white/10" />
+        <div className="h-24 animate-pulse rounded-2xl bg-white/10" />
         <div className="grid grid-cols-2 gap-2">
-          <div className="h-14 animate-pulse rounded-lg bg-white/10" />
-          <div className="h-14 animate-pulse rounded-lg bg-white/10" />
+          <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+          <div className="h-14 animate-pulse rounded-xl bg-white/10" />
         </div>
       </div>
     </div>
@@ -80,9 +87,10 @@ function SkeletonCard() {
 }
 
 export default function ResortsPage() {
+  const reduceMotion = useReducedMotion();
   const { value: heroContent } = useSiteContent("resorts", {
-    title: "Alpen-Resorts ruhig vergleichen",
-    subtitle: "Suche nach Stil, Schnee, Budget und Vibe.",
+    title: "Resorts, die wirklich zu deinem Trip passen",
+    subtitle: "Vergleiche Skiorte nach Schnee, Terrain, Anreise, Budget und Vibe.",
     heroImage: "/bg/banner-bild-4k.png",
   });
   const [resorts, setResorts] = useState<Resort[]>([]);
@@ -137,6 +145,7 @@ export default function ResortsPage() {
         setLoading(false);
       }
     }
+
     load();
   }, []);
 
@@ -157,8 +166,8 @@ export default function ResortsPage() {
 
   const countries = useMemo(() => {
     const unique = new Set<string>();
-    resorts.forEach((r) => {
-      if (r.country) unique.add(r.country);
+    resorts.forEach((resort) => {
+      if (resort.country) unique.add(resort.country);
     });
     return ["all", ...Array.from(unique).sort((a, b) => a.localeCompare(b, "de-DE"))];
   }, [resorts]);
@@ -173,31 +182,31 @@ export default function ResortsPage() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return decisions.filter((r) => {
-      if (countryFilter !== "all" && r.country !== countryFilter) return false;
-      if (styleFilter === "budget" && r.budgetClass !== "budget") return false;
-      if (styleFilter === "premium" && r.budgetClass !== "premium") return false;
-      if (styleFilter === "apres" && (r.apresScore ?? 0) < 0.65) return false;
-      if (styleFilter === "festival" && !((r.eventBadges?.length ?? 0) > 0 || (r.festivalFitScore ?? 0) >= 0.66)) return false;
-      if (styleFilter === "quiet" && (r.crowdScore == null || 1 - r.crowdScore < 0.6)) return false;
-      if (styleFilter === "snow" && r.snowReliability < 0.62) return false;
-      if (styleFilter === "glacier" && r.summerGlacierScore < 0.58) return false;
+    return decisions.filter((resort) => {
+      if (countryFilter !== "all" && resort.country !== countryFilter) return false;
+      if (styleFilter === "budget" && resort.budgetClass !== "budget") return false;
+      if (styleFilter === "premium" && resort.budgetClass !== "premium") return false;
+      if (styleFilter === "apres" && (resort.apresScore ?? 0) < 0.65) return false;
+      if (styleFilter === "festival" && !((resort.eventBadges?.length ?? 0) > 0 || (resort.festivalFitScore ?? 0) >= 0.66)) return false;
+      if (styleFilter === "quiet" && (resort.crowdScore == null || 1 - resort.crowdScore < 0.6)) return false;
+      if (styleFilter === "snow" && resort.snowReliability < 0.62) return false;
+      if (styleFilter === "glacier" && resort.summerGlacierScore < 0.58) return false;
       if (!needle) return true;
-      const haystack = `${r.name} ${r.country} ${r.region ?? ""} ${r.vibeTags.map((tag) => tag.label).join(" ")} ${(r.eventBadges ?? []).join(" ")} ${(r.events ?? []).map((event) => event.name).join(" ")}`.toLowerCase();
+
+      const haystack = `${resort.name} ${resort.country} ${resort.region ?? ""} ${resort.vibeTags
+        .map((tag) => tag.label)
+        .join(" ")} ${(resort.eventBadges ?? []).join(" ")} ${(resort.events ?? []).map((event) => event.name).join(" ")}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [decisions, query, countryFilter, styleFilter]);
 
   const visibleResorts = filtered.slice(0, visibleCount);
   const selectedStyle = styleOptions.find((option) => option.value === styleFilter)?.label ?? "Alle";
-  const activeFilterText = [
-    countryFilter === "all" ? null : countryFilter,
-    styleFilter === "all" ? null : selectedStyle,
-    query.trim() ? `"${query.trim()}"` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
+  const activeFilterChips = [
+    countryFilter === "all" ? null : { key: "country", label: countryFilter },
+    styleFilter === "all" ? null : { key: "style", label: selectedStyle },
+    query.trim() ? { key: "query", label: query.trim() } : null,
+  ].filter((chip): chip is { key: string; label: string } => Boolean(chip));
   const filteredOutCount = Math.max(0, decisions.length - filtered.length);
   const filteredOutReasons = [
     countryFilter === "all" ? null : "Landfilter",
@@ -207,48 +216,111 @@ export default function ResortsPage() {
     .filter(Boolean)
     .join(", ");
   const totalLabel = number.format(totalResorts || resorts.length);
+  const resetFilters = () => {
+    setQuery("");
+    setCountryFilter("all");
+    setStyleFilter("all");
+  };
 
   return (
     <div className="space-y-8">
-      <BackgroundHero imageSrc={heroContent.heroImage} heightClass="min-h-[340px]" imagePosition="center 48%">
-        <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Resort-Bibliothek</p>
-            <h1 className="mt-4 max-w-[13ch] break-words text-3xl font-semibold leading-tight text-white sm:max-w-2xl md:text-5xl">
+      <BackgroundHero imageSrc={heroContent.heroImage} heightClass="min-h-[460px]" imagePosition="center 48%">
+        <motion.div
+          className="mx-auto grid min-h-[430px] w-full max-w-6xl items-end gap-6 px-4 pb-10 pt-16 md:px-6 lg:grid-cols-[1fr_0.72fr]"
+          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-100/74">Resort View</p>
+            <h1 className="mt-4 max-w-[14ch] break-words text-4xl font-extrabold leading-tight text-white sm:max-w-3xl md:text-6xl">
               {heroContent.title}
             </h1>
-            <p className="mt-3 max-w-[36rem] text-sm leading-relaxed text-white/78 md:text-base">{heroContent.subtitle}</p>
+            <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-white/82 md:text-lg">{heroContent.subtitle}</p>
           </div>
-        </div>
+          <div className="rounded-[1.35rem] border border-white/16 bg-slate-950/56 p-4 text-sm text-slate-200 shadow-[0_24px_70px_rgba(2,6,23,0.28)] backdrop-blur-2xl">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100/70">Aktueller Index</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white/[0.07] p-3">
+                <div className="text-2xl font-extrabold text-white">{loading ? "..." : number.format(filtered.length)}</div>
+                <div className="mt-1 text-xs text-slate-400">Treffer</div>
+              </div>
+              <div className="rounded-2xl bg-white/[0.07] p-3">
+                <div className="text-2xl font-extrabold text-white">8</div>
+                <div className="mt-1 text-xs text-slate-400">Signale</div>
+              </div>
+              <div className="rounded-2xl bg-white/[0.07] p-3">
+                <div className="text-2xl font-extrabold text-white">3</div>
+                <div className="mt-1 text-xs text-slate-400">Ansichten</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </BackgroundHero>
 
       <Section className="space-y-6">
         <GlassCard className="p-5 md:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Suche</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Wenige Filter, klare Treffer</h2>
-              <p className="mt-2 max-w-[19.5rem] text-sm leading-relaxed text-slate-300 sm:max-w-2xl">
-                Starte breit. Die besten Treffer stehen oben, weitere Resorts bleiben einklappbar.
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-sky-100/62">Best Matches</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-white md:text-3xl">Empfohlene Resorts</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Sortiert nach Alpivo-Fit. Jede Karte zeigt Gründe, Haken und die wichtigsten Fakten zuerst.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="/map">
-                Karte öffnen
-              </Link>
-              <Link className="rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" href="/quiz">
-                Match starten
-              </Link>
-            </div>
+
+            <nav className="inline-flex w-full overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-1 sm:w-auto" aria-label="Resort Ansicht wechseln">
+              {viewOptions.map((option) =>
+                option.active ? (
+                  <span key={option.label} className="flex-1 rounded-xl bg-sky-200 px-4 py-2 text-center text-sm font-extrabold text-slate-950 sm:flex-none">
+                    {option.label}
+                  </span>
+                ) : (
+                  <Link
+                    key={option.label}
+                    href={option.href}
+                    className="flex-1 rounded-xl px-4 py-2 text-center text-sm font-semibold text-slate-200 transition hover:bg-white/10 hover:text-white sm:flex-none"
+                  >
+                    {option.label}
+                  </Link>
+                )
+              )}
+            </nav>
           </div>
 
-          <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(180px,0.7fr)]">
-            <input
-              className="rounded-lg border border-white/10 bg-slate-950/42 px-4 py-3 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none placeholder:text-slate-500 focus:border-sky-200/45 focus:ring-2 focus:ring-sky-200/20"
-              placeholder="Resort, Region, Land oder Stimmung suchen"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+          <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-slate-300">
+            <span className="font-semibold text-white">
+              {loading ? "Resortdaten werden kuratiert" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
+            </span>
+            {!loading && usingFallback ? <span className="rounded-full border border-amber-200/22 bg-amber-200/10 px-2.5 py-1 text-xs text-amber-50">Fallback-Daten</span> : null}
+            {activeFilterChips.length > 0 ? (
+              <>
+                {activeFilterChips.map((chip) => (
+                  <span key={chip.key} className="rounded-full border border-white/12 bg-white/[0.07] px-2.5 py-1 text-xs text-slate-100">
+                    {chip.label}
+                  </span>
+                ))}
+                <button type="button" onClick={resetFilters} className="rounded-full px-2.5 py-1 text-xs font-semibold text-sky-100 hover:bg-sky-200/10">
+                  Zurücksetzen
+                </button>
+              </>
+            ) : (
+              <span className="rounded-full border border-white/12 bg-white/[0.06] px-2.5 py-1 text-xs text-slate-400">Keine aktiven Filter</span>
+            )}
+          </div>
+        </GlassCard>
+
+        <GlassCard className="z-20 p-4 md:p-5 lg:sticky lg:top-24">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(180px,0.55fr)]">
+            <label className="block">
+              <span className="sr-only">Resort, Region, Land oder Stimmung suchen</span>
+              <input
+                className="min-h-12 w-full rounded-xl border border-white/10 bg-slate-950/42 px-4 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none placeholder:text-slate-500 focus:border-sky-200/45 focus:ring-2 focus:ring-sky-200/20"
+                placeholder="Resort, Region, Land oder Stimmung suchen"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
             <SelectControl
               value={countryFilter}
               ariaLabel="Land filtern"
@@ -267,7 +339,7 @@ export default function ResortsPage() {
                 <button
                   key={option.value}
                   type="button"
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
                     active
                       ? "border-sky-200 bg-sky-200 text-slate-950"
                       : "border-white/12 bg-white/[0.045] text-slate-200 hover:border-sky-200/30 hover:bg-sky-200/10"
@@ -281,35 +353,21 @@ export default function ResortsPage() {
           </div>
         </GlassCard>
 
-        <div className="flex flex-col justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-slate-300 md:flex-row md:items-center">
-          <div>
-            <span className="font-semibold text-white">
-              {loading ? "Resortdaten werden kuratiert" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
-            </span>
-            {!loading && usingFallback ? <span className="text-amber-100"> · Fallback-Daten</span> : null}
-            {!loading && filteredOutCount > 0 ? (
-              <div className="mt-1 text-xs text-slate-500">
-                {number.format(filteredOutCount)} Resorts ausgefiltert durch {filteredOutReasons || "aktive Filter"}.
-              </div>
-            ) : null}
-            {!loading && activeFilterText ? <span className="text-slate-400"> · Filter: {activeFilterText}</span> : null}
+        {!loading && filteredOutCount > 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-slate-300">
+            {number.format(filteredOutCount)} Resorts ausgefiltert durch {filteredOutReasons || "aktive Filter"}.
           </div>
-          {!loading && filtered.length > 0 ? (
-            <div className="text-slate-400">
-              Zeige {number.format(visibleResorts.length)} von {number.format(filtered.length)}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
         {error ? (
-          <GlassCard className="p-6 text-sm text-amber-100">
+          <GlassCard className="p-5 text-sm leading-6 text-amber-100">
             Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Demo-Resorts. Technischer Hinweis: {error}
           </GlassCard>
         ) : null}
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {loading
-            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+            ? Array.from({ length: 6 }).map((_, index) => <SkeletonCard key={`skeleton-${index}`} />)
             : visibleResorts.map((resort) => <ResortDecisionCard key={resort.id} resort={resort} compact />)}
         </div>
 
@@ -317,7 +375,7 @@ export default function ResortsPage() {
           <div className="flex justify-center">
             <button
               type="button"
-              className="button-lift rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              className="button-lift rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
               onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
             >
               Weitere {number.format(Math.min(PAGE_SIZE, filtered.length - visibleResorts.length))} Resorts anzeigen
@@ -332,15 +390,7 @@ export default function ResortsPage() {
               Zu deiner Suche passen aktuell keine Resorts. Setze Filter zurück oder starte einen Match mit neutralem Profil.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
-                onClick={() => {
-                  setQuery("");
-                  setCountryFilter("all");
-                  setStyleFilter("all");
-                }}
-              >
+              <button type="button" className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" onClick={resetFilters}>
                 Filter zurücksetzen
               </button>
               <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="/quiz">
@@ -353,4 +403,3 @@ export default function ResortsPage() {
     </div>
   );
 }
-

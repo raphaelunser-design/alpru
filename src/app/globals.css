@@ -185,6 +185,19 @@ h4 {
   animation: heroDrift 24s ease-in-out infinite alternate;
 }
 
+.hero-fog {
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  opacity: 0.2;
+  filter: blur(18px);
+  background:
+    radial-gradient(circle at 18% 42%, rgba(255, 255, 255, 0.28), transparent 30%),
+    radial-gradient(circle at 68% 28%, rgba(186, 230, 253, 0.16), transparent 28%),
+    radial-gradient(circle at 52% 72%, rgba(125, 211, 252, 0.14), transparent 32%);
+  animation: alpivoFogDrift 22s ease-in-out infinite alternate;
+}
+
 .hero-content {
   animation: heroContentIn 520ms ease both;
 }
@@ -231,6 +244,16 @@ h4 {
   }
 }
 
+@keyframes alpivoFogDrift {
+  from {
+    transform: translate3d(-2%, 1%, 0) scale(1.02);
+  }
+
+  to {
+    transform: translate3d(2%, -1%, 0) scale(1.06);
+  }
+}
+
 @keyframes riseIn {
   from {
     opacity: 0;
@@ -251,6 +274,7 @@ h4 {
   }
 
   .hero-media,
+  .hero-fog,
   .hero-content,
   .animate-rise,
   .stagger-children > *,

@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import RoutePreview from "@/components/RoutePreview";
@@ -140,6 +141,29 @@ function fitPercent(value: number | null | undefined) {
   return Math.max(0, Math.min(100, Math.round(safe * 100)));
 }
 
+function signalQualityLabel(value: number | null | undefined) {
+  const safe = safeNumber(value);
+  if (safe === null) return "offen";
+  if (safe >= 0.72) return "sehr gut";
+  if (safe >= 0.58) return "gut";
+  if (safe >= 0.44) return "solide";
+  return "saisonal";
+}
+
+function apresEnergyLabel(value: number | null | undefined) {
+  const safe = safeNumber(value);
+  if (safe === null) return "offen";
+  if (safe >= 0.76) return "lebendig";
+  if (safe >= 0.58) return "ausgewogen";
+  return "ruhig";
+}
+
+function scoreToneClass(match: number) {
+  if (match >= 78) return "from-emerald-300 to-sky-200 text-slate-950";
+  if (match >= 62) return "from-sky-200 to-cyan-100 text-slate-950";
+  return "from-white/90 to-slate-200 text-slate-950";
+}
+
 function pickSignal(value: number | null | undefined, fallback?: number | null) {
   const safe = safeNumber(value);
   if (safe !== null) return safe;
@@ -205,6 +229,7 @@ export default function ResortDecisionCard({
   compact = false,
 }: ResortDecisionCardProps) {
   const [showRoute, setShowRoute] = useState(false);
+  const reduceMotion = useReducedMotion();
   const cost = (resort.cost || {}) as Partial<CostEstimate>;
   const algorithmCosts = resort.estimatedCosts || (resort.alpivoScore && resort.alpivoScore.estimatedCosts) || null;
   const image = (resort.imageUrl || "").trim() || fallbackImage;
@@ -255,8 +280,8 @@ export default function ResortDecisionCard({
       : typeof distanceKm === "number"
         ? `${number.format(Math.round(distanceKm))} km`
         : "-";
-  const compactReasons = reasons.slice(0, compact ? 1 : 3);
-  const primaryVibeTags = vibeTags.slice(0, compact ? 2 : 3);
+  const compactReasons = reasons.slice(0, compact ? 2 : 3);
+  const primaryVibeTags = vibeTags.slice(0, compact ? 3 : 3);
   const eventBadges = resort.eventBadges?.slice(0, compact ? 2 : 4) ?? [];
   const layoutClass = compact ? "grid" : "grid lg:grid-cols-[minmax(230px,0.34fr)_1fr]";
   const imageClass = compact
@@ -281,6 +306,91 @@ export default function ResortDecisionCard({
     `Leihmaterial: ${qualityLabel(costQuality?.rental)}`,
     `Extras: ${qualityLabel(costQuality?.extras)}`,
   ];
+
+  if (compact) {
+    return (
+      <motion.article
+        className="group overflow-hidden rounded-[1.35rem] border border-white/12 bg-slate-950/62 shadow-[0_26px_80px_rgba(2,6,23,0.30)] backdrop-blur-xl"
+        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+        whileInView={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.18 }}
+        whileHover={reduceMotion ? undefined : { y: -4 }}
+        whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+      >
+        <Link
+          href={`/resort/${encodeURIComponent(resort.slug)}`}
+          className="relative block min-h-[230px] overflow-hidden"
+          aria-label={`${resort.name} öffnen`}
+        >
+          <div
+            className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-[1.035]"
+            style={{ backgroundImage: `${cssImage(image)}` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/42 to-slate-950/0" />
+          <div className="absolute left-4 top-4 rounded-2xl border border-white/20 bg-slate-950/62 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
+            <div className={`rounded-xl bg-gradient-to-br px-3 py-2 text-center ${scoreToneClass(match)}`}>
+              <div className="text-2xl font-extrabold leading-none">{match}%</div>
+              <div className="mt-1 text-[10px] font-black uppercase tracking-[0.12em]">Match</div>
+            </div>
+          </div>
+          <div className="absolute bottom-4 left-4 right-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-100/72">{location || resort.country}</div>
+            <h3 className="mt-1 text-2xl font-extrabold leading-tight text-white drop-shadow-lg">{resort.name}</h3>
+          </div>
+        </Link>
+
+        <div className="space-y-4 p-4">
+          <div className="flex flex-wrap gap-2">
+            {primaryVibeTags.map((tag) => (
+              <span key={tag.label} className={`rounded-full border px-2.5 py-1 text-[11px] ${vibeClass(tag)}`}>
+                {tag.label}
+              </span>
+            ))}
+            {resort.tripStyleHint ? (
+              <span className="rounded-full border border-white/12 bg-white/[0.07] px-2.5 py-1 text-[11px] text-slate-100">
+                {resort.tripStyleHint}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-sky-200/16 bg-sky-200/[0.07] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-sky-100/75">Warum es passt</div>
+              <div className="rounded-full border border-sky-100/18 px-2 py-1 text-[11px] text-sky-50">
+                {strongest.label} {fitPercent(strongest.value)}%
+              </div>
+            </div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-100">
+              {compactReasons.map((reason) => (
+                <li key={reason} className="flex gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-300" />
+                  <span>{reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Kosten p. P." value={formatCost(displayedCost)} />
+            <Stat label="Schnee" value={signalQualityLabel(resort.snowReliability)} />
+            <Stat label="Pisten" value={pisteKm ? `${number.format(pisteKm)} km` : "offen"} />
+            <Stat label="Après" value={apresEnergyLabel(resort.apresScore)} />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <p className="text-xs leading-5 text-slate-400">{nextCheck(resort)}</p>
+            <Link
+              className="button-lift shrink-0 rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white"
+              href={`/resort/${encodeURIComponent(resort.slug)}`}
+            >
+              Details ansehen
+            </Link>
+          </div>
+        </div>
+      </motion.article>
+    );
+  }
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-white/10 bg-slate-950/58 shadow-[0_24px_70px_rgba(2,6,23,0.28)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-200/30 hover:shadow-[0_26px_72px_rgba(56,189,248,0.14)]">

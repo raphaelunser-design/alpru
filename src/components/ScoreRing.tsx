@@ -11,9 +11,9 @@ type ScoreRingProps = {
 };
 
 const sizeMap = {
-  sm: { box: "h-20 w-20", text: "text-2xl", stroke: 7, radius: 32 },
-  md: { box: "h-28 w-28", text: "text-4xl", stroke: 8, radius: 44 },
-  lg: { box: "h-36 w-36", text: "text-5xl", stroke: 9, radius: 58 },
+  sm: { box: "h-20 w-20", text: "text-2xl", label: "text-[8px] tracking-[0.08em]", stroke: 7, radius: 32 },
+  md: { box: "h-28 w-28", text: "text-4xl", label: "text-[10px] tracking-[0.16em]", stroke: 8, radius: 44 },
+  lg: { box: "h-36 w-36", text: "text-5xl", label: "text-[10px] tracking-[0.16em]", stroke: 9, radius: 58 },
 };
 
 export default function ScoreRing({ value, label = "Match Score", size = "md", className = "" }: ScoreRingProps) {
@@ -65,7 +65,7 @@ export default function ScoreRing({ value, label = "Match Score", size = "md", c
       </svg>
       <div className="text-center">
         <div className={`${config.text} font-semibold leading-none text-white`}>{Math.round(safeValue)}</div>
-        <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-100/78">{label}</div>
+        <div className={`mt-1 font-bold uppercase text-sky-100/78 ${config.label}`}>{label}</div>
       </div>
     </div>
   );

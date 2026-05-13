@@ -7,6 +7,7 @@ import {
   type PartyPreference,
   type ResortEvent,
 } from "@/lib/resortEvents";
+import type { SkiCourseNeed } from "@/lib/skiCourses";
 import type { AlpivoScoreResult, ResortInput, UserPreferences } from "@/types/matching";
 
 export type BudgetStatus = "green" | "yellow" | "red";
@@ -49,6 +50,7 @@ export type MatchPreferences = Partial<{
   foodSpendLevel: "budget" | "standard" | "comfort";
   needRental: boolean;
   rentalMode: "own" | "rent";
+  skiCourseNeed: SkiCourseNeed;
   travelMode: "car" | "train" | "bus" | "flight";
   excludeCountries: string[];
   excludeGlacier: boolean;
@@ -1126,6 +1128,7 @@ function toAlpivoUserPreferences(prefs: MatchPreferences = {}): UserPreferences 
     wantsSnowpark: (prefs.snowpark ?? 0) >= 4,
     wantsFamilyFriendly: (prefs.family ?? 0) >= 4 || prefs.tripStyle === "family" || skillLevel === "beginner",
     needsRental: prefs.rentalMode === "rent" || Boolean(prefs.needRental),
+    skiCourseNeed: prefs.skiCourseNeed ?? "none",
     partyPreference,
     musicPreference: prefs.musicPreference ?? "any",
   };

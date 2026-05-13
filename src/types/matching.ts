@@ -1,4 +1,5 @@
 import type { MusicPreference, PartyPreference, ResortEvent } from "@/lib/resortEvents";
+import type { SkiCourseNeed } from "@/lib/skiCourses";
 
 export type TripType = "day_trip" | "weekend" | "multi_day" | "week";
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert" | "mixed";
@@ -45,6 +46,7 @@ export type UserPreferences = {
   wantsSnowpark?: boolean;
   wantsFamilyFriendly?: boolean;
   needsRental?: boolean;
+  skiCourseNeed?: SkiCourseNeed;
   partyPreference?: PartyPreference;
   musicPreference?: MusicPreference;
 };

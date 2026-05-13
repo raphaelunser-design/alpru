@@ -11,11 +11,13 @@ import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import PisteMapSection from "@/components/PisteMapSection";
 import ResortEventsSection from "@/components/ResortEventsSection";
+import ResortSkiCoursesSection from "@/components/ski-courses/ResortSkiCoursesSection";
 import ResortVibe from "@/components/ResortVibe";
 import Section from "@/components/Section";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
 import { deriveResortDecision, type MatchPreferences } from "@/lib/resortSignals";
 import type { ResortDetailResult, ResortDetailRow } from "@/lib/resortRepository";
+import type { SkiCourseBundle } from "@/lib/skiCourses";
 
 type Resort = ResortDetailRow;
 
@@ -396,6 +398,9 @@ export default function ResortDetail() {
   const [skipassPriceHint, setSkipassPriceHint] = useState("");
   const [apresSpots, setApresSpots] = useState<ApresSpot[]>([]);
   const [apresSpotHint, setApresSpotHint] = useState("");
+  const [skiCourseBundle, setSkiCourseBundle] = useState<SkiCourseBundle | null>(null);
+  const [skiCourseLoading, setSkiCourseLoading] = useState(false);
+  const [skiCourseHint, setSkiCourseHint] = useState("");
   const [storedOrigin, setStoredOrigin] = useState<StoredOrigin>(null);
   const [travelPrefs, setTravelPrefs] = useState<TravelPrefs>({
     travelMode: "car",
@@ -617,6 +622,44 @@ export default function ResortDetail() {
         if (!mounted) return;
         setSkipassPrices([]);
         setSkipassPriceHint(err.message);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) {
+      setSkiCourseBundle(null);
+      setSkiCourseHint("");
+      setSkiCourseLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setSkiCourseLoading(true);
+    setSkiCourseHint("");
+
+    fetch(`/api/resorts/${encodeURIComponent(slug)}/ski-courses`, { cache: "no-store" })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => null)) as (SkiCourseBundle & { error?: string }) | null;
+        if (!res.ok) throw new Error(body?.error ?? "Skikursdaten konnten nicht geladen werden.");
+        return body;
+      })
+      .then((data) => {
+        if (!mounted) return;
+        setSkiCourseBundle(data);
+        setSkiCourseHint(data?.hint ?? "");
+      })
+      .catch((err: Error) => {
+        if (!mounted) return;
+        setSkiCourseBundle(null);
+        setSkiCourseHint(err.message);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setSkiCourseLoading(false);
       });
 
     return () => {
@@ -1089,6 +1132,16 @@ export default function ResortDetail() {
           officialUrl={r.official_url}
           spots={apresSpots}
           hint={apresSpotHint}
+        />
+
+        <ResortSkiCoursesSection
+          resortName={r.name}
+          bundle={skiCourseBundle}
+          loading={skiCourseLoading}
+          hint={skiCourseHint}
+          officialUrl={r.official_url}
+          beginnerScore={r.beginner_score ?? null}
+          familyScore={decision.fitProfile.comfort ?? null}
         />
 
         <div id="anreise" className="scroll-mt-24">

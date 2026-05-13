@@ -34,6 +34,7 @@ yarn-error.log*
 # local audit artifacts
 /backups/
 /.codex-screens/
+/.superpowers/
 SUPABASETOKEN.txt
 SUPABASE_DB_PASSWORD.txt
 VERCELTOKEN.txt
@@ -65,3 +66,4 @@ tmp*.log
 # local backups
 _backup_before_full_access/
 *_backup_before_full_access/
+.env*.local

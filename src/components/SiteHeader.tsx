@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import AdminNavLink from "@/components/AdminNavLink";
 import GlobalSearch from "@/components/GlobalSearch";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
+
+const AdminNavLink = dynamic(() => import("@/components/AdminNavLink"), { ssr: false });
 
 const appLinks = [
   { href: "/quiz", label: "Match", primary: true },
@@ -24,6 +26,9 @@ const homeLinks = [
 export default function SiteHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const usesPremiumShell = ["/results", "/resorts"].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+  if (isHome || usesPremiumShell) return null;
 
   return (
     <header

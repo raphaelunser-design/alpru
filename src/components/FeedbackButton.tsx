@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 const categories = [
   { value: "general", label: "Feedback" },
@@ -26,8 +25,10 @@ export default function FeedbackButton() {
 
     setStatus("sending");
     setError("");
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token ?? "";
+    const token = await import("@/lib/supabase")
+      .then(({ supabase }) => supabase.auth.getSession())
+      .then(({ data }) => data.session?.access_token ?? "")
+      .catch(() => "");
 
     const response = await fetch("/api/feedback", {
       method: "POST",

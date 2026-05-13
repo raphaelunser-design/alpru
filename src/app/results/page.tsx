@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import Toast from "@/components/Toast";
-import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
 import RangeSlider from "@/components/RangeSlider";
@@ -14,8 +13,13 @@ import ResortDecisionCard from "@/components/ResortDecisionCard";
 import ScoreRing from "@/components/ScoreRing";
 import SelectControl from "@/components/SelectControl";
 import TravelConnectionPanel, { type TravelMode } from "@/components/TravelConnectionPanel";
+import AppShell from "@/components/premium/AppShell";
+import PageHeader from "@/components/premium/PageHeader";
+import ResortMatchCard from "@/components/premium/ResortMatchCard";
+import TrustPoint from "@/components/premium/TrustPoint";
 import { deriveResortDecision, type MatchPreferences, type ResortDecision, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
+import { premiumMatches } from "@/lib/premiumDemoMatches";
 import {
   RESULT_BUDGET_MAX,
   RESULT_BUDGET_MIN,
@@ -26,7 +30,6 @@ import {
   type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
 import type { ResortLoadResult } from "@/lib/resortRepository";
-import { useSiteContent } from "@/lib/useSiteContent";
 
 type Result = ResortDecision;
 type PremiumResult = Result & { driveHours?: number | null };
@@ -339,11 +342,6 @@ function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: num
 }
 
 export default function ResultsPage() {
-  const { value: heroContent } = useSiteContent("results", {
-    title: "Deine besten Ergebnisse",
-    subtitle: "Sortiert nach bester Passung. Filtere nach Land, Region, Fahrzeit oder Preis.",
-    heroImage: "/bg/banner-bild-4k.png",
-  });
   const [results, setResults] = useState<Result[]>([]);
   const [excludedResults, setExcludedResults] = useState<Result[]>([]);
   const [totalResortCount, setTotalResortCount] = useState(0);
@@ -1184,20 +1182,43 @@ export default function ResultsPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc={heroContent.heroImage} heightClass="min-h-[320px]" imagePosition="center 48%">
-        <div className="mx-auto flex min-h-[300px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Matches</p>
-            <h1 className="mt-4 max-w-[13ch] break-words text-3xl font-semibold leading-tight text-white sm:max-w-2xl md:text-4xl">
-              {heroContent.title}
-            </h1>
-            <p className="mt-2 max-w-[30ch] text-sm text-white/75 sm:max-w-2xl">{heroContent.subtitle}</p>
-          </div>
-        </div>
-      </BackgroundHero>
-
-      <Section className="space-y-6">
+    <AppShell>
+      <div className="alpivo-page-shell min-h-screen px-4 py-8 md:px-8">
+        <Section className="max-w-[1420px] space-y-7 py-0">
+          <PageHeader
+            eyebrow={usingExampleResults ? "Demo Top Matches" : "Eure Top Matches"}
+            title="Eure Top Matches"
+            subtitle="Basierend auf euren Präferenzen. Alpivo zeigt Score, Kosten, Anreise, Schnee, Vibe, Gründe und Haken auf einen Blick."
+            actions={
+              <>
+                <SelectControl compact ariaLabel="Sortierung auswählen" value={sortBy} options={sortOptions} onChange={(value) => setSortBy(value as SortKey)} />
+                <button
+                  className="inline-flex min-h-12 items-center rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                  type="button"
+                  onClick={() => setShowAdvancedFilters((current) => !current)}
+                >
+                  Filter
+                </button>
+              </>
+            }
+          />
+          {!loadingResults && usingExampleResults && sorted.length > 0 ? (
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_0.85fr]">
+              <ResortMatchCard match={premiumMatches[0]} variant="featured" priority />
+              <div className="grid gap-5">
+                {premiumMatches.slice(1, 3).map((match) => (
+                  <ResortMatchCard key={match.slug} match={match} variant="compact" />
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {!loadingResults ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <TrustPoint icon="shield" title="Unabhängig & objektiv" text="Wir erklären Resorts neutral und ohne unbelegte Partner-Claims." />
+              <TrustPoint icon="data" title="Match-Score mit Gründen" text="Jeder Score zeigt passende Faktoren, Alternativen und Haken." />
+              <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben geschützt und werden nur für deinen Match genutzt." />
+            </div>
+          ) : null}
         {loadingResults ? (
           <GlassCard className="space-y-5 p-6 md:p-8">
             <div>
@@ -1303,7 +1324,7 @@ export default function ResultsPage() {
           </>
         ) : (
           <>
-        {sorted.length > 0 ? <PremiumResultsMoment resorts={sorted} /> : null}
+        {!usingExampleResults && sorted.length > 0 ? <PremiumResultsMoment resorts={sorted} /> : null}
 
         {sorted.length > 0 ? <AlpivoCompass results={sorted} totalResults={sorted.length} /> : null}
 
@@ -1752,6 +1773,7 @@ export default function ResultsPage() {
 
         <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
       </Section>
-    </div>
+      </div>
+    </AppShell>
   );
 }

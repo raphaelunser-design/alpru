@@ -2,9 +2,12 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "alpivo_session_id";
+const hasPublicSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+);
 
 function getSessionId() {
   try {
@@ -25,6 +28,7 @@ export default function PageAnalyticsTracker() {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (!hasPublicSupabaseConfig) return;
     if (!pathname || pathname.startsWith("/api/")) return;
 
     let cancelled = false;
@@ -32,8 +36,10 @@ export default function PageAnalyticsTracker() {
     const run = async () => {
       if (cancelled) return;
       const sessionId = getSessionId();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token ?? "";
+      const token = await import("@/lib/supabase")
+        .then(({ supabase }) => supabase.auth.getSession())
+        .then(({ data }) => data.session?.access_token ?? "")
+        .catch(() => "");
 
       await fetch("/api/analytics/page-event", {
         method: "POST",

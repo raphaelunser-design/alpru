@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import ResortDecisionCard from "@/components/ResortDecisionCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
+import AppShell from "@/components/premium/AppShell";
+import PageHeader from "@/components/premium/PageHeader";
+import ResortMatchCard from "@/components/premium/ResortMatchCard";
+import TrustPoint from "@/components/premium/TrustPoint";
 import { deriveResortDecision, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
-import { useSiteContent } from "@/lib/useSiteContent";
+import { premiumMatches } from "@/lib/premiumDemoMatches";
 
 type Resort = ResortSignalRow;
 
@@ -80,11 +83,6 @@ function SkeletonCard() {
 }
 
 export default function ResortsPage() {
-  const { value: heroContent } = useSiteContent("resorts", {
-    title: "Alpen-Resorts ruhig vergleichen",
-    subtitle: "Suche nach Stil, Schnee, Budget und Vibe.",
-    heroImage: "/bg/banner-bild-4k.png",
-  });
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [totalResorts, setTotalResorts] = useState(0);
   const [error, setError] = useState("");
@@ -209,20 +207,51 @@ export default function ResortsPage() {
   const totalLabel = number.format(totalResorts || resorts.length);
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc={heroContent.heroImage} heightClass="min-h-[340px]" imagePosition="center 48%">
-        <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Resort-Bibliothek</p>
-            <h1 className="mt-4 max-w-[13ch] break-words text-3xl font-semibold leading-tight text-white sm:max-w-2xl md:text-5xl">
-              {heroContent.title}
-            </h1>
-            <p className="mt-3 max-w-[36rem] text-sm leading-relaxed text-white/78 md:text-base">{heroContent.subtitle}</p>
-          </div>
-        </div>
-      </BackgroundHero>
+    <AppShell>
+      <div className="alpivo-page-shell min-h-screen px-4 py-8 md:px-8">
+        <Section className="max-w-[1420px] space-y-7 py-0">
+          <PageHeader
+            eyebrow="Resort Übersicht"
+            title="Resorts entdecken"
+            subtitle="Vergleicht Skigebiete nach Match, Budget, Schnee und Vibe. Die Pilot-Auswahl zeigt den neuen Alpivo-Produktkern."
+            actions={
+              <>
+                <Link className="inline-flex min-h-12 items-center rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10" href="/map">
+                  Karte öffnen
+                </Link>
+                <Link className="button-lift inline-flex min-h-12 items-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400" href="/quiz">
+                  Match starten
+                </Link>
+              </>
+            }
+          />
 
-      <Section className="space-y-6">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_310px]">
+            <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+              {premiumMatches.slice(0, 3).map((match, index) => (
+                <ResortMatchCard key={match.slug} match={match} variant="grid" priority={index === 0} />
+              ))}
+            </div>
+            <aside className="rounded-[1.7rem] border border-white/12 bg-slate-950/72 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.3)] backdrop-blur-xl">
+              <h2 className="text-xl font-black text-white">Eure Kriterien</h2>
+              <div className="mt-5 space-y-4 text-sm text-slate-300">
+                <div className="border-b border-white/10 pb-4"><span className="block text-xs uppercase tracking-[0.16em] text-slate-500">Profil</span><strong className="mt-1 block text-white">Après & Events</strong></div>
+                <div className="border-b border-white/10 pb-4"><span className="block text-xs uppercase tracking-[0.16em] text-slate-500">Reisezeitraum</span><strong className="mt-1 block text-white">20. - 24. Jan. 2027</strong></div>
+                <div className="border-b border-white/10 pb-4"><span className="block text-xs uppercase tracking-[0.16em] text-slate-500">Abfahrt</span><strong className="mt-1 block text-white">München</strong></div>
+                <div><span className="block text-xs uppercase tracking-[0.16em] text-slate-500">Prioritäten Top 3</span><ol className="mt-2 space-y-2 font-bold text-white"><li>1. Après-Ski & Events</li><li>2. Pistenvielfalt</li><li>3. Schneesicherheit</li></ol></div>
+              </div>
+              <Link href="/quiz" className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-sky-500 px-4 text-sm font-black text-white hover:bg-sky-400">
+                Match anpassen
+              </Link>
+            </aside>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <TrustPoint icon="shield" title="Unabhängig & objektiv" text="Keine Werbung. Keine Bevorzugung." />
+            <TrustPoint icon="data" title="Aktuelle Daten & Bewertungen" text="Aus Skigebietsinfos, Wetter und Community-Signalen." />
+            <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben bei dir." />
+          </div>
+
         <GlassCard className="p-5 md:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
@@ -350,7 +379,8 @@ export default function ResortsPage() {
           </GlassCard>
         ) : null}
       </Section>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 

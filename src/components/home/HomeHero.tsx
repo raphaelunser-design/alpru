@@ -2,173 +2,97 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import ScoreRing from "@/components/ScoreRing";
+import BrandLogo from "@/components/premium/BrandLogo";
+import ResortMatchCard from "@/components/premium/ResortMatchCard";
+import TrustPoint from "@/components/premium/TrustPoint";
+import { heroMatch } from "@/lib/premiumDemoMatches";
 
 function ArrowIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function DownArrow() {
+function PlayIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 5v14l11-7L8 5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
-
-function MetricIcon({ type }: { type: "cost" | "time" | "snow" | "vibe" }) {
-  const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const paths = {
-    cost: <path {...common} d="M12 4v16M8 7h6.5a3 3 0 0 1 0 6H10a3 3 0 0 0 0 6h7" />,
-    time: <path {...common} d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
-    snow: <path {...common} d="M12 3v18M5 7l14 10M19 7 5 17M7 4l1 4-4-1M17 4l-1 4 4-1M7 20l1-4-4 1M17 20l-1-4 4 1" />,
-    vibe: <path {...common} d="M5 19V9m7 10V5m7 14v-7M3 19h18M4 9h2m5-4h2m5 7h2" />,
-  };
-
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-      {paths[type]}
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="m5 13 4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-const metrics = [
-  { icon: "cost" as const, label: "Kosten", value: "€ 520", hint: "pro Person" },
-  { icon: "time" as const, label: "Fahrzeit", value: "3:45 h", hint: "ab München" },
-  { icon: "snow" as const, label: "Schneesicher", value: "sehr gut", hint: "Dez. bis April" },
-  { icon: "vibe" as const, label: "Vibe & Events", value: "lebendig", hint: "Après, Hütten" },
-];
-
-const reasons = [
-  "Schneesicher von Dez. bis April",
-  "Top Pistenvielfalt für jedes Level",
-  "Legendäres Après-Ski & Events",
-];
 
 export default function HomeHero() {
   return (
-    <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-[780px] w-screen overflow-hidden bg-slate-950 md:min-h-[820px]">
+    <section className="hero-shell relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-screen w-screen overflow-hidden bg-[#020817] text-white">
       <Image
         src="/bg/banner-bild-4k.png"
-        alt="Verschneite Alpenlandschaft mit Skifahrer in den Alpen"
+        alt="Verschneites alpines Tal bei Abendlicht"
         fill
         priority
         sizes="100vw"
         className="hero-media object-cover"
-        style={{ objectPosition: "center 42%" }}
+        style={{ objectPosition: "center 45%" }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.18)_0%,rgba(2,6,23,0.30)_48%,rgba(2,6,23,0.82)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,12,28,0.86)_0%,rgba(2,12,28,0.48)_47%,rgba(2,12,28,0.12)_100%)]" />
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#07101e] via-[#07101e]/86 to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_74%_20%,rgba(14,165,233,0.22),transparent_28%),linear-gradient(180deg,rgba(2,8,23,0.24)_0%,rgba(2,8,23,0.58)_55%,#020817_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,8,23,0.96)_0%,rgba(2,8,23,0.68)_43%,rgba(2,8,23,0.18)_100%)]" />
+      <div className="absolute bottom-0 left-0 right-0 h-44 bg-gradient-to-t from-[#020817] to-transparent" />
 
-      <div className="relative z-10 mx-auto grid min-h-[780px] w-full max-w-6xl items-center gap-9 overflow-hidden px-4 pb-16 pt-28 md:min-h-[820px] md:px-6 md:pt-32 lg:grid-cols-[0.95fr_0.82fr]">
-        <div className="hero-content w-full max-w-[calc(100vw-2rem)] md:max-w-3xl">
-          <h1 className="max-w-[12.5ch] text-4xl font-extrabold leading-[1.02] tracking-[-0.01em] text-white drop-shadow-[0_18px_46px_rgba(2,6,23,0.45)] sm:text-5xl md:text-6xl">
-            Findet den Ski-Trip, der wirklich zu euch passt.
-          </h1>
-          <p className="mt-5 max-w-[calc(100vw-2rem)] text-base font-medium leading-7 text-white/88 sm:max-w-2xl md:text-xl md:leading-8">
-            Budget, Anreise, Schnee, Vibe und Unterkunft in einem klaren Match-Score – statt 20 offene Tabs.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/quiz"
-              className="button-lift inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-sky-500 px-7 text-base font-extrabold text-white shadow-[0_24px_60px_rgba(14,165,233,0.34)] hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-200/45 sm:w-auto"
-            >
-              Match in 3 Minuten starten
-              <ArrowIcon />
-            </Link>
-            <a
-              href="#so-funktionierts"
-              className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-white/28 bg-white/10 px-6 text-base font-bold text-white shadow-[0_18px_44px_rgba(2,6,23,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/16 focus:outline-none focus:ring-4 focus:ring-white/20"
-            >
-              So funktioniert Alpivo
-              <DownArrow />
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-5 py-6 md:px-10">
+        <header className="flex items-center justify-between gap-4">
+          <BrandLogo className="text-white" />
+          <nav className="hidden items-center gap-3 text-sm font-bold lg:flex" aria-label="Landingpage Navigation">
+            <a href="#so-funktionierts" className="rounded-full px-4 py-2 text-white/84 transition hover:bg-white/10 hover:text-white">
+              So funktioniert&apos;s
             </a>
+            <a href="#beispiel-match" className="rounded-full px-4 py-2 text-white/84 transition hover:bg-white/10 hover:text-white">
+              Beispiel-Match
+            </a>
+            <Link href="/resorts" className="rounded-full px-4 py-2 text-white/84 transition hover:bg-white/10 hover:text-white">
+              Resorts
+            </Link>
+          </nav>
+          <Link href="/quiz" className="button-lift hidden min-h-12 items-center gap-2 rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.3)] hover:bg-sky-400 sm:inline-flex">
+            <span className="hidden sm:inline">Match starten</span>
+            <span className="sm:hidden">Match</span>
+            <ArrowIcon />
+          </Link>
+        </header>
+
+        <div className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[0.92fr_0.9fr] lg:py-16">
+          <div className="hero-content max-w-4xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/18 bg-sky-200/[0.08] px-4 py-2 text-sm font-bold text-sky-100 backdrop-blur-xl">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.65)]" />
+              Dein Ski-Trip. Intelligenter gemacht.
+            </div>
+            <h1 className="mt-8 max-w-[12ch] text-5xl font-black leading-[0.98] tracking-[-0.025em] text-white drop-shadow-[0_22px_70px_rgba(2,6,23,0.55)] sm:text-6xl lg:text-7xl">
+              Findet den Ski-Trip, der wirklich zu euch passt.
+            </h1>
+            <p className="mt-7 max-w-2xl text-lg font-semibold leading-8 text-slate-200 md:text-2xl md:leading-10">
+              Budget, Anreise, Schnee, Vibe und Unterkunft in einem klaren Match-Score.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href="/quiz" className="button-lift inline-flex min-h-16 items-center justify-center gap-3 rounded-2xl bg-sky-500 px-8 text-base font-black text-white shadow-[0_28px_70px_rgba(14,165,233,0.34)] hover:bg-sky-400">
+                Match in 3 Minuten starten
+                <ArrowIcon />
+              </Link>
+              <a href="#beispiel-match" className="inline-flex min-h-16 items-center justify-center gap-3 rounded-2xl border border-white/22 bg-white/[0.075] px-7 text-base font-extrabold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/[0.12]">
+                <PlayIcon />
+                Beispiel ansehen
+              </a>
+            </div>
+            <div className="mt-10 grid gap-3 sm:grid-cols-3">
+              <TrustPoint compact icon="shield" title="Unabhängig & transparent" text="Keine Werbung. Keine Provision." />
+              <TrustPoint compact icon="data" title="Match mit Gründen" text="Score, Haken und Alternativen." />
+              <TrustPoint compact icon="lock" title="Sicher & privat" text="Deine Daten bleiben bei dir." />
+            </div>
+          </div>
+
+          <div id="beispiel-match" className="animate-rise mx-auto w-full max-w-[690px] lg:mx-0">
+            <ResortMatchCard match={heroMatch} variant="hero" priority />
           </div>
         </div>
-
-        <article className="animate-rise w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.65rem] border border-white/45 bg-white text-slate-950 shadow-[0_32px_100px_rgba(2,8,23,0.5)] lg:max-w-full">
-          <div className="relative h-56 overflow-hidden sm:h-64">
-            <Image
-              src="/bg/site-hero.jpg"
-              alt="Obertauern Resort-Panorama bei Abendlicht"
-              fill
-              sizes="(min-width: 1024px) 520px, 92vw"
-              className="object-cover"
-              style={{ objectPosition: "center 48%" }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/12 via-slate-950/20 to-slate-950/70" />
-            <div className="absolute left-5 top-5 rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-950 shadow-lg">
-              Top Match
-            </div>
-            <div className="absolute bottom-5 left-5 right-24 sm:right-28">
-              <h2 className="text-3xl font-extrabold leading-tight text-white drop-shadow-lg">Obertauern</h2>
-              <p className="mt-1 text-sm font-semibold text-white/88">Salzburg, Österreich</p>
-            </div>
-            <div className="absolute bottom-3 right-3 origin-bottom-right scale-90 sm:bottom-4 sm:right-4 sm:scale-100">
-              <ScoreRing value={92} size="sm" label="Match" />
-            </div>
-          </div>
-
-          <div className="border-b border-slate-200 bg-slate-950 px-4 py-3 text-white sm:px-5">
-            <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-100/80 sm:gap-3 sm:text-xs sm:tracking-[0.14em]">
-              <span className="min-w-0 truncate">München</span>
-              <span className="h-px min-w-8 flex-1 bg-gradient-to-r from-sky-300 via-cyan-200 to-emerald-300" />
-              <span className="min-w-0 truncate">Obertauern</span>
-              <span className="shrink-0 rounded-full border border-white/16 bg-white/10 px-2 py-1 normal-case tracking-normal">3:45 h</span>
-            </div>
-          </div>
-
-          <div className="grid divide-y divide-slate-200 border-b border-slate-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="flex min-h-20 items-center gap-3 px-4 py-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700">
-                  <MetricIcon type={metric.icon} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-xs font-bold text-slate-500">{metric.label}</span>
-                  <strong className="mt-0.5 block text-sm font-extrabold text-slate-950">{metric.value}</strong>
-                  <span className="block text-[11px] text-slate-500">{metric.hint}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-5 p-5 md:grid-cols-[1fr_0.78fr] md:p-6">
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-950">3 Gründe, warum es passt</h3>
-              <ul className="mt-3 space-y-2">
-                {reasons.map((reason) => (
-                  <li key={reason} className="flex items-start gap-2 text-sm leading-6 text-slate-700">
-                    <span className="mt-1 text-emerald-600">
-                      <CheckIcon />
-                    </span>
-                    <span>{reason}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-extrabold text-slate-950">Ein möglicher Nachteil</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                In der Hochsaison kann es an Wochenenden voller sein.
-              </p>
-            </div>
-          </div>
-        </article>
       </div>
     </section>
   );

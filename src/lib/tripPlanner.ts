@@ -1,8 +1,11 @@
+import type { SkiCourseNeed } from "@/lib/skiCourses";
+
 export type SkiTripLevel = "beginner" | "mixed" | "advanced";
 export type SkiTripFocus =
   | "budget"
   | "apres"
   | "family"
+  | "ski_school"
   | "snow"
   | "piste_km"
   | "distance"
@@ -277,6 +280,16 @@ export type SettlementSuggestion = {
   amount: number;
 };
 
+export type SkiCourseBudgetScenarioTemplate = {
+  id: string;
+  label: string;
+  courseNeed: SkiCourseNeed;
+  participants: number;
+  days?: number;
+  hours?: number;
+  note: string;
+};
+
 export const tripWorkspaceTabs: Array<{ view: TripWorkspaceView; label: string }> = [
   { view: "overview", label: "Übersicht" },
   { view: "availability", label: "Verfügbarkeit" },
@@ -290,6 +303,7 @@ export const tripFocusOptions: Array<{ value: SkiTripFocus; label: string; descr
   { value: "budget", label: "Preiswert", description: "Kosten und Value stehen vorne." },
   { value: "apres", label: "Après-Ski", description: "Gruppe sucht Energie, Bars und Hütten." },
   { value: "family", label: "Familienfreundlich", description: "Planbar, entspannt und mit Einsteiger-Fokus." },
+  { value: "ski_school", label: "Skikurse", description: "Kurse als späteren Kostenbaustein vormerken." },
   { value: "snow", label: "Schneesicherheit", description: "Höhenlage und Zuverlässigkeit zählen." },
   { value: "piste_km", label: "Pistenkilometer", description: "Größe und Abwechslung sind wichtig." },
   { value: "distance", label: "Entfernung", description: "Kurze Anreise und Wochenend-Fit." },
@@ -324,6 +338,7 @@ export const focusLabels: Record<SkiTripFocus, string> = {
   budget: "Preiswert",
   apres: "Après-Ski",
   family: "Familienfreundlich",
+  ski_school: "Skikurse",
   snow: "Schneesicherheit",
   piste_km: "Pistenkilometer",
   distance: "Entfernung",
@@ -331,6 +346,33 @@ export const focusLabels: Record<SkiTripFocus, string> = {
   weekend: "Weekend",
   luxury: "Premium",
 };
+
+export const skiCourseBudgetScenarioTemplates: SkiCourseBudgetScenarioTemplate[] = [
+  {
+    id: "one-child-five-days",
+    label: "1 Kind, 5 Tage Gruppenkurs",
+    courseNeed: "children",
+    participants: 1,
+    days: 5,
+    note: "Für Wochenplanung, Paketpreise offiziell prüfen.",
+  },
+  {
+    id: "one-adult-three-days",
+    label: "1 Erwachsener, 3 Tage Anfängerkurs",
+    courseNeed: "beginner",
+    participants: 1,
+    days: 3,
+    note: "Für Wiedereinsteiger oder erste Skitage.",
+  },
+  {
+    id: "private-two-hours",
+    label: "2 Stunden Privatlehrer",
+    courseNeed: "private",
+    participants: 1,
+    hours: 2,
+    note: "Privatstunden werden oft gestaffelt, offiziell prüfen.",
+  },
+];
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
   style: "currency",

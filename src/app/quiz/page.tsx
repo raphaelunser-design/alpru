@@ -20,6 +20,7 @@ import {
   type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
 import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
+import { skiCourseNeedOptions, type SkiCourseNeed } from "@/lib/skiCourses";
 import { supabase } from "@/lib/supabase";
 import type { TripStyle } from "@/lib/resortSignals";
 import { useSiteContent } from "@/lib/useSiteContent";
@@ -48,6 +49,7 @@ type Prefs = {
   musicPreference: MusicPreference;
   foodSpendLevel: "budget" | "standard" | "comfort";
   rentalMode: "own" | "rent";
+  skiCourseNeed: SkiCourseNeed;
   travelMode: "car" | "train" | "bus" | "flight";
   excludeCountries: string[];
   excludeGlacier: boolean;
@@ -1407,6 +1409,29 @@ export default function QuizPage() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm font-medium text-white">Braucht jemand aus eurer Gruppe Skikurs?</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {skiCourseNeedOptions.map((option) => {
+                    const active = prefs.skiCourseNeed === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                          active
+                            ? "border-sky-200 bg-sky-200 text-slate-900"
+                            : "border-white/10 text-slate-200 hover:bg-white/10"
+                        }`}
+                        type="button"
+                        onClick={() => setPrefs({ ...prefs, skiCourseNeed: option.value })}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-sm font-medium text-white">Anreise</div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {(["car", "train", "bus", "flight"] as const).map((mode) => (
@@ -1575,6 +1600,12 @@ export default function QuizPage() {
                   <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span>Gruppe</span>
                     <span className="font-extrabold text-slate-950">{prefs.peopleCount} Personen</span>
+                  </div>
+                  <div className="flex justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span>Skikurs</span>
+                    <span className="text-right font-extrabold text-slate-950">
+                      {skiCourseNeedOptions.find((option) => option.value === prefs.skiCourseNeed)?.label ?? "Nein"}
+                    </span>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <span className="font-semibold text-slate-500">Prioritäten Top 3</span>

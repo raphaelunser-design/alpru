@@ -1,5 +1,6 @@
 import type { ResortDecision, TripStyle } from "@/lib/resortSignals";
 import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
+import type { SkiCourseNeed } from "@/lib/skiCourses";
 
 export type MatchPayload = {
   tripStyle: TripStyle;
@@ -27,6 +28,7 @@ export type MatchPayload = {
   foodSpendLevel: "budget" | "standard" | "comfort";
   needRental: boolean;
   rentalMode: "own" | "rent";
+  skiCourseNeed: SkiCourseNeed;
   travelMode: "car" | "train" | "bus" | "flight";
   excludeCountries: string[];
   excludeGlacier: boolean;
@@ -107,6 +109,7 @@ export const MATCH_PREF_DEFAULTS: MatchPayload = {
   foodSpendLevel: "standard",
   needRental: false,
   rentalMode: "own",
+  skiCourseNeed: "none",
   travelMode: "car",
   excludeCountries: [],
   excludeGlacier: false,
@@ -162,6 +165,7 @@ const musicPreferences: MusicPreference[] = [
 ];
 const foodSpendLevels: MatchPayload["foodSpendLevel"][] = ["budget", "standard", "comfort"];
 const rentalModes: MatchPayload["rentalMode"][] = ["own", "rent"];
+const skiCourseNeeds: SkiCourseNeed[] = ["none", "children", "adults", "beginner", "snowboard", "private", "unsure"];
 const travelModes: MatchPayload["travelMode"][] = ["car", "train", "bus", "flight"];
 const budgetFilters = ["all", "green", "yellow", "red"];
 const profileFilters = ["all", "snow", "value", "comfort", "sport", "vibe", "festival", "glacier", "offpiste"];
@@ -288,6 +292,7 @@ export function buildMatchPayload(input: unknown = {}): MatchPayload {
     foodSpendLevel: enumWithDefault(raw.foodSpendLevel, foodSpendLevels, MATCH_PREF_DEFAULTS.foodSpendLevel),
     needRental: rentalMode === "rent",
     rentalMode,
+    skiCourseNeed: enumWithDefault(raw.skiCourseNeed, skiCourseNeeds, MATCH_PREF_DEFAULTS.skiCourseNeed),
     travelMode: enumWithDefault(raw.travelMode, travelModes, MATCH_PREF_DEFAULTS.travelMode),
     excludeCountries: stringArray(raw.excludeCountries),
     excludeGlacier: booleanWithDefault(raw.excludeGlacier),

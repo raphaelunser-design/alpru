@@ -1,0 +1,176 @@
+-- Optional Alpivo ski-course demo seed.
+-- Do not run this as part of the schema migration in production.
+-- Every inserted row is explicitly marked with data_status = 'demo'.
+
+insert into public.ski_schools (
+  resort_id,
+  resort_slug,
+  name,
+  website_url,
+  booking_url,
+  address,
+  country,
+  region,
+  source_url,
+  data_status,
+  last_checked_at
+)
+select
+  r.id,
+  r.slug,
+  'Obertauern Demo-Skischule',
+  'https://www.obertauern.com',
+  'https://www.obertauern.com',
+  'Obertauern, Salzburg',
+  coalesce(r.country, 'Österreich'),
+  coalesce(r.region, 'Salzburg'),
+  'https://www.obertauern.com',
+  'demo',
+  '2026-05-12T00:00:00+00'::timestamptz
+from public.resorts r
+where r.slug = 'obertauern'
+on conflict do nothing;
+
+insert into public.ski_course_offers (
+  ski_school_id,
+  resort_id,
+  resort_slug,
+  course_type,
+  target_group,
+  skill_level,
+  duration,
+  half_day_available,
+  full_day_available,
+  private_available,
+  group_available,
+  snowboard_available,
+  children_available,
+  adults_available,
+  min_age,
+  max_age,
+  price_from,
+  currency,
+  price_unit,
+  equipment_included,
+  liftpass_included,
+  lunch_included,
+  online_booking_available,
+  cancellation_hint,
+  meeting_point,
+  language_options,
+  source_url,
+  data_status,
+  last_checked_at
+)
+select
+  s.id,
+  s.resort_id,
+  s.resort_slug,
+  seed.course_type,
+  seed.target_group,
+  seed.skill_level,
+  seed.duration,
+  seed.half_day_available,
+  seed.full_day_available,
+  seed.private_available,
+  seed.group_available,
+  seed.snowboard_available,
+  seed.children_available,
+  seed.adults_available,
+  seed.min_age,
+  seed.max_age,
+  seed.price_from,
+  'EUR',
+  seed.price_unit,
+  false,
+  false,
+  false,
+  true,
+  seed.cancellation_hint,
+  seed.meeting_point,
+  array['de', 'en'],
+  'https://www.obertauern.com',
+  'demo',
+  '2026-05-12T00:00:00+00'::timestamptz
+from public.ski_schools s
+cross join (
+  values
+    (
+      'children_group',
+      'children',
+      'beginner',
+      '1 Tag Gruppenkurs',
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      4,
+      14,
+      78.00,
+      'day',
+      'Demo-Hinweis: Bedingungen offiziell prüfen.',
+      'Zentraler Sammelplatz im Ort, bitte offiziell prüfen.'
+    ),
+    (
+      'adult_group',
+      'adults',
+      'beginner',
+      '1 Tag Anfängerkurs',
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      15,
+      null,
+      92.00,
+      'day',
+      'Demo-Hinweis: Bedingungen offiziell prüfen.',
+      'Treffpunkt wird durch die Skischule bestätigt.'
+    ),
+    (
+      'snowboard',
+      'mixed',
+      'all',
+      'Privatstunde Ski oder Snowboard',
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      null,
+      null,
+      68.00,
+      'hour',
+      'Demo-Hinweis: genaue Staffelpreise offiziell prüfen.',
+      'Nach Absprache mit der Skischule.'
+    )
+) as seed(
+  course_type,
+  target_group,
+  skill_level,
+  duration,
+  half_day_available,
+  full_day_available,
+  private_available,
+  group_available,
+  snowboard_available,
+  children_available,
+  adults_available,
+  min_age,
+  max_age,
+  price_from,
+  price_unit,
+  cancellation_hint,
+  meeting_point
+)
+where s.resort_slug = 'obertauern'
+  and s.name = 'Obertauern Demo-Skischule'
+on conflict do nothing;

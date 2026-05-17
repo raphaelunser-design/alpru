@@ -76,7 +76,7 @@ export default function AlpivoCompass({ results, totalResults }: AlpivoCompassPr
       <div className="rounded-lg border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_52px_rgba(2,6,23,0.32)]">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Alpivo Compass</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">
-          {top ? `${top.name} führt dein Ranking an` : "Match-Fit wird vorbereitet"}
+          {top ? `${top.name} führt dein Ranking an` : "Match-Fit noch offen"}
         </h2>
         <p className="mt-3 text-sm text-slate-300">{coachText(results)}</p>
 

@@ -98,9 +98,9 @@ export default function AppShell({ children, className = "" }: AppShellProps) {
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-300/16 text-[10px] text-amber-100">Pro</span>
               Alpivo Premium
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-300">Mehr Details, erweiterte Filter und exklusive Insights.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-300">Geplant: mehr Details, bessere Filter und transparentere Vergleichsansichten.</p>
             <Link href="/feedback" className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-white/14 text-xs font-bold text-white hover:bg-white/10">
-              Mehr erfahren
+              Feedback geben
             </Link>
           </div>
           <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/54 p-3">

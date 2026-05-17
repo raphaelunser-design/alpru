@@ -248,7 +248,7 @@ export default function ResortsPage() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <TrustPoint icon="shield" title="Unabhängig & objektiv" text="Keine Werbung. Keine Bevorzugung." />
-            <TrustPoint icon="data" title="Aktuelle Daten & Bewertungen" text="Aus Skigebietsinfos, Wetter und Community-Signalen." />
+            <TrustPoint icon="data" title="Beta-Daten klar gekennzeichnet" text="Kosten und Resortdaten sind Orientierung und werden laufend verbessert." />
             <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben bei dir." />
           </div>
 

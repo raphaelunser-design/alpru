@@ -1,20 +1,11 @@
-import Image from "next/image";
-import Link from "next/link";
-import { brand } from "@/config/brand";
+import { AlpivoLogo } from "@/components/premium/BrandLogo";
 
 type LogoProps = {
   href?: string;
+  compact?: boolean;
+  className?: string;
 };
 
-export default function Logo({ href = "/" }: LogoProps) {
-  return (
-    <Link href={href} className="group flex min-w-fit items-center gap-2" aria-label={`${brand.name} Startseite`}>
-      <span className="relative inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-transform duration-200 group-hover:-translate-y-0.5 md:h-12 md:w-12">
-        <Image src={brand.iconPath} alt="" fill sizes="48px" className="object-contain p-1" />
-      </span>
-      <span className="relative inline-flex h-10 w-32 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:w-36 md:h-12 md:w-44 xl:w-48">
-        <Image src={brand.logoPath} alt={brand.name} fill sizes="192px" className="object-contain px-2 py-1" priority />
-      </span>
-    </Link>
-  );
+export default function Logo({ href = "/", compact = false, className = "" }: LogoProps) {
+  return <AlpivoLogo href={href} compact={compact} className={className || "text-slate-950"} />;
 }

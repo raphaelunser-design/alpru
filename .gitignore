@@ -39,6 +39,7 @@ SUPABASETOKEN.txt
 SUPABASE_DB_PASSWORD.txt
 VERCELTOKEN.txt
 tmp_*
+tmp-cdp-profile*/
 patch.txt
 resorts_bad_links.csv
 resorts_link_overrides.csv

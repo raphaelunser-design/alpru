@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 
-const trustPoints = ["Unabhängig & objektiv", "Aktuelle Daten & echte Bewertungen", "Sicher & transparent"];
+const trustPoints = ["Unabhängig & objektiv", "Beta-Daten klar gekennzeichnet", "Sicher & transparent"];
 
 function ArrowIcon() {
   return (

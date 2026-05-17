@@ -6,7 +6,7 @@ type BrandLogoProps = {
   className?: string;
 };
 
-export default function BrandLogo({ href = "/", compact = false, className = "" }: BrandLogoProps) {
+export function AlpivoLogo({ href = "/", compact = false, className = "" }: BrandLogoProps) {
   const asset = compact ? "/brand/icon.svg" : "/brand/logo.svg";
 
   return (
@@ -26,3 +26,5 @@ export default function BrandLogo({ href = "/", compact = false, className = "" 
     </Link>
   );
 }
+
+export default AlpivoLogo;

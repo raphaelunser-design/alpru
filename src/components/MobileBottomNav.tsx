@@ -17,8 +17,11 @@ export default function MobileBottomNav() {
   const pathname = usePathname();
   const locale = useClientLocale();
   const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d";
+  const usesPremiumShell = ["/results", "/resorts", "/resort", "/trips", "/checklist", "/account", "/feedback", "/quiz", "/map", "/admin"].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
-  if (pathname === "/" || usesImmersiveShell) return null;
+  if (pathname === "/" || usesImmersiveShell || usesPremiumShell) return null;
 
   return (
     <nav

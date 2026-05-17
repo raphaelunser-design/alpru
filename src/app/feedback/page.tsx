@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import GlassCard from "@/components/GlassCard";
-import Section from "@/components/Section";
+import AppShell from "@/components/premium/AppShell";
+import PageHeader from "@/components/premium/PageHeader";
+import TrustPoint from "@/components/premium/TrustPoint";
 import { supabase } from "@/lib/supabase";
 
 const categories = [
@@ -70,86 +71,98 @@ export default function FeedbackPage() {
   }
 
   return (
-    <Section className="space-y-5 py-10">
-      <GlassCard className="overflow-hidden p-0">
-        <div className="border-b border-white/10 bg-[radial-gradient(circle_at_16%_0%,rgba(125,211,252,0.20),transparent_36%)] p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.28em] text-sky-100/80">Kontakt/Feedback</p>
-          <h1 className="mt-3 text-3xl font-semibold text-white md:text-4xl">Hilf Alpivo besser zu machen</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-300">
-            Melde Bugs, Design-Reibung, fehlende Daten oder falsche Ergebnisse. In der Beta landet dein Hinweis mit Seitenkontext im Admin-Bereich.
-          </p>
-        </div>
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-7">
+          <PageHeader
+            eyebrow="Feedback & Vertrauen"
+            title="Sag uns, was besser werden soll."
+            subtitle="Jede Rückmeldung verbessert den Match. Bugs, Design-Reibung, fehlende Daten und falsche Ergebnisse landen mit Seitenkontext im Admin-Bereich."
+          />
 
-        <div className="grid gap-5 p-6 md:p-8 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="grid gap-3">
-            <label className="text-sm text-slate-300">
-              Kategorie
-              <select
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/60 p-3 text-white"
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-              >
-                {categories.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-sm text-slate-300">
-              Bewertung
-              <div className="mt-2 grid grid-cols-5 gap-2">
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`min-h-11 rounded-xl border text-sm font-semibold ${
-                      rating === value
-                        ? "border-sky-200 bg-sky-200 text-slate-950"
-                        : "border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/10"
-                    }`}
-                    onClick={() => setRating(value)}
-                  >
-                    {value}
-                  </button>
-                ))}
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <section className="rounded-[1.8rem] border border-white/12 bg-slate-950/72 p-5 shadow-[0_30px_90px_rgba(2,6,23,0.36)] md:p-7">
+              <div>
+                <div className="text-sm font-extrabold text-white">Kategorie</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {categories.map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      className={`button-lift min-h-12 rounded-2xl border px-4 text-sm font-bold transition ${
+                        category === item.value
+                          ? "border-sky-300/60 bg-sky-500 text-white shadow-[0_14px_34px_rgba(14,165,233,0.24)]"
+                          : "border-white/12 bg-white/[0.055] text-slate-200 hover:border-sky-200/30 hover:bg-white/10"
+                      }`}
+                      onClick={() => setCategory(item.value)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </label>
 
-            <label className="text-sm text-slate-300">
-              Seite oder Funktion (optional)
-              <input
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/60 p-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/40"
-                placeholder="/quiz, Kalender, Ergebnis-Card ..."
-                value={pagePath}
-                onChange={(event) => setPagePath(event.target.value)}
-              />
-            </label>
-          </div>
+              <div className="mt-6">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-extrabold text-white" htmlFor="feedback-rating">Wie hilfreich ist Alpivo für deine Planung?</label>
+                  <span className="rounded-full border border-white/12 bg-white/[0.055] px-3 py-1 text-xs font-bold text-slate-300">{rating}/5</span>
+                </div>
+                <div id="feedback-rating" className="mt-3 grid grid-cols-5 overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`min-h-12 border-r border-white/10 text-sm font-extrabold last:border-r-0 ${
+                        rating === value ? "bg-sky-500 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                      onClick={() => setRating(value)}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="grid gap-4">
-            <label className="text-sm text-slate-300">
-              Nachricht
-              <textarea
-                className="mt-2 min-h-48 w-full rounded-xl border border-white/10 bg-slate-950/60 p-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/40"
-                placeholder="Was fehlt, was ist unklar oder was funktioniert nicht?"
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-              />
-            </label>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                className="button-lift min-h-12 rounded-xl bg-sky-200 px-5 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
-                type="button"
-                disabled={submitting}
-                onClick={submitFeedback}
-              >
-                {submitting ? "Wird gesendet..." : "Feedback senden"}
-              </button>
+              <label className="mt-6 block text-sm font-extrabold text-white">
+                Seite oder Funktion <span className="font-semibold text-slate-400">(optional)</span>
+                <input
+                  className="mt-2 min-h-13 w-full rounded-2xl border border-white/12 bg-white/[0.055] px-4 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50"
+                  placeholder="z. B. Ergebnisseite, Karte, Match Wizard ..."
+                  value={pagePath}
+                  onChange={(event) => setPagePath(event.target.value)}
+                />
+              </label>
+
+              <label className="mt-6 block text-sm font-extrabold text-white">
+                Deine Nachricht
+                <textarea
+                  className="mt-2 min-h-52 w-full resize-y rounded-2xl border border-white/12 bg-white/[0.055] p-4 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50"
+                  placeholder="Beschreibe bitte kurz, was dir aufgefallen ist oder was wir verbessern können ..."
+                  value={message}
+                  maxLength={1000}
+                  onChange={(event) => setMessage(event.target.value)}
+                />
+              </label>
+
+              <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-5 text-slate-400">
+                Account-ID und Browserinfos werden nur zur Fehleranalyse genutzt.
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                <button
+                  className="button-lift min-h-13 rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400 disabled:cursor-wait disabled:opacity-70"
+                  type="button"
+                  disabled={submitting}
+                  onClick={submitFeedback}
+                >
+                  {submitting ? "Wird gesendet..." : "Feedback senden"}
+                </button>
+                <div className="text-right text-xs font-semibold text-slate-500">{message.length} / 1000</div>
+              </div>
+
               {status.text ? (
                 <div
-                  className={`rounded-xl border px-4 py-3 text-sm ${
+                  className={`mt-5 rounded-2xl border px-4 py-4 text-sm ${
                     status.tone === "error"
                       ? "border-red-300/30 bg-red-500/10 text-red-100"
                       : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
@@ -158,10 +171,20 @@ export default function FeedbackPage() {
                   {status.text}
                 </div>
               ) : null}
-            </div>
+            </section>
+
+            <aside className="grid content-start gap-4">
+              <TrustPoint icon="shield" title="Unabhängig & objektiv" text="Dein Feedback hilft, Match-Gründe und Haken klarer zu erklären." />
+              <TrustPoint icon="lock" title="Sicher & transparent" text="Wir nutzen technische Infos nur, um Fehler schneller einzugrenzen." />
+              <TrustPoint icon="data" title="Aktuelle Daten" text="Hinweise zu Preisen, Schnee und fehlenden Resortdaten fließen in die Beta-Priorisierung." />
+              <div className="rounded-[1.8rem] border border-white/12 bg-white/[0.065] p-5">
+                <div className="text-lg font-black text-white">Beta-Roadmap</div>
+                <p className="mt-2 text-sm leading-6 text-slate-300">Map, Tripboards und Resortdaten werden schrittweise erweitert. Dein Hinweis hilft bei der Reihenfolge.</p>
+              </div>
+            </aside>
           </div>
         </div>
-      </GlassCard>
-    </Section>
+      </main>
+    </AppShell>
   );
 }

@@ -22,6 +22,14 @@ const navItems = [
   { href: "/feedback", label: "Feedback", icon: "message" },
 ];
 
+const mobileNavItems = [
+  { href: "/", label: "Start", icon: "home" },
+  { href: "/quiz", label: "Match", icon: "target" },
+  { href: "/results", label: "Ergebnis", icon: "chart" },
+  { href: "/trips", label: "Trips", icon: "briefcase" },
+  { href: "/account", label: "Konto", icon: "user" },
+];
+
 function NavIcon({ name }: { name: string }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const icon =
@@ -105,7 +113,7 @@ export default function AppShell({ children, className = "" }: AppShellProps) {
         </div>
       </aside>
 
-      <div className="min-w-0 overflow-x-hidden">
+      <div className="min-w-0 overflow-x-hidden pb-24 md:pb-0">
         <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-white/10 bg-slate-950/88 px-4 backdrop-blur-xl md:hidden">
           <BrandLogo className="text-white" />
           <Link href="/quiz" className="hidden rounded-2xl bg-sky-500 px-4 py-2 text-sm font-extrabold text-white shadow-[0_14px_34px_rgba(14,165,233,0.28)] sm:inline-flex">
@@ -114,6 +122,26 @@ export default function AppShell({ children, className = "" }: AppShellProps) {
           </Link>
         </header>
         {children}
+        <nav
+          className="fixed inset-x-3 bottom-3 z-50 grid grid-cols-5 rounded-[1.35rem] border border-white/12 bg-slate-950/92 p-2 shadow-[0_24px_80px_rgba(2,6,23,0.48)] backdrop-blur-xl md:hidden"
+          aria-label="Mobile Alpivo Navigation"
+        >
+          {mobileNavItems.map((item) => {
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-extrabold transition ${
+                  active ? "bg-sky-500 text-white shadow-[0_12px_28px_rgba(14,165,233,0.24)]" : "text-slate-400 hover:bg-white/[0.075] hover:text-white"
+                }`}
+              >
+                <NavIcon name={item.icon} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );

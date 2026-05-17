@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import BackgroundHero from "@/components/BackgroundHero";
+import AppShell from "@/components/premium/AppShell";
 import GlassCard from "@/components/GlassCard";
-import Section from "@/components/Section";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
 import SelectControl from "@/components/SelectControl";
 import Toast from "@/components/Toast";
 import AvailabilityCalendar from "@/components/trips/AvailabilityCalendar";
@@ -116,11 +117,7 @@ const demoParticipants = [
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
-    </div>
+    <MetricChip icon="data" value={value} label={`${label}${hint ? ` · ${hint}` : ""}`} variant="glass" />
   );
 }
 
@@ -1298,57 +1295,86 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
   if (loading) {
     return (
-      <Section>
-        <div className="h-[420px] animate-pulse rounded-xl border border-white/10 bg-white/[0.05]" />
-      </Section>
+      <AppShell>
+        <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+          <div className="mx-auto max-w-[1480px]">
+            <div className="h-[420px] animate-pulse rounded-[1.7rem] border border-white/10 bg-white/[0.05]" />
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
   if (!bundle) {
     return (
-      <Section>
-        <TripsStateCard title="Trip nicht verfügbar" text={error || "Dieser Trip konnte nicht geladen werden."} tone="error" />
-      </Section>
+      <AppShell>
+        <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+          <div className="mx-auto max-w-[1480px]">
+            <TripsStateCard title="Trip nicht verfügbar" text={error || "Dieser Trip konnte nicht geladen werden."} tone="error" />
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero
-        imageSrc={heroResort ? heroResort.imageUrl || "/bg/skilandschaft.png" : "/bg/skilandschaft.png"}
-        heightClass="min-h-[360px]"
-        imagePosition="center 48%"
-      >
-        <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-3xl">
-            <div className="inline-flex rounded-full border border-white/15 bg-slate-950/50 px-3 py-1 text-xs uppercase tracking-[0.24em] text-white/80">
-              {bundle.isDemo ? "Demo Trip" : "Trip Workspace"}
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold text-white md:text-5xl">{bundle.trip.title}</h1>
-            <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
-              {bundle.trip.description ?? "Ski-Trip mit Gruppenlogik, Alpivo-Resorts und transparenter Kostenplanung."}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2 text-xs text-white/80">
-              {bundle.trip.startRegion ? <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">{bundle.trip.startRegion}</span> : null}
-              <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">
-                {joinedMembers.length} Mitglieder
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-6">
+          <PageHeader
+            eyebrow={bundle.isDemo ? "Demo Trip" : "Trip Workspace"}
+            title={bundle.trip.title}
+            subtitle={bundle.trip.description ?? "Ski-Trip mit Gruppenlogik, Alpivo-Resorts und transparenter Kostenplanung."}
+            actions={
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/trips"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                >
+                  Zurück zu Trips
+                </Link>
+                <Link
+                  href={`/checklist?tripId=${encodeURIComponent(bundle.trip.id)}`}
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                >
+                  Checkliste öffnen
+                </Link>
+              </div>
+            }
+          />
+
+        <section
+          className="overflow-hidden rounded-[1.8rem] border border-white/12 bg-slate-950/72 shadow-[0_30px_90px_rgba(2,6,23,0.34)]"
+          style={{
+            backgroundImage: `linear-gradient(90deg, rgba(2,8,23,0.94), rgba(2,8,23,0.68), rgba(2,8,23,0.42)), url("${heroResort ? heroResort.imageUrl || "/bg/skilandschaft.png" : "/bg/skilandschaft.png"}")`,
+            backgroundPosition: "center 48%",
+            backgroundSize: "cover",
+          }}
+        >
+          <div className="grid gap-5 p-5 md:p-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+            <div>
+              <span className="rounded-full border border-sky-200/24 bg-sky-300/12 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.16em] text-sky-100">
+                Ein Board statt Chat-Chaos
               </span>
-              {bundle.trip.budgetPerPerson ? (
-                <span className="rounded-full border border-white/15 bg-slate-950/45 px-3 py-1">
-                  {formatCurrency(bundle.trip.budgetPerPerson)} p. P.
-                </span>
-              ) : null}
-              {bundle.trip.focus.map((focus) => (
-                <span key={focus} className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-sky-50">
-                  {focus}
-                </span>
-              ))}
+              <h2 className="mt-5 text-3xl font-black leading-tight text-white md:text-5xl">{bundle.trip.title}</h2>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200 md:text-base">
+                {bundle.trip.description ?? "Alles Wichtige an einem Ort: Zeitraum, Resorts, Kosten, Gruppe und nächste To-dos."}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MetricChip icon="vibe" value={`${joinedMembers.length}`} label="Mitglieder" variant="glass" />
+              <MetricChip icon="time" value={`${bundle.dateOptions.length}`} label="Zeitfenster" variant="glass" />
+              <MetricChip icon="piste" value={`${bundle.favorites.length}`} label="Resort-Favoriten" variant="glass" />
+              <MetricChip
+                icon="cost"
+                value={budgetSummary ? formatCurrency(budgetSummary.total) : "-"}
+                label={budgetSummary ? `${formatCurrency(budgetSummary.perPerson)} pro Person` : "Budget offen"}
+                variant="glass"
+              />
             </div>
           </div>
-        </div>
-      </BackgroundHero>
+        </section>
 
-      <Section className="space-y-6">
         {bundle.isDemo ? (
           <TripsStateCard
             title="Demo-Trip"
@@ -1877,9 +1903,10 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
             </GlassCard>
           </div>
         ) : null}
-      </Section>
+        </div>
 
       <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
-    </div>
+      </main>
+    </AppShell>
   );
 }

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DayPicker, type DateRange } from "react-day-picker";
-import BackgroundHero from "@/components/BackgroundHero";
-import GlassCard from "@/components/GlassCard";
-import Section from "@/components/Section";
+import AppShell from "@/components/premium/AppShell";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
+import TrustPoint from "@/components/premium/TrustPoint";
 import SelectControl from "@/components/SelectControl";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
@@ -166,16 +167,22 @@ export default function TripCreateClient() {
 
   if (!userId) {
     return (
-      <div className="space-y-8">
-        <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[320px]" imagePosition="center 46%">
-          <div className="mx-auto flex min-h-[280px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-            <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70">Trips</p>
-              <h1 className="mt-4 text-3xl font-semibold text-white md:text-5xl">Neuen Ski-Trip anlegen</h1>
-            </div>
-          </div>
-        </BackgroundHero>
-        <Section>
+      <AppShell>
+        <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+          <div className="mx-auto grid w-full max-w-[1280px] gap-7">
+            <PageHeader
+              eyebrow="Trip Planung"
+              title="Neuen Ski-Trip anlegen"
+              subtitle="Lege ein Tripboard an, sammle Favoriten und bringe Budget, Zeitraum und Gruppe an einen Ort."
+              actions={
+                <Link
+                  href="/account"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                >
+                  Zu Konto / Login
+                </Link>
+              }
+            />
           <TripsStateCard
             title="Login erforderlich"
             text="Zum Anlegen eines echten Gruppen-Trips braucht Alpivo ein Konto. Danach werden Mitglieder, Resort-Favoriten und Kosten sauber an dein Profil gebunden."
@@ -188,33 +195,50 @@ export default function TripCreateClient() {
               </Link>
             }
           />
-        </Section>
-      </div>
+            <section className="grid gap-4 md:grid-cols-3">
+              <TrustPoint icon="shield" title="Privat geplant" text="Tripboards werden deinem Konto zugeordnet und nicht öffentlich gelistet." />
+              <TrustPoint icon="data" title="Match-nah" text="Resort-Favoriten kommen aus der Alpivo-Bibliothek und bleiben vergleichbar." />
+              <TrustPoint icon="lock" title="Beta transparent" text="Demo- und Live-Zustände bleiben sichtbar getrennt." />
+            </section>
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[360px]" imagePosition="center 46%">
-        <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Trips</p>
-            <h1 className="mt-4 text-3xl font-semibold text-white md:text-5xl">Neuen Ski-Trip anlegen</h1>
-            <p className="mt-3 max-w-2xl text-sm text-white/78">
-              Der Trip bleibt eng am bestehenden Alpivo-Datenmodell: Resorts kommen aus der Bibliothek, Zeiträume werden später in der Gruppenansicht verfeinert.
-            </p>
-          </div>
-        </div>
-      </BackgroundHero>
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-7">
+          <PageHeader
+            eyebrow="Trip Planung"
+            title="Neuen Ski-Trip anlegen"
+            subtitle="Resorts aus der Bibliothek, Zeitraum für die Gruppe und Budgetrahmen in einem klaren Setup."
+            actions={
+              <Link
+                href="/trips"
+                className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+              >
+                Zurück zu Trips
+              </Link>
+            }
+          />
 
-      <Section className="space-y-6">
+          <section className="grid gap-4 lg:grid-cols-4">
+            <MetricChip icon="vibe" value={deriveDisplayName(userEmail)} label="Trip Lead" variant="glass" />
+            <MetricChip icon="cost" value={`€ ${budgetPerPerson || "0"}`} label="Budget pro Person" variant="glass" />
+            <MetricChip icon="piste" value={`${selectedResorts.length}`} label="Resort-Favoriten" variant="glass" />
+            <MetricChip icon="data" value={rangeLabel(dateRange)} label="erster Zeitraum" variant="glass" />
+          </section>
+
         {error ? <TripsStateCard title="Trip konnte nicht erstellt werden" text={error} tone="error" /> : null}
 
         <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-          <GlassCard className="p-6">
+          <section className="rounded-[1.8rem] border border-white/12 bg-slate-950/72 p-5 shadow-[0_30px_90px_rgba(2,6,23,0.34)] md:p-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trip-Setup</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Grunddaten für die Gruppe</h2>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-sky-100/80">Trip-Setup</p>
+              <h2 className="mt-2 text-2xl font-black text-white">Grunddaten für die Gruppe</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Gib nur den Rahmen vor. Abstimmungen, Favoriten und Details werden danach im Board geschärft.</p>
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -394,12 +418,12 @@ export default function TripCreateClient() {
                 </div>
               ) : null}
             </div>
-          </GlassCard>
+          </section>
 
-          <GlassCard className="p-6">
+          <section className="rounded-[1.8rem] border border-white/12 bg-slate-950/72 p-5 shadow-[0_30px_90px_rgba(2,6,23,0.34)] md:p-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gewünschter Reisezeitraum</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Start- und Enddatum festlegen</h2>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-sky-100/80">Gewünschter Reisezeitraum</p>
+              <h2 className="mt-2 text-2xl font-black text-white">Start- und Enddatum festlegen</h2>
               <p className="mt-2 text-sm text-slate-400">
                 Dieser Zeitraum ist der erste Vorschlag für die Gruppe. Verfügbarkeiten der Teilnehmer werden danach separat abgestimmt.
               </p>
@@ -448,7 +472,7 @@ export default function TripCreateClient() {
             </div>
 
             <button
-              className="button-lift mt-6 w-full rounded-lg bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
+              className="button-lift mt-6 w-full rounded-2xl bg-sky-500 px-4 py-3 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400 disabled:opacity-60"
               disabled={submitting || !title.trim() || hasIncompleteDateRange}
               onClick={async () => {
                 setSubmitting(true);
@@ -511,9 +535,16 @@ export default function TripCreateClient() {
             >
               {submitting ? "Trip wird erstellt..." : "Trip anlegen"}
             </button>
-          </GlassCard>
+          </section>
         </div>
-      </Section>
-    </div>
+        </div>
+      </main>
+    </AppShell>
   );
+}
+
+function rangeLabel(range: DateRange | undefined) {
+  if (!range?.from) return "noch offen";
+  if (!range.to) return "Abreise offen";
+  return `${toIsoDate(range.from)} bis ${toIsoDate(range.to)}`;
 }

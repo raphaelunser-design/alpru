@@ -1,5 +1,5 @@
 import Link from "next/link";
-import GlassCard from "@/components/GlassCard";
+import MetricChip from "@/components/premium/MetricChip";
 import { repairText } from "@/lib/mvpResorts";
 import {
   buildTripRoute,
@@ -31,7 +31,7 @@ export default function TripCard({ bundle }: TripCardProps) {
   const bestDateLabel = bestDate ? repairText(bestDate.fitLabel) ?? bestDate.fitLabel : null;
 
   return (
-    <GlassCard className="overflow-hidden">
+    <article className="group overflow-hidden rounded-[1.7rem] border border-white/12 bg-slate-950/74 text-white shadow-[0_28px_90px_rgba(2,6,23,0.34)] backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:border-sky-200/34">
       <div
         className="relative min-h-[190px] border-b border-white/10 bg-cover bg-center"
         style={{ backgroundImage: `linear-gradient(180deg, rgba(8,17,31,0.04), rgba(8,17,31,0.88)), url("${imageUrl}")` }}
@@ -54,25 +54,14 @@ export default function TripCard({ bundle }: TripCardProps) {
       <div className="grid gap-4 p-4">
         <div className="min-w-0 space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Mitglieder</div>
-              <div className="mt-2 text-xl font-semibold text-white">{joinedCount}</div>
-              <div className="text-xs text-slate-400">aktiv im Trip</div>
-            </div>
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Bestes Fenster</div>
-              <div className="mt-2 text-base font-semibold leading-6 text-white">
-                {bestDate ? formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "Noch offen"}
-              </div>
-              <div className="text-xs leading-5 text-slate-400">
-          {bestDate ? `${bestDateLabel}, ${bestDate.availableCount}x verfügbar` : "Termine abstimmen"}
-              </div>
-            </div>
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.05] p-3">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Plan-Budget</div>
-              <div className="mt-2 text-xl font-semibold text-white">{formatCurrency(budget.total)}</div>
-              <div className="text-xs text-slate-400">{formatCurrency(budget.perPerson)} pro Person</div>
-            </div>
+            <MetricChip icon="vibe" value={String(joinedCount)} label="aktiv im Trip" variant="glass" />
+            <MetricChip
+              icon="time"
+              value={bestDate ? formatDateRange(bestDate.dateOption.startDate, bestDate.dateOption.endDate) : "Noch offen"}
+              label={bestDate ? `${bestDateLabel}, ${bestDate.availableCount}x verfügbar` : "Termine abstimmen"}
+              variant="glass"
+            />
+            <MetricChip icon="cost" value={formatCurrency(budget.total)} label={`${formatCurrency(budget.perPerson)} p. P.`} variant="glass" />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -101,24 +90,24 @@ export default function TripCard({ bundle }: TripCardProps) {
         <div className="grid gap-3 sm:grid-cols-3">
           <Link
             href={buildTripRoute(bundle.trip.id, "overview")}
-            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-lg bg-sky-200 px-4 py-3 text-center text-sm font-semibold text-slate-950 hover:bg-white"
+            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-2xl bg-sky-500 px-4 py-3 text-center text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.25)] hover:bg-sky-400"
           >
             Trip Öffnen
           </Link>
           <Link
             href={buildTripRoute(bundle.trip.id, "compare")}
-            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-lg border border-white/15 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
+            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-white/15 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
           >
             Preisvergleich
           </Link>
           <Link
             href={buildTripRoute(bundle.trip.id, "expenses")}
-            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-lg border border-white/15 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
+            className="button-lift flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-white/15 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
           >
             Gruppenkosten
           </Link>
         </div>
       </div>
-    </GlassCard>
+    </article>
   );
 }

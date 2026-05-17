@@ -16,8 +16,9 @@ const items = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const locale = useClientLocale();
+  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d";
 
-  if (pathname === "/") return null;
+  if (pathname === "/" || usesImmersiveShell) return null;
 
   return (
     <nav

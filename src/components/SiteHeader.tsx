@@ -26,9 +26,12 @@ const homeLinks = [
 export default function SiteHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  const usesPremiumShell = ["/results", "/resorts"].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  const usesPremiumShell = ["/results", "/resorts", "/trips", "/checklist", "/account", "/feedback", "/quiz"].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d";
 
-  if (isHome || usesPremiumShell) return null;
+  if (isHome || usesPremiumShell || usesImmersiveShell) return null;
 
   return (
     <header

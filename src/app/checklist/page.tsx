@@ -2,6 +2,10 @@
 
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import ScoreRing from "@/components/ScoreRing";
+import AppShell from "@/components/premium/AppShell";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
 import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabase";
 
@@ -248,7 +252,7 @@ function ChipButton({ active, children, onClick }: { active: boolean; children: 
       className={`button-lift min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
         active
           ? "border-sky-200 bg-sky-200 text-slate-950 shadow-[0_12px_30px_rgba(125,211,252,0.18)]"
-          : "border-white/10 bg-white/[0.06] text-slate-200 hover:border-white/20 hover:bg-white/[0.1]"
+          : "border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50"
       }`}
       onClick={onClick}
     >
@@ -580,16 +584,33 @@ export default function ChecklistPage() {
   }, [toast]);
 
   return (
-    <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-5 px-4 py-6 md:gap-6 md:px-6 md:py-10">
-      <section className="animate-rise overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60 shadow-[0_24px_70px_rgba(2,6,23,0.35)]">
+    <AppShell>
+    <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+    <div className="mx-auto grid w-full min-w-0 max-w-[1480px] gap-5 md:gap-6">
+      <PageHeader
+        eyebrow="Trip Readiness"
+        title="Trip-Checkliste"
+        subtitle="Alles im Blick, bevor es auf die Piste geht: Vorbereitung, Anreise, Ausrüstung und eigene Punkte."
+        actions={
+          <button
+            type="button"
+            className="button-lift min-h-12 rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+            onClick={resetChecks}
+          >
+            Haken zurücksetzen
+          </button>
+        }
+      />
+
+      <section className="animate-rise overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white text-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.16)]">
         <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 md:tracking-[0.28em]">Trip Readiness</p>
-            <h1 className="mt-3 text-3xl font-semibold text-white md:text-4xl">Reise-Checkliste</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-sky-700 md:tracking-[0.28em]">Planungsstand</p>
+            <h2 className="mt-3 text-3xl font-black text-slate-950 md:text-4xl">Bereit für den Trip.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
               Pack- und Planungsansicht für deinen Ski-Trip. Du kannst Standardpunkte abhaken, umbenennen, entfernen und eigene Punkte ergänzen.
             </p>
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-relaxed text-slate-400">
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
               {remoteMode
                 ? remoteLoading
                   ? "Synchronisierung mit deinem Alpivo-Konto läuft..."
@@ -598,39 +619,37 @@ export default function ChecklistPage() {
                     : "In deinem Alpivo-Konto gespeichert. Ohne Trip-Link gilt die Liste als persönliche Standardliste."
                 : "Nicht eingeloggt: Änderungen bleiben lokal auf diesem Gerät. Login speichert sie dauerhaft in Alpivo."}
             </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <MetricChip icon="shield" value={`${completed}`} label={`von ${allVisibleItems.length} erledigt`} variant="light" />
+              <MetricChip icon="time" value={`${remaining}`} label="offene Aufgaben" variant="light" />
+              <MetricChip icon="data" value={nextRecommended?.label ?? "Alles fertig"} label="nächster Schritt" variant="light" />
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-sky-200/20 bg-sky-200/10 p-5">
-            <div className="flex items-end justify-between gap-4">
+          <div className="rounded-[1.6rem] border border-slate-200 bg-[linear-gradient(135deg,#f8fbff,#e8f4ff)] p-5">
+            <div className="flex items-center gap-5">
+              <div className="rounded-[1.5rem] bg-slate-950 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
+                <ScoreRing value={progress} size="md" label="Bereit" />
+              </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-sky-100/75">Bereit</div>
-                <div className="mt-1 text-5xl font-semibold leading-none text-white">{progress}%</div>
-              </div>
-              <div className="text-right text-sm text-sky-50">
-                <div>{completed} erledigt</div>
-                <div className="text-sky-100/70">{remaining} offen</div>
+                <div className="text-xs font-extrabold uppercase tracking-[0.18em] text-sky-700">Readiness</div>
+                <div className="mt-2 text-3xl font-black text-slate-950">{progress}%</div>
+                <div className="mt-1 text-sm font-semibold text-slate-600">{completed} erledigt · {remaining} offen</div>
               </div>
             </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/12">
-              <div className="h-full rounded-full bg-sky-200 transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full bg-[linear-gradient(90deg,#0ea5e9,#34d399)] transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
-            <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/32 p-3 text-xs leading-5 text-sky-50">
-              <span className="text-sky-100/70">Nächster Punkt: </span>
-              <span className="font-semibold text-white">{nextRecommended?.label ?? "Alles erledigt"}</span>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600">
+              <span className="text-slate-500">Nächster Punkt: </span>
+              <span className="font-extrabold text-slate-950">{nextRecommended?.label ?? "Alles erledigt"}</span>
             </div>
-            <button
-              type="button"
-              className="mt-5 w-full rounded-lg border border-white/15 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/25 hover:bg-white/[0.1]"
-              onClick={resetChecks}
-            >
-              Haken zurücksetzen
-            </button>
           </div>
         </div>
 
-        <div className="grid gap-3 border-t border-white/10 p-5 md:grid-cols-3 md:p-6">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="text-sm font-semibold text-white">Ausrüstung</div>
+        <div className="grid gap-3 border-t border-slate-200 bg-slate-50/70 p-5 md:grid-cols-3 md:p-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-extrabold text-slate-950">Ausrüstung</div>
             <div className="mt-3 grid gap-2">
               <ChipButton active={state.settings.rental === "own"} onClick={() => updateSettings({ rental: "own" })}>
                 Eigene Ski / Schuhe
@@ -641,8 +660,8 @@ export default function ChecklistPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="text-sm font-semibold text-white">Anreise</div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-extrabold text-slate-950">Anreise</div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {(["car", "train", "bus", "flight"] as const).map((mode) => (
                 <ChipButton key={mode} active={state.settings.travel === mode} onClick={() => updateSettings({ travel: mode })}>
@@ -652,8 +671,8 @@ export default function ChecklistPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="text-sm font-semibold text-white">Trip-Typ</div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-extrabold text-slate-950">Trip-Typ</div>
             <div className="mt-3 grid gap-2">
               <ChipButton active={state.settings.tripType === "day"} onClick={() => updateSettings({ tripType: "day" })}>
                 Tagestrip
@@ -762,6 +781,8 @@ export default function ChecklistPage() {
 
       <AnimatePresence>{toast ? <Toast message={toast} /> : null}</AnimatePresence>
     </div>
+    </main>
+    </AppShell>
   );
 }
 

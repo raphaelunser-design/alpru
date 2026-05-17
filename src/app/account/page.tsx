@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
-import Section from "@/components/Section";
+import ScoreRing from "@/components/ScoreRing";
+import AppShell from "@/components/premium/AppShell";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
+import TrustPoint from "@/components/premium/TrustPoint";
 import { isOwnerAdminEmail } from "@/lib/adminShared";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
 import { buildMatchPayload, buildResortQuery } from "@/lib/matching/matchPayload";
@@ -156,6 +159,17 @@ function pct(value: number | null | undefined) {
   return Math.max(0, Math.min(100, Math.round((value / 5) * 100)));
 }
 
+function computeReadinessScore(prefs: StoredPrefs | null, resultCount: number, isLoggedIn: boolean) {
+  if (!prefs) return isLoggedIn ? 35 : 18;
+  let score = isLoggedIn ? 24 : 12;
+  if (prefs.budgetMin || prefs.budgetMax) score += 16;
+  if (prefs.tripStartDate && prefs.tripEndDate) score += 16;
+  if (prefs.peopleCount > 0) score += 10;
+  if (prefs.apres + prefs.snowReliability + prefs.valueForMoney + prefs.family + prefs.panorama > 0) score += 20;
+  if (resultCount > 0) score += 14;
+  return Math.max(0, Math.min(100, score));
+}
+
 function feedbackTypeLabel(value: string | null | undefined) {
   if (value === "bug") return "Bug";
   if (value === "idea" || value === "feature") return "Idee";
@@ -208,11 +222,7 @@ function compactAccountResults(value: unknown) {
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-      <div className="mt-1 text-xs leading-5 text-slate-400">{hint}</div>
-    </div>
+    <MetricChip icon="data" value={value} label={`${label} · ${hint}`} variant="glass" />
   );
 }
 
@@ -226,6 +236,64 @@ function PreferenceBar({ label, value }: { label: string; value: number | null |
       <div className="mt-2 h-2 rounded-full bg-white/10">
         <div className="h-full rounded-full bg-sky-200" style={{ width: `${pct(value)}%` }} />
       </div>
+    </div>
+  );
+}
+
+function DnaRadar({ prefs }: { prefs: StoredPrefs }) {
+  const axes = [
+    { label: "Schnee", value: prefs.snowReliability },
+    { label: "Budget", value: prefs.valueForMoney },
+    { label: "Après", value: prefs.apres },
+    { label: "Anreise", value: prefs.travelMode === "car" ? 4 : 3 },
+    { label: "Ruhe", value: prefs.emptySlopes },
+    { label: "Panorama", value: prefs.panorama },
+  ];
+  const center = 110;
+  const radius = 76;
+  const points = axes
+    .map((axis, index) => {
+      const angle = -Math.PI / 2 + (index / axes.length) * Math.PI * 2;
+      const distance = radius * (Math.max(0, Math.min(5, axis.value || 0)) / 5);
+      return `${center + Math.cos(angle) * distance},${center + Math.sin(angle) * distance}`;
+    })
+    .join(" ");
+  const grid = [0.35, 0.68, 1].map((scale) =>
+    axes
+      .map((_, index) => {
+        const angle = -Math.PI / 2 + (index / axes.length) * Math.PI * 2;
+        return `${center + Math.cos(angle) * radius * scale},${center + Math.sin(angle) * radius * scale}`;
+      })
+      .join(" ")
+  );
+
+  return (
+    <div className="rounded-[1.4rem] border border-white/10 bg-slate-950/44 p-4">
+      <svg viewBox="0 0 220 220" className="mx-auto h-56 w-full max-w-72" role="img" aria-label="Alpivo DNA Radar">
+        {grid.map((polygon) => (
+          <polygon key={polygon} points={polygon} fill="none" stroke="rgba(226,232,240,0.16)" strokeWidth="1" />
+        ))}
+        {axes.map((axis, index) => {
+          const angle = -Math.PI / 2 + (index / axes.length) * Math.PI * 2;
+          const x = center + Math.cos(angle) * radius;
+          const y = center + Math.sin(angle) * radius;
+          const labelX = center + Math.cos(angle) * (radius + 18);
+          const labelY = center + Math.sin(angle) * (radius + 18);
+          return (
+            <g key={axis.label}>
+              <line x1={center} y1={center} x2={x} y2={y} stroke="rgba(226,232,240,0.16)" strokeWidth="1" />
+              <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="fill-slate-300 text-[10px] font-bold">
+                {axis.label}
+              </text>
+            </g>
+          );
+        })}
+        <polygon points={points} fill="rgba(110,231,183,0.28)" stroke="#6ee7b7" strokeWidth="2" />
+        {points.split(" ").map((point) => {
+          const [x, y] = point.split(",");
+          return <circle key={point} cx={x} cy={y} r="3.5" fill="#7dd3fc" />;
+        })}
+      </svg>
     </div>
   );
 }
@@ -665,6 +733,7 @@ export default function AccountPage() {
   const displayPrefs = prefs ?? defaultPrefs;
   const topResults = useMemo(() => results.slice(0, 3), [results]);
   const favorite = topResults[0];
+  const readinessScore = computeReadinessScore(prefs, topResults.length, isLoggedIn);
   const greetingName = profile?.display_name || user?.email || "Alpivo Tester";
   const preferenceSignals = [
     { label: "Value", value: displayPrefs.valueForMoney },
@@ -677,20 +746,29 @@ export default function AccountPage() {
 
   if (!accountLoading && !isLoggedIn) {
     return (
-      <div className="space-y-8">
-        <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[330px]" imagePosition="center 48%">
-          <div className="mx-auto flex min-h-[310px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-            <div className="max-w-3xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70">Alpivo Konto</p>
-              <h1 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-5xl">Dein Alpivo Cockpit.</h1>
-              <p className="mt-3 max-w-[36rem] text-sm leading-6 text-white/78 md:text-base">
-                Dein Cockpit wird aktiv, sobald du deinen ersten Match startest oder dich einloggst.
-              </p>
-            </div>
-          </div>
-        </BackgroundHero>
+      <AppShell>
+        <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+          <div className="mx-auto grid w-full max-w-[1480px] gap-6">
+            <PageHeader
+              eyebrow="Alpivo Cockpit"
+              title="Dein Alpivo Cockpit wird aktiv."
+              subtitle="Sobald du deinen ersten Match startest oder dich einloggst, landen DNA, Feedback, Top-Matches und Trips an einem Ort."
+              actions={
+                <Link
+                  href="/quiz"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                >
+                  Match starten
+                </Link>
+              }
+            />
 
-        <Section className="space-y-6">
+          <section className="grid gap-4 md:grid-cols-3">
+            <TrustPoint icon="shield" title="Gastmodus klar" text="Ohne Login bleibt dein Match lokal in diesem Browser." />
+            <TrustPoint icon="data" title="Speichern nach Login" text="Mit Konto werden DNA, Feedback und Top-Matches deinem Profil zugeordnet." />
+            <TrustPoint icon="lock" title="Keine leeren Werte" text="Offene Bereiche erscheinen als klare Empty States statt als technische Platzhalter." />
+          </section>
+
           <GlassCard className="p-6 md:p-8">
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
               <div>
@@ -757,28 +835,45 @@ export default function AccountPage() {
               </div>
             </div>
           </GlassCard>
-        </Section>
-      </div>
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[330px]" imagePosition="center 48%">
-        <div className="mx-auto flex min-h-[310px] w-full max-w-6xl items-end px-4 pb-10 pt-12 md:px-6">
-          <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Alpivo Konto</p>
-            <h1 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-5xl">
-              {isLoggedIn ? `Willkommen, ${greetingName}.` : "Dein Alpivo Cockpit."}
-            </h1>
-            <p className="mt-3 max-w-[31ch] text-sm leading-6 text-white/78 sm:max-w-2xl">
-              Profil, Feedback und Ski-Matches an einem ruhigen Ort.
-            </p>
-          </div>
-        </div>
-      </BackgroundHero>
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-6">
+          <PageHeader
+            eyebrow="Alpivo Cockpit"
+            title={isLoggedIn ? `Willkommen, ${greetingName}.` : "Dein Alpivo Cockpit."}
+            subtitle="Profil, Feedback, Ski-DNA, Top-Matches und nächste Schritte an einem ruhigen Ort."
+            actions={
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/quiz"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                >
+                  Match starten
+                </Link>
+                <Link
+                  href="/checklist"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                >
+                  Checkliste
+                </Link>
+              </div>
+            }
+          />
 
-      <Section className="space-y-6">
+          <section className="grid gap-4 lg:grid-cols-4">
+            <MetricChip icon="shield" value={isLoggedIn ? profile?.role === "admin" ? "Admin" : "Beta Nutzer" : "Gast"} label="Status" variant="glass" />
+            <MetricChip icon="data" value={`${topResults.length}`} label="gespeicherte Top-Matches" variant="glass" />
+            <MetricChip icon="vibe" value={tripStyleLabel(displayPrefs.tripStyle)} label="Alpivo DNA" variant="glass" />
+            <MetricChip icon="time" value={formatShortDate(displayPrefs.tripStartDate)} label="nächster Zeitraum" variant="glass" />
+          </section>
+
         {!accountLoading && !isLoggedIn ? (
           <GlassCard className="p-6 md:p-8">
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
@@ -816,7 +911,10 @@ export default function AccountPage() {
                     : "Dein Cockpit wird aktiv, sobald du deinen ersten Match startest oder dich einloggst."}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="rounded-[1.35rem] border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_54px_rgba(2,6,23,0.24)]">
+                  <ScoreRing value={readinessScore} size="sm" label="Readiness" />
+                </div>
                 {isAdmin ? (
                   <span className="rounded-xl border border-sky-200/25 bg-sky-200/12 px-4 py-2 text-sm font-semibold text-sky-100">
                     Admin-Berechtigung
@@ -1051,10 +1149,13 @@ export default function AccountPage() {
                 {accountSaveState.message}
               </div>
             ) : null}
-            <div className="mt-5 grid gap-3">
-              {preferenceSignals.map((signal) => (
-                <PreferenceBar key={signal.label} label={signal.label} value={signal.value} />
-              ))}
+            <div className="mt-5 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+              <DnaRadar prefs={displayPrefs} />
+              <div className="grid gap-3">
+                {preferenceSignals.map((signal) => (
+                  <PreferenceBar key={signal.label} label={signal.label} value={signal.value} />
+                ))}
+              </div>
             </div>
             <div className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-sm text-slate-300 sm:grid-cols-2">
               <div>
@@ -1127,7 +1228,8 @@ export default function AccountPage() {
             <ActionLink href="/map" title="Karte" text="Resorts räumlich vergleichen." />
           </div>
         </GlassCard>
-      </Section>
-    </div>
+        </div>
+      </main>
+    </AppShell>
   );
 }

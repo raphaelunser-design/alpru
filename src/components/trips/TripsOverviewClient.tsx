@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import BackgroundHero from "@/components/BackgroundHero";
-import Section from "@/components/Section";
+import AppShell from "@/components/premium/AppShell";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
+import TrustPoint from "@/components/premium/TrustPoint";
 import TripCard from "@/components/trips/TripCard";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { loadDemoTripBundles, loadTripBundlesForUser, shouldFallbackToDemo } from "@/lib/tripPlannerData";
@@ -98,54 +100,80 @@ export default function TripsOverviewClient() {
     };
   }, []);
 
-  return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc="/bg/banner-bild-4k.png" heightClass="min-h-[360px]" imagePosition="center 46%">
-        <div className="mx-auto flex min-h-[320px] w-full max-w-6xl items-end px-4 pb-10 pt-14 md:px-6">
-          <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">Trips</p>
-            <h1 className="mt-4 max-w-[21rem] break-words text-3xl font-semibold leading-tight text-white sm:max-w-3xl md:text-5xl">
-              Plant euren Ski-Trip gemeinsam - ohne WhatsApp-Chaos.
-            </h1>
-            <p className="mt-3 max-w-[20rem] text-sm leading-6 text-white/78 sm:max-w-2xl md:text-base">
-              Verfügbarkeiten, Favoriten, Kosten und To-dos liegen in einem gemeinsamen Board.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/trips/new"
-                className="button-lift inline-flex min-h-14 items-center rounded-2xl bg-sky-200 px-6 text-sm font-bold text-slate-950 shadow-[0_20px_50px_rgba(125,211,252,0.28)] hover:bg-white"
-              >
-                Ski-Trip anlegen
-              </Link>
-              <Link
-                href="/quiz"
-                className="button-lift inline-flex min-h-14 items-center rounded-2xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                Match weiter nutzen
-              </Link>
-            </div>
-          </div>
-        </div>
-      </BackgroundHero>
+  const joinedMembers = bundles.reduce((sum, bundle) => sum + bundle.members.filter((member) => member.status === "joined").length, 0);
+  const favoriteCount = bundles.reduce((sum, bundle) => sum + bundle.favorites.length, 0);
+  const openDecisions = bundles.reduce((sum, bundle) => sum + bundle.dateOptions.length + bundle.budgetItems.filter((item) => !item.isPaid).length, 0);
 
-      <Section className="space-y-6">
+  return (
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-7">
+          <PageHeader
+            eyebrow="Trip Planung"
+            title="Ein Board statt Chat-Chaos"
+            subtitle="Alles Wichtige an einem Ort: Verfügbarkeiten, Resorts, Kosten und nächste Schritte für eure Gruppe."
+            actions={
+              <>
+                <Link
+                  href="/quiz"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                >
+                  Match nutzen
+                </Link>
+                <Link
+                  href="/trips/new"
+                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                >
+                  Trip anlegen
+                </Link>
+              </>
+            }
+          />
+
+          <section className="grid gap-4 lg:grid-cols-4">
+            <MetricChip icon="shield" value={`${bundles.length}`} label={userId && !demoReason ? "aktive Tripboards" : "Demo-Boards"} variant="glass" />
+            <MetricChip icon="vibe" value={`${joinedMembers}`} label="Teilnehmer im Überblick" variant="glass" />
+            <MetricChip icon="piste" value={`${favoriteCount}`} label="Resort-Favoriten" variant="glass" />
+            <MetricChip icon="data" value={`${openDecisions}`} label="offene Entscheidungen" variant="glass" />
+          </section>
+
+          <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+            <div className="overflow-hidden rounded-[1.8rem] border border-white/12 bg-slate-950/72 shadow-[0_30px_90px_rgba(2,6,23,0.36)]">
+              <div
+                className="relative min-h-[280px] bg-cover bg-center p-5 md:p-7"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(90deg, rgba(2,8,23,0.94), rgba(2,8,23,0.55), rgba(2,8,23,0.18)), url("/bg/banner-bild-4k.png")',
+                }}
+              >
+                <div className="max-w-2xl">
+                  <span className="rounded-full border border-sky-200/24 bg-sky-300/12 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.16em] text-sky-100">
+                    Planungs-Cockpit
+                  </span>
+                  <h2 className="mt-5 text-3xl font-black leading-tight text-white md:text-5xl">Vom Match zur gemeinsamen Entscheidung.</h2>
+                  <p className="mt-4 max-w-xl text-sm leading-7 text-slate-200 md:text-base">
+                    Tripboards bündeln Favoriten, Zeiträume, Gruppenstimmen und Budgetpunkte in einer ruhigen App-Oberfläche.
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {tripFeatures.slice(0, 3).map((feature) => (
+                      <span key={feature.title} className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-2 text-xs font-bold text-white">
+                        {feature.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <aside className="grid gap-4 rounded-[1.8rem] border border-white/12 bg-white/[0.065] p-5 shadow-[0_24px_80px_rgba(2,6,23,0.24)]">
+              <TrustPoint icon="shield" title="Unabhängig & transparent" text="Resorts, Budget und Vibe bleiben nachvollziehbar statt als Bauchgefühl im Chat zu verschwinden." />
+              <TrustPoint icon="data" title="Gemeinsam entscheidbar" text="Zeiträume, Favoriten und Kosten liegen nebeneinander und werden nicht über mehrere Tabs verteilt." />
+              <TrustPoint icon="lock" title="Beta mit klaren Zuständen" text="Demo-Boards sind sichtbar markiert, echte Trips laden nach Login aus Supabase." />
+            </aside>
+          </section>
+
         {demoReason ? <TripsStateCard title="Planner im Demo-Modus" text={demoReason} tone="default" /> : null}
         {error ? <TripsStateCard title="Trips konnten nicht geladen werden" text={error} tone="error" /> : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {tripFeatures.map((feature, index) => (
-            <article
-              key={feature.title}
-              className="rounded-2xl border border-white/10 bg-white/[0.065] p-5 shadow-[0_18px_54px_rgba(2,6,23,0.22)]"
-            >
-              <div className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-200/20 bg-sky-200/10 text-sm font-bold text-sky-100">
-                {index + 1}
-              </div>
-              <h2 className="mt-5 text-lg font-semibold text-white">{feature.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{feature.text}</p>
-            </article>
-          ))}
-        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -198,7 +226,8 @@ export default function TripsOverviewClient() {
             </div>
           </div>
         ) : null}
-      </Section>
-    </div>
+        </div>
+      </main>
+    </AppShell>
   );
 }

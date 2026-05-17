@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const categories = [
@@ -9,11 +10,15 @@ const categories = [
 ] as const;
 
 export default function FeedbackButton() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<(typeof categories)[number]["value"]>("general");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
+  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d";
+
+  if (usesImmersiveShell) return null;
 
   async function submit() {
     const trimmed = message.trim();

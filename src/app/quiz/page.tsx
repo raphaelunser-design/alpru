@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
 import { brand } from "@/config/brand";
-import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
-import Section from "@/components/Section";
+import AppShell from "@/components/premium/AppShell";
+import MetricChip from "@/components/premium/MetricChip";
+import PageHeader from "@/components/premium/PageHeader";
 import RangeSlider from "@/components/RangeSlider";
 import SelectControl from "@/components/SelectControl";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
@@ -894,18 +895,31 @@ export default function QuizPage() {
   const primaryStepAction = isFinalStep ? onSubmit : goToNextStep;
 
   return (
-    <div className="space-y-8">
-      <BackgroundHero imageSrc={heroContent.heroImage} heightClass="min-h-[300px]" imagePosition="center 48%">
-        <div className="mx-auto flex min-h-[260px] w-full max-w-6xl flex-col justify-end px-4 pb-10 pt-12 md:px-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/70">Match</p>
-          <h1 className="mt-4 max-w-[13ch] break-words text-3xl font-semibold leading-tight text-white sm:max-w-2xl md:text-4xl">
-            {heroContent.title}
-          </h1>
-          <p className="mt-2 max-w-[30ch] text-sm text-white/75 sm:max-w-2xl">{heroContent.subtitle}</p>
-        </div>
-      </BackgroundHero>
+    <AppShell>
+      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-6 pb-32 md:pb-10">
+          <PageHeader
+            eyebrow="Alpivo Match Wizard"
+            title={heroContent.title}
+            subtitle={heroContent.subtitle}
+            actions={
+              <button
+                type="button"
+                className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                onClick={() => setMobileSummaryOpen((current) => !current)}
+              >
+                Auswahl anzeigen
+              </button>
+            }
+          />
 
-      <Section className="space-y-6 pb-32 md:pb-10">
+        <section className="grid gap-4 lg:grid-cols-4">
+          <MetricChip icon="vibe" value={activeProfileLabel} label="Profil" variant="glass" />
+          <MetricChip icon="cost" value={`€ ${prefs.budgetMin} - € ${prefs.budgetMax}`} label="Budget p. P." variant="glass" />
+          <MetricChip icon="time" value={rangeSummary} label={rangeDays ? `${rangeDays} Tage` : "Zeitraum"} variant="glass" />
+          <MetricChip icon="data" value={`${topPriorities.length}`} label="Top-Prioritäten gewählt" variant="glass" />
+        </section>
+
         <div className="grid grid-cols-2 gap-2 rounded-[1.35rem] border border-white/18 bg-white p-2 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.12)] sm:grid-cols-4">
           {wizardSteps.map((step, index) => {
             const active = index === activeStep;
@@ -1673,7 +1687,8 @@ export default function QuizPage() {
           ) : null}
           {submitError ? <div className="mt-2 text-xs leading-5 text-amber-100">{submitError}</div> : null}
         </div>
-      </Section>
-    </div>
+        </div>
+      </main>
+    </AppShell>
   );
 }

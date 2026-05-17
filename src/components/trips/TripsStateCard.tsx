@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import GlassCard from "@/components/GlassCard";
 
 type TripsStateCardProps = {
   title: string;
@@ -17,10 +16,10 @@ export default function TripsStateCard({ title, text, tone = "default", action }
         : "border-sky-200/20 bg-sky-200/10 text-slate-100";
 
   return (
-    <GlassCard className={`p-6 ${toneClass}`}>
+    <section className={`animate-rise rounded-[1.8rem] border p-5 shadow-[0_24px_80px_rgba(2,6,23,0.28)] backdrop-blur-xl md:p-6 ${toneClass}`}>
       <h2 className="text-lg font-semibold text-white">{title}</h2>
       <p className="mt-2 text-sm">{text}</p>
       {action ? <div className="mt-4">{action}</div> : null}
-    </GlassCard>
+    </section>
   );
 }

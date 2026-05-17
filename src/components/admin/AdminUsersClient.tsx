@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { supabase } from "@/lib/supabase";
 
 type AdminUser = {
   id: string;
@@ -28,11 +28,6 @@ function formatDate(value: string | null | undefined) {
   return dateTime.format(date);
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
-}
-
 export default function AdminUsersClient() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
@@ -43,8 +38,8 @@ export default function AdminUsersClient() {
     setLoading(true);
     setError("");
     try {
-      const headers = await authHeaders();
-      if (!headers.Authorization) throw new Error("Admin-Session fehlt. Bitte erneut anmelden.");
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const { response, body } = await fetchJsonWithTimeout<{ data?: AdminUser[]; error?: string }>(
         "/api/admin/users",
         { headers, cache: "no-store" },

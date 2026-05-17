@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
-import { supabase } from "@/lib/supabase";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 
 type FeedbackStatus = "new" | "reviewed" | "planned" | "done" | "archived";
 
@@ -80,15 +80,16 @@ export default function AdminFeedbackPage() {
     };
   }, [rows]);
 
-  async function authHeaders(): Promise<Record<string, string>> {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
-  }
-
   async function loadFeedback() {
     setLoading(true);
     setError("");
-    const headers = await authHeaders();
+    const headers = await getAdminRequestHeaders();
+    if (!Object.keys(headers).length) {
+      setError("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     const params = new URLSearchParams({ category, status });
     const response = await fetch(`/api/admin/feedback?${params.toString()}`, { headers });
     const body = (await response.json().catch(() => null)) as { data?: FeedbackRow[]; error?: string } | null;
@@ -105,7 +106,11 @@ export default function AdminFeedbackPage() {
   }
 
   async function updateStatus(id: string, nextStatus: string) {
-    const headers = await authHeaders();
+    const headers = await getAdminRequestHeaders();
+    if (!Object.keys(headers).length) {
+      setError("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
+      return;
+    }
     const response = await fetch("/api/admin/feedback", {
       method: "PATCH",
       headers: { ...headers, "content-type": "application/json" },

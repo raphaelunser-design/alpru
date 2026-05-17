@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
-
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 
 type ResortRow = {
   id: string;
@@ -25,22 +25,11 @@ function formatLabel(row: ResortRow) {
 }
 
 export default function AdminPricesPage() {
-  const [token, setToken] = useState("");
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ResortRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState<Record<string, Partial<ResortRow>>>({});
-
-  useEffect(() => {
-    const run = async () => {
-      const { supabase } = await import("@/lib/supabase");
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token ?? "";
-      setToken(accessToken);
-    };
-    run();
-  }, []);
 
   const displayRows = useMemo(() => rows, [rows]);
 
@@ -48,11 +37,13 @@ export default function AdminPricesPage() {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       params.set("limit", "1000");
       const res = await fetch(`/api/admin/prices${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (!res.ok) throw new Error("Laden fehlgeschlagen");
       const json = await res.json();
@@ -76,11 +67,13 @@ export default function AdminPricesPage() {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const res = await fetch(`/api/admin/prices`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...headers,
         },
         body: JSON.stringify({ id: row.id, ...patch }),
       });
@@ -134,7 +127,7 @@ export default function AdminPricesPage() {
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
-            <span>Angemeldet als Admin: {token ? "ja" : "nein"}</span>
+            <span>Admin-Zugriff wird beim Laden und Speichern geprüft.</span>
             <Link className="underline" href="/resorts">
               Zurück zu Resorts
             </Link>

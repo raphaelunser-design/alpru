@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 import { dataQualityLabel, eventTypeLabel, formatEventPeriod, type ResortEvent } from "@/lib/resortEvents";
 
 type ResortSummary = {
@@ -31,7 +32,6 @@ function resortFor(row: EventRow) {
 }
 
 export default function AdminEventsPage() {
-  const [token, setToken] = useState("");
   const [query, setQuery] = useState("");
   const [quality, setQuality] = useState("all");
   const [rows, setRows] = useState<EventRow[]>([]);
@@ -39,25 +39,18 @@ export default function AdminEventsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const run = async () => {
-      const { supabase } = await import("@/lib/supabase");
-      const { data } = await supabase.auth.getSession();
-      setToken(data.session?.access_token ?? "");
-    };
-    run();
-  }, []);
-
   const loadEvents = async () => {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const params = new URLSearchParams();
       params.set("limit", "100");
       if (query.trim()) params.set("q", query.trim());
       if (quality !== "all") params.set("quality", quality);
       const res = await fetch(`/api/admin/events?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Events konnten nicht geladen werden.");

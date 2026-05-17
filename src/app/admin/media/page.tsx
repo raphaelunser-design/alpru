@@ -1,26 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 
 export default function AdminMediaPage() {
-  const [token, setToken] = useState("");
   const [folder, setFolder] = useState("uploads");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ url: string; path: string } | null>(null);
-
-  useEffect(() => {
-    const run = async () => {
-      const { supabase } = await import("@/lib/supabase");
-      const { data } = await supabase.auth.getSession();
-      setToken(data.session?.access_token ?? "");
-    };
-    run();
-  }, []);
 
   const upload = async () => {
     if (!file) {
@@ -36,9 +27,11 @@ export default function AdminMediaPage() {
     form.append("folder", folder || "uploads");
 
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const res = await fetch("/api/admin/media", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
         body: form,
       });
       if (!res.ok) throw new Error("Upload fehlgeschlagen");

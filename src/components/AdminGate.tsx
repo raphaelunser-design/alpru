@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { clearStoredAdminToken, getAdminAuthContext, saveStoredAdminToken } from "@/lib/adminClientAuth";
 import { isOwnerAdminEmail } from "@/lib/adminShared";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { supabase } from "@/lib/supabase";
 
 type AdminGateState = {
   loading: boolean;
   isAdmin: boolean;
   email: string | null;
   reason: "loading" | "logged-out" | "forbidden" | "allowed";
+  authSource: "supabase" | "token" | "none";
 };
 
 export default function AdminGate({ children }: { children: React.ReactNode }) {
@@ -21,70 +22,69 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
     isAdmin: false,
     email: null,
     reason: "loading",
+    authSource: "none",
   });
+  const [manualToken, setManualToken] = useState("");
+  const [tokenMessage, setTokenMessage] = useState("");
 
-  useEffect(() => {
+  const checkAdmin = useCallback(async () => {
     let mounted = true;
 
-    const check = async () => {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      const token = data.session?.access_token ?? "";
-      const email = data.session?.user?.email ?? null;
-      const ownerFallback = isOwnerAdminEmail(email);
+    const context = await getAdminAuthContext();
+    const ownerFallback = isOwnerAdminEmail(context.email);
 
-      if (sessionError && process.env.NODE_ENV !== "production") {
-        console.warn("[alpivo-admin] Supabase session could not be read", { error: sessionError.message });
+    if (!Object.keys(context.headers).length && !ownerFallback) {
+      if (mounted) setState({ loading: false, isAdmin: false, email: context.email, reason: "logged-out", authSource: context.source });
+      return () => {
+        mounted = false;
+      };
+    }
+
+    try {
+      const { response, body } = await fetchJsonWithTimeout<{ isAdmin: boolean; email: string | null }>(
+        "/api/admin/me",
+        {
+          headers: context.headers,
+          cache: "no-store",
+        },
+        10000
+      );
+
+      if (!mounted) return;
+      const isAdmin = Boolean(response.ok && body?.isAdmin) || ownerFallback;
+      setState({
+        loading: false,
+        isAdmin,
+        email: body?.email ?? context.email,
+        reason: isAdmin ? "allowed" : "forbidden",
+        authSource: context.source,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[alpivo-admin] admin status request failed", { error, email: context.email });
       }
-
-      if (!token && !ownerFallback) {
-        if (mounted) setState({ loading: false, isAdmin: false, email, reason: "logged-out" });
-        return;
-      }
-
-      try {
-        const { response, body } = await fetchJsonWithTimeout<{ isAdmin: boolean; email: string | null }>(
-          "/api/admin/me",
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            cache: "no-store",
-          },
-          10000
-        );
-
-        if (!mounted) return;
-        const isAdmin = Boolean(response.ok && body?.isAdmin) || ownerFallback;
+      if (mounted) {
         setState({
           loading: false,
-          isAdmin,
-          email: body?.email ?? email,
-          reason: isAdmin ? "allowed" : "forbidden",
+          isAdmin: ownerFallback,
+          email: context.email,
+          reason: ownerFallback ? "allowed" : "forbidden",
+          authSource: context.source,
         });
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[alpivo-admin] admin status request failed", { error, email });
-        }
-        if (mounted) {
-          setState({
-            loading: false,
-            isAdmin: ownerFallback,
-            email,
-            reason: ownerFallback ? "allowed" : "forbidden",
-          });
-        }
       }
-    };
-
-    check();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      check();
-    });
+    }
 
     return () => {
       mounted = false;
-      listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const cleanupPromise = checkAdmin();
+    return () => {
+      cleanupPromise.then((cleanup) => cleanup?.()).catch(() => undefined);
+    };
+  }, [checkAdmin]);
 
   if (state.loading) {
     return (
@@ -104,15 +104,62 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
             {state.reason === "logged-out"
-              ? "Melde dich mit dem Alpivo-Konto an, das Adminrechte besitzt."
-              : `Dieses Konto${state.email ? ` (${state.email})` : ""} ist nicht als Alpivo-Admin freigegeben.`}
+              ? "Melde dich mit dem Alpivo-Konto an, das Adminrechte besitzt, oder nutze den Admin-Token-Fallback."
+              : `Dieses Konto${state.email ? ` (${state.email})` : state.authSource === "token" ? " mit gespeichertem Admin-Token" : ""} ist nicht als Alpivo-Admin freigegeben.`}
           </p>
-          <Link
-            href="/account"
-            className="button-lift mt-5 inline-flex min-h-11 items-center rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
-          >
-            Zum Login
-          </Link>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/account"
+              className="button-lift inline-flex min-h-11 items-center justify-center rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
+            >
+              Zum Login
+            </Link>
+            {state.authSource === "token" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  clearStoredAdminToken();
+                  setState((current) => ({ ...current, loading: true }));
+                  void checkAdmin();
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                Admin-Token entfernen
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400" htmlFor="admin-token">
+              Admin-Token Fallback
+            </label>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="admin-token"
+                type="password"
+                value={manualToken}
+                onChange={(event) => setManualToken(event.target.value)}
+                placeholder="ADMIN_TOKEN eingeben"
+                className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  saveStoredAdminToken(manualToken);
+                  setManualToken("");
+                  setTokenMessage("Admin-Token lokal gespeichert. Zugriff wird erneut geprüft.");
+                  setState((current) => ({ ...current, loading: true }));
+                  void checkAdmin();
+                }}
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                Prüfen
+              </button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              Wird nur lokal in diesem Browser gespeichert und als <code>x-admin-token</code> an Admin-APIs gesendet.
+            </p>
+            {tokenMessage ? <p className="mt-2 text-xs text-emerald-200">{tokenMessage}</p> : null}
+          </div>
         </GlassCard>
       </Section>
     );

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { supabase } from "@/lib/supabase";
 
 type AnalyticsKpis = {
   totalPageViews: number;
@@ -118,11 +118,6 @@ function ChartSummaryCard({ label, value, hint }: { label: string; value: string
   );
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
-}
-
 export default function AdminAnalyticsClient({ compact = false }: { compact?: boolean }) {
   const [data, setData] = useState<AdminAnalyticsPayload | null>(null);
   const [rangeDays, setRangeDays] = useState<RangeDays>(30);
@@ -135,8 +130,8 @@ export default function AdminAnalyticsClient({ compact = false }: { compact?: bo
     setRefreshing(true);
     setError("");
     try {
-      const headers = await authHeaders();
-      if (!headers.Authorization) throw new Error("Admin-Session fehlt. Bitte erneut anmelden.");
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const { response, body } = await fetchJsonWithTimeout<AdminAnalyticsPayload & { error?: string }>(
         `/api/admin/analytics?days=${days}`,
         { headers, cache: "no-store" },

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 
 type ContentRow = {
   key: string;
@@ -39,27 +40,19 @@ const defaultContent: Record<string, Record<string, string>> = {
 };
 
 export default function AdminContentPage() {
-  const [token, setToken] = useState("");
   const [content, setContent] = useState<Record<string, Record<string, string>>>(defaultContent);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
 
-  useEffect(() => {
-    const run = async () => {
-      const { supabase } = await import("@/lib/supabase");
-      const { data } = await supabase.auth.getSession();
-      setToken(data.session?.access_token ?? "");
-    };
-    run();
-  }, []);
-
   const loadContent = async () => {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const res = await fetch(`/api/admin/content`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (!res.ok) throw new Error("Laden fehlgeschlagen");
       const json = await res.json();
@@ -88,11 +81,13 @@ export default function AdminContentPage() {
     setError("");
     setSaved("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const res = await fetch(`/api/admin/content`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...headers,
         },
         body: JSON.stringify({ key, value: content[key] }),
       });

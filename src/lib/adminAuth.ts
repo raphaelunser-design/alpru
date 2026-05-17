@@ -50,7 +50,14 @@ export async function getAdminStatus(req: Request) {
     const user = await getUserFromAccessToken(token);
     if (user?.email) {
       const email = normalizeEmail(user.email);
-      const profile = await ensureProfileForUser(user);
+      let profile: Awaited<ReturnType<typeof ensureProfileForUser>> = null;
+      try {
+        profile = await ensureProfileForUser(user);
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[alpivo-admin] profile sync failed during admin check", { error, email });
+        }
+      }
       const profileIsAdmin = profile?.role === "admin";
       return { isAdmin: profileIsAdmin || (await isEmailAdmin(email)), email };
     }

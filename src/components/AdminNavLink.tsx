@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getAdminAuthContext } from "@/lib/adminClientAuth";
 import { isOwnerAdminEmail } from "@/lib/adminShared";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { supabase } from "@/lib/supabase";
 
 export default function AdminNavLink({ className = "" }: { className: string }) {
   const [visible, setVisible] = useState(false);
@@ -13,16 +13,15 @@ export default function AdminNavLink({ className = "" }: { className: string }) 
     let mounted = true;
 
     const check = async () => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token ?? "";
-      const email = data.session?.user?.email ?? null;
-      if (!token) {
+      const context = await getAdminAuthContext();
+      const email = context.email;
+      if (!Object.keys(context.headers).length) {
         if (mounted) setVisible(isOwnerAdminEmail(email));
         return;
       }
       try {
         const { response } = await fetchJsonWithTimeout("/api/admin/me", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: context.headers,
           cache: "no-store",
         }, 10000);
         if (mounted) setVisible(response.ok || isOwnerAdminEmail(email));
@@ -32,10 +31,8 @@ export default function AdminNavLink({ className = "" }: { className: string }) 
     };
 
     check();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => check());
     return () => {
       mounted = false;
-      listener.subscription.unsubscribe();
     };
   }, []);
 

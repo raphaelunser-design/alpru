@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import { getAdminAuthContext, getAdminRequestHeaders } from "@/lib/adminClientAuth";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { supabase } from "@/lib/supabase";
 import type { AlpivoAccessMode } from "@/lib/accessModeShared";
 
 type AccessModeResponse = {
@@ -26,7 +26,7 @@ function sourceLabel(source: AccessModeResponse["source"] | undefined) {
 }
 
 export default function AccessModeCard() {
-  const [token, setToken] = useState("");
+  const [headers, setHeaders] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<AlpivoAccessMode | null>(null);
   const [source, setSource] = useState<AccessModeResponse["source"]>();
   const [loading, setLoading] = useState(true);
@@ -35,22 +35,21 @@ export default function AccessModeCard() {
   const [error, setError] = useState("");
 
   async function readToken() {
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token ?? "";
-    setToken(accessToken);
-    return accessToken;
+    const context = await getAdminAuthContext();
+    setHeaders(context.headers);
+    return context.headers;
   }
 
-  async function loadMode(nextToken = token) {
+  async function loadMode(nextHeaders = headers) {
     setLoading(true);
     setError("");
     try {
-      const accessToken = nextToken || (await readToken());
-      if (!accessToken) throw new Error("Admin-Session fehlt. Bitte erneut anmelden.");
+      const authHeaders = Object.keys(nextHeaders).length ? nextHeaders : await getAdminRequestHeaders();
+      if (!Object.keys(authHeaders).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
 
       const { response, body } = await fetchJsonWithTimeout<AccessModeResponse>(
         "/api/admin/access-mode",
-        { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+        { headers: authHeaders, cache: "no-store" },
         12000
       );
       if (!response.ok) throw new Error(body?.error || "Access Mode konnte nicht geladen werden.");
@@ -64,9 +63,9 @@ export default function AccessModeCard() {
   }
 
   async function updateMode(nextMode: AlpivoAccessMode) {
-    const accessToken = token || (await readToken());
-    if (!accessToken) {
-      setError("Admin-Session fehlt. Bitte erneut anmelden.");
+    const authHeaders = Object.keys(headers).length ? headers : await readToken();
+    if (!Object.keys(authHeaders).length) {
+      setError("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       return;
     }
 
@@ -80,7 +79,7 @@ export default function AccessModeCard() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
+            ...authHeaders,
           },
           body: JSON.stringify({ mode: nextMode }),
         },
@@ -102,7 +101,7 @@ export default function AccessModeCard() {
   }
 
   useEffect(() => {
-    readToken().then((accessToken) => loadMode(accessToken));
+    readToken().then((authHeaders) => loadMode(authHeaders));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import BackgroundHero from "@/components/BackgroundHero";
 import GlassCard from "@/components/GlassCard";
 import Section from "@/components/Section";
+import { getAdminRequestHeaders } from "@/lib/adminClientAuth";
 
 const DEFAULT_NEW = {
   name: "",
@@ -53,7 +54,6 @@ type ResortRow = {
 };
 
 export default function AdminResortsPage() {
-  const [token, setToken] = useState("");
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ResortRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,26 +62,19 @@ export default function AdminResortsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newResort, setNewResort] = useState(DEFAULT_NEW);
 
-  useEffect(() => {
-    const run = async () => {
-      const { supabase } = await import("@/lib/supabase");
-      const { data } = await supabase.auth.getSession();
-      setToken(data.session?.access_token ?? "");
-    };
-    run();
-  }, []);
-
   const loadResorts = async (offset = 0) => {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       params.set("limit", "50");
       params.set("offset", String(offset));
 
       const res = await fetch(`/api/admin/resorts${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (!res.ok) throw new Error("Laden fehlgeschlagen");
       const json = await res.json();
@@ -104,11 +97,13 @@ export default function AdminResortsPage() {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const res = await fetch(`/api/admin/resorts`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...headers,
         },
         body: JSON.stringify({ id: row.id, ...patch }),
       });
@@ -138,6 +133,8 @@ export default function AdminResortsPage() {
     setLoading(true);
     setError("");
     try {
+      const headers = await getAdminRequestHeaders();
+      if (!Object.keys(headers).length) throw new Error("Admin-Session fehlt. Bitte erneut anmelden oder Admin-Token nutzen.");
       const payload = {
         name: newResort.name.trim(),
         slug: newResort.slug.trim() || undefined,
@@ -150,7 +147,7 @@ export default function AdminResortsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...headers,
         },
         body: JSON.stringify(payload),
       });

@@ -7,9 +7,11 @@ import ResortDecisionCard from "@/components/ResortDecisionCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
 import AppShell from "@/components/premium/AppShell";
+import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import PageHeader from "@/components/premium/PageHeader";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
 import TrustPoint from "@/components/premium/TrustPoint";
+import { getResortActionLinks } from "@/data/resortActionLinks";
 import { deriveResortDecision, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
@@ -251,6 +253,13 @@ export default function ResortsPage() {
             <TrustPoint icon="data" title="Beta-Daten klar gekennzeichnet" text="Kosten und Resortdaten sind Orientierung und werden laufend verbessert." />
             <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben bei dir." />
           </div>
+
+          <ExternalActionLinks
+            links={getResortActionLinks("obertauern")}
+            limit={4}
+            title="Schnell zum Top-Match handeln"
+            subtitle="Für den stärksten Pilot-Match Obertauern kannst du direkt offizielle Infos, Tickets, Live-Status und Unterkunft prüfen."
+          />
 
         <GlassCard className="p-5 md:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

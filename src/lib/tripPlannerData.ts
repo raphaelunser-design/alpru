@@ -18,7 +18,7 @@ import type {
   SkiTripSettlementRecord,
   TripResortLite,
 } from "@/lib/tripPlanner";
-import { buildDemoBundles, demoTripIds, demoTripResortSlugs } from "@/lib/tripPlannerDemo";
+import { buildDemoBundles, demoTripIds, demoTripResortSlugs } from "@/data/demoTrip";
 
 type DbErrorLike = { code: string; message: string } | null | undefined;
 

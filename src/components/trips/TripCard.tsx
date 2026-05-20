@@ -41,7 +41,7 @@ export default function TripCard({ bundle }: TripCardProps) {
             Ski Trip
           </span>
           <span className="rounded-full border border-white/15 bg-slate-950/55 px-3 py-1 text-xs text-white/85">
-            {bundle.isDemo ? "Demo" : "Live"}
+            {bundle.isDemo ? "Gast" : "Live"}
           </span>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4">

@@ -1,6 +1,16 @@
 const FAVORITES_KEY = "alpivo_favorite_resorts";
 const TRIP_DRAFT_KEY = "alpivo_trip_draft_resorts";
 const SELECTED_MAP_KEY = "alpivo_selected_map_resort";
+const CHECKLIST_READINESS_KEY = "alpivo_checklist_readiness";
+
+export type ChecklistReadinessState = {
+  percent: number;
+  completed: number;
+  total: number;
+  open: number;
+  nextTask: string;
+  updatedAt: string;
+};
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -61,4 +71,31 @@ export function setSelectedMapResort(slug: string) {
 export function getSelectedMapResort() {
   if (!canUseStorage()) return "";
   return window.localStorage.getItem(SELECTED_MAP_KEY) ?? "";
+}
+
+export function setChecklistReadiness(state: Omit<ChecklistReadinessState, "updatedAt">) {
+  if (!canUseStorage()) return;
+  const nextState: ChecklistReadinessState = { ...state, updatedAt: new Date().toISOString() };
+  window.localStorage.setItem(CHECKLIST_READINESS_KEY, JSON.stringify(nextState));
+  window.dispatchEvent(new CustomEvent("alpivo-local-state-change", { detail: { key: CHECKLIST_READINESS_KEY } }));
+}
+
+export function getChecklistReadiness(): ChecklistReadinessState | null {
+  if (!canUseStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(CHECKLIST_READINESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ChecklistReadinessState>;
+    if (!Number.isFinite(parsed.percent)) return null;
+    return {
+      percent: Math.max(0, Math.min(100, Math.round(Number(parsed.percent)))),
+      completed: Math.max(0, Math.round(Number(parsed.completed ?? 0))),
+      total: Math.max(0, Math.round(Number(parsed.total ?? 0))),
+      open: Math.max(0, Math.round(Number(parsed.open ?? 0))),
+      nextTask: String(parsed.nextTask || "Unterkunft finalisieren"),
+      updatedAt: String(parsed.updatedAt || ""),
+    };
+  } catch {
+    return null;
+  }
 }

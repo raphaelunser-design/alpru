@@ -11,6 +11,7 @@ import TrustPoint from "@/components/premium/TrustPoint";
 import SelectControl from "@/components/SelectControl";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
+import { addTripDraftResort } from "@/lib/alpivoLocalState";
 import { supabase } from "@/lib/supabase";
 import type { ResortLoadResult } from "@/lib/resortRepository";
 import type { ResortSignalRow } from "@/lib/resortSignals";
@@ -165,6 +166,11 @@ export default function TripCreateClient() {
     setSelectedResorts((current) => (current.includes(slug) ? current.filter((entry) => entry !== slug) : [...current, slug]));
   }
 
+  function startGuestTrip() {
+    addTripDraftResort("obertauern");
+    router.push("/trips/demo-trip-crew");
+  }
+
   if (!userId) {
     return (
       <AppShell>
@@ -173,32 +179,42 @@ export default function TripCreateClient() {
             <PageHeader
               eyebrow="Trip Planung"
               title="Neuen Ski-Trip anlegen"
-              subtitle="Lege ein Tripboard an, sammle Favoriten und bringe Budget, Zeitraum und Gruppe an einen Ort."
+              subtitle="Als Gast kannst du lokal mit einem Tripboard starten. Mit Login wird dein Trip dauerhaft am Konto gespeichert."
               actions={
-                <Link
-                  href="/account"
-                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
-                >
-                  Zu Konto / Login
-                </Link>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={startGuestTrip}
+                    className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                  >
+                    Lokal mit Obertauern starten
+                  </button>
+                  <Link
+                    href="/account"
+                    className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                  >
+                    Login öffnen
+                  </Link>
+                </div>
               }
             />
           <TripsStateCard
-            title="Login erforderlich"
-            text="Zum Anlegen eines echten Gruppen-Trips braucht Alpivo ein Konto. Danach werden Mitglieder, Resort-Favoriten und Kosten sauber an dein Profil gebunden."
+            title="Gastmodus verfügbar"
+            text="Du kannst sofort lokal planen. Zeitraum, Favoriten und erste Kosten bleiben auf diesem Gerät; mit Login werden sie später dauerhaft gespeichert."
             action={
-              <Link
-                href="/account"
+              <button
+                type="button"
+                onClick={startGuestTrip}
                 className="button-lift inline-flex rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
               >
-                Zu Konto / Login
-              </Link>
+                Lokales Tripboard öffnen
+              </button>
             }
           />
             <section className="grid gap-4 md:grid-cols-3">
-              <TrustPoint icon="shield" title="Privat geplant" text="Tripboards werden deinem Konto zugeordnet und nicht öffentlich gelistet." />
+              <TrustPoint icon="shield" title="Privat geplant" text="Gastdaten bleiben lokal in deinem Browser." />
               <TrustPoint icon="data" title="Match-nah" text="Resort-Favoriten kommen aus der Alpivo-Bibliothek und bleiben vergleichbar." />
-              <TrustPoint icon="lock" title="Beta transparent" text="Demo- und Live-Zustände bleiben sichtbar getrennt." />
+              <TrustPoint icon="lock" title="Dauerhaft per Login" text="Mit Konto kannst du Trips später geräteübergreifend speichern." />
             </section>
           </div>
         </main>

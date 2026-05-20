@@ -14,8 +14,51 @@ import type {
   SkiTripSettlementRecord,
   TripResortLite,
 } from "@/lib/tripPlanner";
+import { getAlpivoTopMatches, getResortActionLinks, type AlpivoResort } from "@/data/resorts";
 
-const demoResortFallbacks: Record<string, TripResortLite> = {
+function firstNumber(value: string) {
+  const match = value.match(/\d+(?:[.,]\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function altitudeParts(value: string) {
+  const values = Array.from(value.matchAll(/\d+(?:[.,]\d+)?/g))
+    .map((match) => Number(match[0].replace(",", ".")))
+    .filter(Number.isFinite);
+  return {
+    min: values[0] ?? null,
+    max: values.length > 1 ? values[1] : values[0] ?? null,
+  };
+}
+
+function toTripResortLite(resort: AlpivoResort): TripResortLite {
+  const altitude = altitudeParts(resort.altitude);
+  return {
+    id: `alpivo-resort-${resort.slug}`,
+    slug: resort.slug,
+    name: resort.name,
+    country: resort.country,
+    region: resort.region,
+    imageUrl: resort.image,
+    pisteKm: firstNumber(resort.pisteKm),
+    elevationMinM: altitude.min,
+    elevationMaxM: altitude.max,
+    verticalM: altitude.min !== null && altitude.max !== null ? Math.max(0, altitude.max - altitude.min) : null,
+    skipassPriceFrom: firstNumber(resort.detail.skipass[0]?.value ?? ""),
+    officialUrl: getResortActionLinks(resort.slug).officialInfo?.url ?? resort.detail.externalLinks.find((link) => /^https?:\/\//.test(link.href))?.href ?? null,
+    lat: resort.coordinates.lat,
+    lon: resort.coordinates.lon,
+    matchPct: resort.score,
+  };
+}
+
+const centralTripResortFallbacks = Object.fromEntries(
+  getAlpivoTopMatches().map((resort) => [resort.slug, toTripResortLite(resort)])
+);
+
+const legacyDemoResortFallbacks: Record<string, TripResortLite> = {
   "soelden": {
     id: "demo-resort-soelden",
     slug: "soelden",
@@ -31,7 +74,7 @@ const demoResortFallbacks: Record<string, TripResortLite> = {
     officialUrl: null,
     lat: 46.9693,
     lon: 11.0074,
-    matchPct: 82,
+    matchPct: 89,
   },
   "ischgl": {
     id: "demo-resort-ischgl",
@@ -137,6 +180,12 @@ const demoResortFallbacks: Record<string, TripResortLite> = {
   },
 };
 
+const demoResortFallbacks: Record<string, TripResortLite> = {
+  ...legacyDemoResortFallbacks,
+  ...centralTripResortFallbacks,
+  soelden: centralTripResortFallbacks.solden ?? legacyDemoResortFallbacks.soelden,
+};
+
 export const demoTripIds = ["demo-trip-crew", "demo-trip-family", "demo-trip-spring"] as const;
 export const demoTripResortSlugs = Object.keys(demoResortFallbacks);
 
@@ -168,13 +217,13 @@ const demoTrips: DemoTripRaw[] = [
     trip: {
       id: "demo-trip-crew",
       title: "Wochenende mit Freunden",
-      description: "Vierergruppe für einen sportlichen Januar-Trip mit Après-Puffer und klaren Kosten.",
+      description: "Sechsergruppe für einen Januar-Trip mit Après-Puffer, Schneesicherheit und klaren Kosten.",
       startRegion: "München",
-      participantTarget: 4,
-      budgetPerPerson: 540,
+      participantTarget: 6,
+      budgetPerPerson: 650,
       skiLevel: "mixed",
       focus: ["apres", "snow", "weekend", "piste_km"],
-      preferredResortSlugs: ["ischgl", "soelden", "serfaus-fiss-ladis"],
+      preferredResortSlugs: ["obertauern", "solden", "zell-am-see"],
       createdBy: "demo-user-raphael",
       createdAt: "2027-01-08T08:30:00Z",
       updatedAt: "2027-01-10T11:30:00Z",
@@ -285,9 +334,9 @@ const demoTrips: DemoTripRaw[] = [
       { id: "demo-av-12", tripId: "demo-trip-crew", dateOptionId: "demo-date-crew-3", memberId: "demo-member-max", status: "available" },
     ],
     favorites: [
-      { id: "demo-fav-crew-1", tripId: "demo-trip-crew", resortId: null, resortSlug: "ischgl", note: "Starker Mix aus Pisten, Nightlife und Schnee.", proposedByMemberId: "demo-member-raphael", isPinned: true, createdAt: "2027-01-08T10:25:00Z" },
-      { id: "demo-fav-crew-2", tripId: "demo-trip-crew", resortId: null, resortSlug: "soelden", note: "Gletscher-Fit und gute Wochenend-Anreise.", proposedByMemberId: "demo-member-luca", isPinned: false, createdAt: "2027-01-08T10:26:00Z" },
-      { id: "demo-fav-crew-3", tripId: "demo-trip-crew", resortId: null, resortSlug: "serfaus-fiss-ladis", note: "Sehr rund, aber für die Crew etwas ruhiger.", proposedByMemberId: "demo-member-anna", isPinned: false, createdAt: "2027-01-08T10:28:00Z" },
+      { id: "demo-fav-crew-1", tripId: "demo-trip-crew", resortId: null, resortSlug: "obertauern", note: "Top Match: Schneesicher, lebendig und im Zielbudget.", proposedByMemberId: "demo-member-raphael", isPinned: true, createdAt: "2027-01-08T10:25:00Z" },
+      { id: "demo-fav-crew-2", tripId: "demo-trip-crew", resortId: null, resortSlug: "solden", note: "Sehr schneesicher und sportlich, aber teurer.", proposedByMemberId: "demo-member-luca", isPinned: false, createdAt: "2027-01-08T10:26:00Z" },
+      { id: "demo-fav-crew-3", tripId: "demo-trip-crew", resortId: null, resortSlug: "zell-am-see", note: "Gute Alternative mit kurzer Anreise und stärkerem Value-Fit.", proposedByMemberId: "demo-member-anna", isPinned: false, createdAt: "2027-01-08T10:28:00Z" },
     ],
     votes: [
       { id: "demo-vote-1", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-1", memberId: "demo-member-raphael", voteKind: "favorite", createdAt: "2027-01-08T10:31:00Z" },
@@ -296,8 +345,8 @@ const demoTrips: DemoTripRaw[] = [
       { id: "demo-vote-4", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-2", memberId: "demo-member-anna", voteKind: "like", createdAt: "2027-01-08T10:34:00Z" },
     ],
     comments: [
-      { id: "demo-comment-1", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-1", memberId: "demo-member-luca", body: "Preislich okay, solange wir früh Unterkunft fixen.", createdAt: "2027-01-08T10:40:00Z" },
-      { id: "demo-comment-2", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-2", memberId: "demo-member-anna", body: "Sölden bleibt für Anfang Februar mein Schnee-Favorit.", createdAt: "2027-01-08T10:42:00Z" },
+      { id: "demo-comment-1", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-1", memberId: "demo-member-luca", body: "Obertauern passt genau ins Budgetfenster, wenn wir Unterkunft früh fixen.", createdAt: "2027-01-08T10:40:00Z" },
+      { id: "demo-comment-2", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-2", memberId: "demo-member-anna", body: "Sölden bleibt die sportlichere Alternative, aber kostet mehr.", createdAt: "2027-01-08T10:42:00Z" },
     ],
     priceSnapshots: [
       { id: "demo-price-1", tripId: "demo-trip-crew", favoriteId: "demo-fav-crew-1", dateOptionId: "demo-date-crew-1", currency: "EUR", skipass: 159, accommodation: 220, travel: 85, rental: 0, skiSchool: 0, food: 96, buffer: 38, totalOverride: null, note: "Apartment zu viert", sourceKind: "seed", updatedByMemberId: "demo-member-raphael", updatedAt: "2027-01-08T11:20:00Z" },
@@ -338,7 +387,7 @@ const demoTrips: DemoTripRaw[] = [
       budgetPerPerson: 690,
       skiLevel: "beginner",
       focus: ["family", "budget", "distance", "snow"],
-      preferredResortSlugs: ["serfaus-fiss-ladis", "kitzbuehel-kirchberg", "soelden"],
+      preferredResortSlugs: ["zell-am-see", "saalbach", "solden"],
       createdBy: "demo-user-julia",
       createdAt: "2027-01-22T14:00:00Z",
       updatedAt: "2027-01-24T09:00:00Z",
@@ -366,16 +415,16 @@ const demoTrips: DemoTripRaw[] = [
       { id: "demo-family-av-8", tripId: "demo-trip-family", dateOptionId: "demo-date-family-2", memberId: "demo-member-noah", status: "available" },
     ],
     favorites: [
-      { id: "demo-fav-family-1", tripId: "demo-trip-family", resortId: null, resortSlug: "serfaus-fiss-ladis", note: "Top für Kinderkurse und breite Auswahl.", proposedByMemberId: "demo-member-julia", isPinned: true, createdAt: "2027-01-22T14:22:00Z" },
-      { id: "demo-fav-family-2", tripId: "demo-trip-family", resortId: null, resortSlug: "kitzbuehel-kirchberg", note: "Gute Infrastruktur, aber preislich enger.", proposedByMemberId: "demo-member-david", isPinned: false, createdAt: "2027-01-22T14:23:00Z" },
-      { id: "demo-fav-family-3", tripId: "demo-trip-family", resortId: null, resortSlug: "soelden", note: "Schneesicher, für die Kinder aber etwas sportlicher.", proposedByMemberId: "demo-member-david", isPinned: false, createdAt: "2027-01-22T14:24:00Z" },
+      { id: "demo-fav-family-1", tripId: "demo-trip-family", resortId: null, resortSlug: "zell-am-see", note: "Kurze Anreise, guter Value-Fit und Stadt-/See-Optionen.", proposedByMemberId: "demo-member-julia", isPinned: true, createdAt: "2027-01-22T14:22:00Z" },
+      { id: "demo-fav-family-2", tripId: "demo-trip-family", resortId: null, resortSlug: "saalbach", note: "Sehr großes Gebiet, aber an Wochenenden beliebt.", proposedByMemberId: "demo-member-david", isPinned: false, createdAt: "2027-01-22T14:23:00Z" },
+      { id: "demo-fav-family-3", tripId: "demo-trip-family", resortId: null, resortSlug: "solden", note: "Schneesicher, für die Kinder aber sportlicher und teurer.", proposedByMemberId: "demo-member-david", isPinned: false, createdAt: "2027-01-22T14:24:00Z" },
     ],
     votes: [
       { id: "demo-family-vote-1", tripId: "demo-trip-family", favoriteId: "demo-fav-family-1", memberId: "demo-member-julia", voteKind: "favorite", createdAt: "2027-01-22T14:26:00Z" },
       { id: "demo-family-vote-2", tripId: "demo-trip-family", favoriteId: "demo-fav-family-1", memberId: "demo-member-david", voteKind: "like", createdAt: "2027-01-22T14:27:00Z" },
     ],
     comments: [
-      { id: "demo-family-comment-1", tripId: "demo-trip-family", favoriteId: "demo-fav-family-1", memberId: "demo-member-david", body: "Wenn wir Samstag bis Samstag fahren, ist Serfaus gerade noch im Budget.", createdAt: "2027-01-22T14:30:00Z" },
+      { id: "demo-family-comment-1", tripId: "demo-trip-family", favoriteId: "demo-fav-family-1", memberId: "demo-member-david", body: "Zell am See wirkt fuer Familie und Budget aktuell am rundesten.", createdAt: "2027-01-22T14:30:00Z" },
     ],
     priceSnapshots: [
       { id: "demo-family-price-1", tripId: "demo-trip-family", favoriteId: "demo-fav-family-1", dateOptionId: "demo-date-family-1", currency: "EUR", skipass: 318, accommodation: 540, travel: 115, rental: 120, skiSchool: 145, food: 230, buffer: 74, totalOverride: null, note: "2 Erwachsene + 2 Kinder grob", sourceKind: "seed", updatedByMemberId: "demo-member-julia", updatedAt: "2027-01-22T15:00:00Z" },
@@ -407,7 +456,7 @@ const demoTrips: DemoTripRaw[] = [
       budgetPerPerson: 610,
       skiLevel: "advanced",
       focus: ["snow", "budget", "quiet"],
-      preferredResortSlugs: ["zermatt", "laax", "soelden", "sankt-anton-am-arlberg"],
+      preferredResortSlugs: ["zermatt", "laax", "solden", "sankt-anton-am-arlberg"],
       createdBy: "demo-user-nico",
       createdAt: "2027-03-01T10:00:00Z",
       updatedAt: "2027-03-04T08:30:00Z",
@@ -433,7 +482,7 @@ const demoTrips: DemoTripRaw[] = [
     favorites: [
       { id: "demo-fav-spring-1", tripId: "demo-trip-spring", resortId: null, resortSlug: "zermatt", note: "Spring-Classic, aber Premium.", proposedByMemberId: "demo-member-nico", isPinned: true, createdAt: "2027-03-01T10:15:00Z" },
       { id: "demo-fav-spring-2", tripId: "demo-trip-spring", resortId: null, resortSlug: "laax", note: "Park und moderne Infrastruktur.", proposedByMemberId: "demo-member-lea", isPinned: false, createdAt: "2027-03-01T10:16:00Z" },
-      { id: "demo-fav-spring-3", tripId: "demo-trip-spring", resortId: null, resortSlug: "soelden", note: "Gletscher nimmt Risiko raus.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:17:00Z" },
+      { id: "demo-fav-spring-3", tripId: "demo-trip-spring", resortId: null, resortSlug: "solden", note: "Gletscher nimmt Risiko raus.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:17:00Z" },
       { id: "demo-fav-spring-4", tripId: "demo-trip-spring", resortId: null, resortSlug: "sankt-anton-am-arlberg", note: "Mehr Terrain, aber teurer in Summe.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:18:00Z" },
     ],
     votes: [
@@ -486,4 +535,8 @@ export function buildDemoBundles(liveResorts: Record<string, TripResortLite> = {
       isDemo: true,
     } satisfies SkiTripBundle;
   });
+}
+
+export function getDemoTripBundle(tripId: string, liveResorts: Record<string, TripResortLite> = {}) {
+  return buildDemoBundles(liveResorts).find((bundle) => bundle.trip.id === tripId) ?? null;
 }

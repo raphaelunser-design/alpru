@@ -27,7 +27,7 @@ function OfficialPistePdfViewer({ url, resortName }: { url: string; resortName: 
     <div className="overflow-hidden rounded-lg border border-white/10 bg-slate-950/70">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs text-slate-300">
         <span>Offizieller Pistenplan · {labelFor(url)}</span>
-        <a className="rounded-lg border border-white/15 px-3 py-1.5 text-white hover:bg-white/10" href={url} target="_blank" rel="noreferrer">
+        <a className="rounded-lg border border-white/15 px-3 py-1.5 text-white hover:bg-white/10" href={url} target="_blank" rel="noopener noreferrer">
           Vollbild
         </a>
       </div>
@@ -46,7 +46,7 @@ function InteractiveSkiMap({ url, resortName }: { url: string; resortName: strin
     <div className="overflow-hidden rounded-lg border border-white/10 bg-slate-950/70">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs text-slate-300">
         <span>Interaktive Kartenansicht · {labelFor(url)}</span>
-        <a className="rounded-lg border border-white/15 px-3 py-1.5 text-white hover:bg-white/10" href={url} target="_blank" rel="noreferrer">
+        <a className="rounded-lg border border-white/15 px-3 py-1.5 text-white hover:bg-white/10" href={url} target="_blank" rel="noopener noreferrer">
           Quelle öffnen
         </a>
       </div>
@@ -69,7 +69,7 @@ function PisteMapFallback({ officialUrl }: { officialUrl?: string | null }) {
         dass ein offizieller PDF-Plan oder eine offene Kartenquelle direkt hier angezeigt werden kann.
       </p>
       {officialUrl ? (
-        <a className="mt-4 inline-flex rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href={officialUrl} target="_blank" rel="noreferrer">
+        <a className="mt-4 inline-flex rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href={officialUrl} target="_blank" rel="noopener noreferrer">
           Offizielle Seite prüfen
         </a>
       ) : null}

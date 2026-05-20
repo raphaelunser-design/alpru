@@ -8,7 +8,7 @@ import { getLocaleText, type LocaleTextKey } from "@/components/LocaleText";
 const items = [
   { href: "/quiz", labelKey: "mobileMatch" },
   { href: "/resorts", labelKey: "resorts", badge: "Beta" },
-  { href: "/trips", labelKey: "mobileTrips", badge: "Bald" },
+  { href: "/trips", labelKey: "mobileTrips", badge: "Beta" },
   { href: "/map", labelKey: "map", badge: "Beta" },
   { href: "/account", labelKey: "account" },
 ];

@@ -16,7 +16,7 @@ const statusConfig: Record<DataStatus, { label: string; className: string }> = {
     className: "border-amber-200/35 bg-amber-200/12 text-amber-50",
   },
   demo: {
-    label: "Demo-Schätzung",
+    label: "Beta-Schätzung",
     className: "border-violet-200/35 bg-violet-200/12 text-violet-50",
   },
   beta: {

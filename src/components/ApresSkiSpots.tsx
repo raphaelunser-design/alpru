@@ -98,7 +98,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
                       className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-slate-950/40 text-slate-200 hover:text-sky-100"
                       href={primaryUrl}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       aria-label={`${spot.name} öffnen`}
                     >
                       <ExternalArrow />
@@ -145,7 +145,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
               className="inline-flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-slate-200 hover:bg-white/10"
               href={mapSearch}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               Karten-Suche öffnen
               <ExternalArrow />
@@ -155,7 +155,7 @@ export default function ApresSkiSpots({ resortName, apresScore, officialUrl, spo
                 className="inline-flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-slate-200 hover:bg-white/10"
                 href={officialUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
               >
                 Offizielle Resortseite prüfen
                 <ExternalArrow />

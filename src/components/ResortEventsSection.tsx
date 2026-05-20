@@ -119,7 +119,7 @@ export default function ResortEventsSection({ events, tripStartDate, tripEndDate
                     className="button-lift rounded-lg border border-sky-200/30 px-3 py-2 text-center text-xs font-semibold text-sky-50 hover:bg-sky-200/10"
                     href={event.official_url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     Offizielle Eventseite öffnen
                   </a>

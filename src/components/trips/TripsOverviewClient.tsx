@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/premium/AppShell";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
 import TrustPoint from "@/components/premium/TrustPoint";
+import { getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
+import { getTripDraftSlugs } from "@/lib/alpivoLocalState";
+import { getChecklistReadiness, type ChecklistReadinessState } from "@/lib/tripState";
 import TripCard from "@/components/trips/TripCard";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { loadDemoTripBundles, loadTripBundlesForUser, shouldFallbackToDemo } from "@/lib/tripPlannerData";
-import { buildDemoBundles, demoTripResortSlugs } from "@/lib/tripPlannerDemo";
+import { buildDemoBundles, demoTripResortSlugs } from "@/data/demoTrip";
 import { getMvpTripResortLookup } from "@/lib/mvpResorts";
 import { supabase } from "@/lib/supabase";
 import type { SkiTripBundle } from "@/lib/tripPlanner";
@@ -40,6 +43,18 @@ export default function TripsOverviewClient() {
   const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [demoReason, setDemoReason] = useState("");
+  const [draftSlugs, setDraftSlugs] = useState<string[]>([]);
+  const [readiness, setReadiness] = useState<ChecklistReadinessState | null>(null);
+
+  useEffect(() => {
+    const syncDraft = () => {
+      setDraftSlugs(getTripDraftSlugs());
+      setReadiness(getChecklistReadiness());
+    };
+    syncDraft();
+    window.addEventListener("alpivo-local-state-change", syncDraft);
+    return () => window.removeEventListener("alpivo-local-state-change", syncDraft);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -71,7 +86,7 @@ export default function TripsOverviewClient() {
           if (!mounted) return;
           setBundles(samples);
           setDemoBundles([]);
-          setDemoReason("Du siehst Demo-Trips. Mit Login werden hier deine echten Gruppenreisen geladen.");
+          setDemoReason("Du planst gerade als Gast mit Beispiel-Tripboards. Mit Login werden hier deine dauerhaft gespeicherten Gruppenreisen geladen.");
         }
       } catch (loadError) {
         if (!mounted) return;
@@ -79,7 +94,7 @@ export default function TripsOverviewClient() {
           const samples = await loadDemoTripBundles();
           if (!mounted) return;
           setBundles(samples);
-          setDemoReason("Die Trip-Tabellen sind lokal schon vorbereitet, remote aber noch nicht verfügbar. Deshalb läuft der Planner gerade im Demo-Modus.");
+          setDemoReason("Die Tripboards sind lokal nutzbar, die dauerhafte Supabase-Speicherung ist in diesem Zustand aber nicht verfügbar.");
         } else {
           setError(loadError instanceof Error ? loadError.message : "Trips konnten nicht geladen werden.");
         }
@@ -103,6 +118,10 @@ export default function TripsOverviewClient() {
   const joinedMembers = bundles.reduce((sum, bundle) => sum + bundle.members.filter((member) => member.status === "joined").length, 0);
   const favoriteCount = bundles.reduce((sum, bundle) => sum + bundle.favorites.length, 0);
   const openDecisions = bundles.reduce((sum, bundle) => sum + bundle.dateOptions.length + bundle.budgetItems.filter((item) => !item.isPaid).length, 0);
+  const draftResorts = useMemo(
+    () => draftSlugs.map(getAlpivoResortBySlug).filter((resort): resort is AlpivoResort => Boolean(resort)),
+    [draftSlugs]
+  );
 
   return (
     <AppShell>
@@ -131,10 +150,10 @@ export default function TripsOverviewClient() {
           />
 
           <section className="grid gap-4 lg:grid-cols-4">
-            <MetricChip icon="shield" value={`${bundles.length}`} label={userId && !demoReason ? "aktive Tripboards" : "Demo-Boards"} variant="glass" />
+            <MetricChip icon="shield" value={`${bundles.length}`} label={userId && !demoReason ? "aktive Tripboards" : "Gast-Tripboards"} variant="glass" />
             <MetricChip icon="vibe" value={`${joinedMembers}`} label="Teilnehmer im Überblick" variant="glass" />
             <MetricChip icon="piste" value={`${favoriteCount}`} label="Resort-Favoriten" variant="glass" />
-            <MetricChip icon="data" value={`${openDecisions}`} label="offene Entscheidungen" variant="glass" />
+            <MetricChip icon="data" value={readiness ? `${readiness.percent}%` : `${openDecisions}`} label={readiness ? "Checklist Readiness" : "offene Entscheidungen"} variant="glass" />
           </section>
 
           <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
@@ -168,16 +187,59 @@ export default function TripsOverviewClient() {
             <aside className="grid gap-4 rounded-[1.8rem] border border-white/12 bg-white/[0.065] p-5 shadow-[0_24px_80px_rgba(2,6,23,0.24)]">
               <TrustPoint icon="shield" title="Unabhängig & transparent" text="Resorts, Budget und Vibe bleiben nachvollziehbar statt als Bauchgefühl im Chat zu verschwinden." />
               <TrustPoint icon="data" title="Gemeinsam entscheidbar" text="Zeiträume, Favoriten und Kosten liegen nebeneinander und werden nicht über mehrere Tabs verteilt." />
-              <TrustPoint icon="lock" title="Beta mit klaren Zuständen" text="Demo-Boards sind sichtbar markiert, echte Trips laden nach Login aus Supabase." />
+              <TrustPoint icon="lock" title="Gast oder Login" text="Als Gast planst du lokal. Mit Login können Tripboards dauerhaft gespeichert werden." />
             </aside>
           </section>
 
-        {demoReason ? <TripsStateCard title="Planner im Demo-Modus" text={demoReason} tone="default" /> : null}
+        {demoReason ? <TripsStateCard title="Gastmodus aktiv" text={demoReason} tone="default" /> : null}
         {error ? <TripsStateCard title="Trips konnten nicht geladen werden" text={error} tone="error" /> : null}
+
+        {draftResorts.length ? (
+          <section className="rounded-[1.8rem] border border-sky-200/18 bg-sky-300/[0.08] p-5 shadow-[0_24px_80px_rgba(2,6,23,0.24)]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Lokaler Trip-Entwurf</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Aus deinen Matches vorgemerkt</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  Diese Resorts wurden ueber &quot;Zum Trip hinzufuegen&quot; lokal vorgemerkt. Im Gast-Tripboard kannst du sie direkt weiterplanen.
+                </p>
+              </div>
+              <Link
+                href="/trips/demo-trip-crew"
+                className="button-lift inline-flex min-h-11 items-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white hover:bg-sky-400"
+              >
+                Trip-Entwurf oeffnen
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {draftResorts.map((resort) => (
+                <Link
+                  key={resort.slug}
+                  href={`/resort/${resort.slug}`}
+                  className="rounded-2xl border border-white/12 bg-slate-950/62 p-4 transition hover:-translate-y-0.5 hover:border-sky-200/30 hover:bg-slate-950/78"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-extrabold text-white">{resort.name}</div>
+                      <div className="mt-1 text-xs text-slate-400">{resort.regionLabel}</div>
+                    </div>
+                    <span className="rounded-full border border-emerald-200/30 bg-emerald-300/12 px-3 py-1 text-xs font-extrabold text-emerald-100">
+                      {resort.score} Match
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                    <span>{resort.priceLabel} p. P.</span>
+                    <span>{resort.travelTimeFromMunich} ab Muenchen</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{userId && !demoReason ? "Deine Trips" : "Demo-Tripboard"}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{userId && !demoReason ? "Deine Trips" : "Gast-Tripboards"}</p>
             <h2 className="mt-2 text-2xl font-semibold text-white">Ein Board statt Chat-Chaos</h2>
           </div>
           <Link className="rounded-xl bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" href="/trips/new">
@@ -216,7 +278,7 @@ export default function TripsOverviewClient() {
         {userId && demoBundles.length > 0 ? (
           <div className="space-y-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Demo-Daten</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Beispiel-Daten</p>
               <h2 className="mt-2 text-xl font-semibold text-white">Beispiel-Boards für den Ausbau</h2>
             </div>
             <div className="grid gap-5 lg:grid-cols-2">

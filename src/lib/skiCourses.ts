@@ -325,7 +325,7 @@ const demoBundles: Record<string, SkiCourseBundle> = {
     offers: demoOffers,
     configured: true,
     source: "demo",
-    hint: "Demo-Daten für das MVP. Preise und Verfügbarkeiten sind nicht garantiert.",
+    hint: "Beta-Daten für die Orientierung. Preise und Verfügbarkeiten sind nicht garantiert.",
   },
 };
 
@@ -495,7 +495,7 @@ export function calculateSkiCourseFitScore(bundle: SkiCourseBundle, input: SkiCo
   if (summary.dataStatus === "official") score += 8;
   if (summary.dataStatus === "curated") score += 5;
   if (summary.dataStatus === "estimated") warnings.push("Preise sind geschätzt und müssen offiziell geprüft werden.");
-  if (summary.dataStatus === "demo") warnings.push("Demo-Daten: vor Buchung immer offiziell prüfen.");
+  if (summary.dataStatus === "demo") warnings.push("Beta-Daten: vor Buchung immer offiziell prüfen.");
   if (summary.dataStatus === "unknown") warnings.push("Datenstatus unklar: offizielle Skischule prüfen.");
 
   const resolved = clampScore(score);

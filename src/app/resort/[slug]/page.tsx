@@ -7,12 +7,14 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
+import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
 import TrustPoint from "@/components/premium/TrustPoint";
+import { getResortActionLinks } from "@/data/resortActionLinks";
+import { getAlpivoResortBySlug, getAlpivoTopMatches, toPremiumMatch } from "@/data/resorts";
 import { addTripDraftResort, isFavoriteSlug, setSelectedMapResort, toggleFavoriteSlug } from "@/lib/alpivoLocalState";
-import { getAlpivoResortBySlug, getAlpivoTopMatches, toPremiumMatch } from "@/lib/alpivoResortData";
 
 function CheckIcon() {
   return (
@@ -120,6 +122,7 @@ export default function ResortDetailPage() {
     .filter((item) => item.slug !== resort.slug)
     .slice(0, 3)
     .map(toPremiumMatch);
+  const actionLinks = getResortActionLinks(resort.slug);
   const handleFavorite = () => {
     const isNowFavorite = toggleFavoriteSlug(resort.slug);
     setFavorite(isNowFavorite);
@@ -128,7 +131,7 @@ export default function ResortDetailPage() {
 
   const handleTripDraft = () => {
     addTripDraftResort(resort.slug);
-    setMessage(`${resort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt.`);
+    setMessage(`${resort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt. Als Gast bleibt er auf diesem Gerät gespeichert.`);
   };
 
   return (
@@ -218,7 +221,7 @@ export default function ResortDetailPage() {
                 <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-200/80">Nächster Schritt</p>
                 <h2 className="mt-3 text-2xl font-black text-white">Match in Planung überführen</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Diese Aktionen nutzen aktuell einen lokalen Demo-State. Backend-Persistenz kann später an Supabase angebunden werden.
+                  Als Gast speichert Alpivo Favoriten und Trip-Entwürfe lokal auf diesem Gerät. Mit Login können diese Zustände später dauerhaft am Konto hängen.
                 </p>
                 <div className="mt-5 grid gap-3">
                   <button
@@ -246,10 +249,17 @@ export default function ResortDetailPage() {
                 {message ? <p className="mt-4 rounded-2xl border border-emerald-200/18 bg-emerald-300/[0.08] px-4 py-3 text-sm text-emerald-50">{message}</p> : null}
               </div>
 
+              <ExternalActionLinks
+                links={actionLinks}
+                limit={4}
+                title="Offiziell weiterplanen"
+                subtitle="Direkt zu Skipass, Live-Status, Unterkunft und weiteren offiziellen Seiten."
+              />
+
               <div className="grid gap-3">
                 <TrustPoint icon="shield" title="Unabhängig erklärt" text="Alpivo zeigt Gründe und Haken statt leere Rankings." />
                 <TrustPoint icon="data" title="Beta-Daten klar markiert" text="Kosten und Resortdaten sind Orientierung und werden laufend verbessert." />
-                <TrustPoint icon="lock" title="Lokaler Demo-State" text="Favoriten und Trip-Entwurf bleiben auf diesem Gerät." />
+                <TrustPoint icon="lock" title="Lokal gespeichert" text="Favoriten und Trip-Entwurf bleiben im Gastmodus auf diesem Gerät." />
               </div>
             </aside>
           </section>
@@ -263,6 +273,7 @@ export default function ResortDetailPage() {
               ["Anreise", "#anreise"],
               ["Vibe", "#vibe"],
               ["Kurse", "#services"],
+              ["Links", "#links"],
               ["Datenstatus", "#datenstatus"],
             ].map(([label, href]) => (
               <a key={href} href={href} className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 hover:border-sky-200/28 hover:bg-sky-300/10 hover:text-white">
@@ -435,6 +446,14 @@ export default function ResortDetailPage() {
                 </ul>
               </SectionCard>
 
+              <SectionCard id="links" eyebrow="Action Links" title="Offizielle Links">
+                <ExternalActionLinks
+                  links={actionLinks}
+                  title="Aus Alpivo heraus weiterhandeln"
+                  subtitle="Alpivo erklärt den Match. Tickets, Live-Status, Unterkunft und Anreise prüfst du anschließend bei den offiziellen Quellen."
+                />
+              </SectionCard>
+
               <SectionCard id="datenstatus" eyebrow="Datenstatus" title="Was aktuell sicher ist">
                 <ul className="space-y-3">
                   {resort.detail.dataStatus.map((item) => (
@@ -460,7 +479,7 @@ export default function ResortDetailPage() {
                         key={link.label}
                         href={link.href}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="inline-flex min-h-11 items-center justify-between rounded-2xl border border-white/12 bg-white/[0.055] px-4 text-sm font-bold text-slate-100 hover:bg-white/10"
                       >
                         {link.label}

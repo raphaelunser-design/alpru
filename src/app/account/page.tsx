@@ -9,10 +9,12 @@ import AppShell from "@/components/premium/AppShell";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
 import TrustPoint from "@/components/premium/TrustPoint";
+import { getAlpivoTopMatches } from "@/data/resorts";
 import { isOwnerAdminEmail } from "@/lib/adminShared";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
-import { buildMatchPayload, buildResortQuery } from "@/lib/matching/matchPayload";
+import { buildMatchPayload, buildResortQuery, MATCH_PREF_DEFAULTS } from "@/lib/matching/matchPayload";
 import { supabase } from "@/lib/supabase";
+import { getChecklistReadiness, type ChecklistReadinessState } from "@/lib/tripState";
 import type { ResortDecision, TripStyle } from "@/lib/resortSignals";
 
 type AuthState = {
@@ -95,21 +97,21 @@ const dateFormatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", ti
 const shortDateFormatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
 
 const defaultPrefs: StoredPrefs = {
-  tripStyle: "balanced",
-  budgetMin: 0,
-  budgetMax: 0,
-  peopleCount: 2,
-  tripStartDate: null,
-  tripEndDate: null,
-  apres: 0,
-  emptySlopes: 0,
-  snowReliability: 0,
-  valueForMoney: 0,
-  family: 0,
-  panorama: 0,
-  summerGlacier: 0,
-  rentalMode: "own",
-  travelMode: "car",
+  tripStyle: MATCH_PREF_DEFAULTS.tripStyle,
+  budgetMin: MATCH_PREF_DEFAULTS.budgetMin,
+  budgetMax: MATCH_PREF_DEFAULTS.budgetMax,
+  peopleCount: MATCH_PREF_DEFAULTS.peopleCount,
+  tripStartDate: MATCH_PREF_DEFAULTS.tripStartDate,
+  tripEndDate: MATCH_PREF_DEFAULTS.tripEndDate,
+  apres: MATCH_PREF_DEFAULTS.apres,
+  emptySlopes: MATCH_PREF_DEFAULTS.emptySlopes,
+  snowReliability: MATCH_PREF_DEFAULTS.snowReliability,
+  valueForMoney: MATCH_PREF_DEFAULTS.valueForMoney,
+  family: MATCH_PREF_DEFAULTS.family,
+  panorama: MATCH_PREF_DEFAULTS.panorama,
+  summerGlacier: MATCH_PREF_DEFAULTS.summerGlacier,
+  rentalMode: MATCH_PREF_DEFAULTS.rentalMode,
+  travelMode: MATCH_PREF_DEFAULTS.travelMode,
 };
 
 function formatDate(value: string | null | undefined, fallback = "Noch offen") {
@@ -218,6 +220,21 @@ function compactAccountResults(value: unknown) {
       reasons: Array.isArray(row.reasons) ? row.reasons.filter((item): item is string => typeof item === "string").slice(0, 3) : [],
     };
   }).filter((result) => result.id && result.slug && result.name);
+}
+
+function demoAccountResults(): ResortDecision[] {
+  return getAlpivoTopMatches().slice(0, 3).map((resort) => ({
+    id: resort.slug,
+    slug: resort.slug,
+    name: resort.name,
+    country: resort.country,
+    region: resort.region,
+    matchPct: resort.score,
+    budgetStatus: "green",
+    tripStyleHint: resort.vibeLabel,
+    pisteKm: Number(resort.pisteKm.match(/\d+/)?.[0] ?? 0),
+    reasons: resort.reasons,
+  })) as ResortDecision[];
 }
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -347,6 +364,7 @@ export default function AccountPage() {
   const [accountLoading, setAccountLoading] = useState(true);
   const [prefs, setPrefs] = useState<StoredPrefs | null>(null);
   const [results, setResults] = useState<ResortDecision[]>([]);
+  const [checklistReadiness, setChecklistReadinessState] = useState<ChecklistReadinessState | null>(null);
 
   async function authHeaders(token?: string | null): Promise<Record<string, string>> {
     if (token) return { Authorization: `Bearer ${token}` };
@@ -520,6 +538,11 @@ export default function AccountPage() {
         setResults([]);
       }
     }
+
+    const syncReadiness = () => setChecklistReadinessState(getChecklistReadiness());
+    syncReadiness();
+    window.addEventListener("alpivo-local-state-change", syncReadiness);
+    return () => window.removeEventListener("alpivo-local-state-change", syncReadiness);
   }, []);
 
   async function handleSignIn() {
@@ -731,9 +754,11 @@ export default function AccountPage() {
   const isLoggedIn = Boolean(user);
   const isAdmin = profile?.role === "admin" || isOwnerAdminEmail(user?.email);
   const displayPrefs = prefs ?? defaultPrefs;
-  const topResults = useMemo(() => results.slice(0, 3), [results]);
+  const demoResults = useMemo(() => demoAccountResults(), []);
+  const topResults = useMemo(() => (results.length ? results : demoResults).slice(0, 3), [demoResults, results]);
+  const isDemoTopResults = results.length === 0;
   const favorite = topResults[0];
-  const readinessScore = computeReadinessScore(prefs, topResults.length, isLoggedIn);
+  const readinessScore = checklistReadiness?.percent ?? computeReadinessScore(prefs, topResults.length, isLoggedIn);
   const greetingName = profile?.display_name || user?.email || "Alpivo Tester";
   const preferenceSignals = [
     { label: "Value", value: displayPrefs.valueForMoney },
@@ -751,8 +776,8 @@ export default function AccountPage() {
           <div className="mx-auto grid w-full max-w-[1480px] gap-6">
             <PageHeader
               eyebrow="Alpivo Cockpit"
-              title="Dein Alpivo Cockpit wird aktiv."
-              subtitle="Sobald du deinen ersten Match startest oder dich einloggst, landen DNA, Feedback, Top-Matches und Trips an einem Ort."
+              title="Dein Alpivo Cockpit."
+              subtitle="Starte lokal als Gast oder logge dich ein, damit DNA, Feedback, Top-Matches und Trips dauerhaft zusammenbleiben."
               actions={
                 <Link
                   href="/quiz"
@@ -869,7 +894,7 @@ export default function AccountPage() {
 
           <section className="grid gap-4 lg:grid-cols-4">
             <MetricChip icon="shield" value={isLoggedIn ? profile?.role === "admin" ? "Admin" : "Beta Nutzer" : "Gast"} label="Status" variant="glass" />
-            <MetricChip icon="data" value={`${topResults.length}`} label="gespeicherte Top-Matches" variant="glass" />
+            <MetricChip icon="data" value={`${topResults.length}`} label={isDemoTopResults ? "Eure Top-Matches" : "gespeicherte Top-Matches"} variant="glass" />
             <MetricChip icon="vibe" value={tripStyleLabel(displayPrefs.tripStyle)} label="Alpivo DNA" variant="glass" />
             <MetricChip icon="time" value={formatShortDate(displayPrefs.tripStartDate)} label="nächster Zeitraum" variant="glass" />
           </section>
@@ -908,7 +933,7 @@ export default function AccountPage() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                   {isLoggedIn
                     ? "Danke, dass du Alpivo testest. Deine Feedbacks und Aktivitäten werden deinem Konto zugeordnet."
-                    : "Dein Cockpit wird aktiv, sobald du deinen ersten Match startest oder dich einloggst."}
+                    : "Als Gast nutzt du dein Cockpit lokal auf diesem Gerät. Mit Login bleiben Matches, Favoriten und Trips dauerhaft gespeichert."}
                 </p>
               </div>
               <div className="flex flex-wrap items-start gap-3">
@@ -1181,7 +1206,7 @@ export default function AccountPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Letzte Ergebnisse</p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Deine Top-Matches</h2>
+                <h2 className="mt-2 text-xl font-semibold text-white">{isDemoTopResults ? "Eure Top-Matches" : "Deine Top-Matches"}</h2>
               </div>
               <Link className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10" href="/results">
                 Ergebnisse öffnen
@@ -1214,6 +1239,11 @@ export default function AccountPage() {
                   Noch keine Matches im Cockpit. Starte den Match, damit hier echte Empfehlungen auftauchen.
                 </div>
               )}
+              {isDemoTopResults ? (
+                <div className="rounded-xl border border-sky-200/15 bg-sky-200/[0.08] px-4 py-3 text-xs leading-5 text-sky-50">
+                  Startpunkt: Diese Empfehlungen kommen aus dem zentralen Alpivo Pilotdatensatz. Nach einem Wizard-Match werden deine lokalen Ergebnisse hier ersetzt.
+                </div>
+              ) : null}
             </div>
           </GlassCard>
         </div>
@@ -1224,7 +1254,15 @@ export default function AccountPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <ActionLink href="/quiz" title="Match starten" text="Budget, Fahrstil und Anreise neu gewichten." />
             <ActionLink href="/trips" title="Gruppentrips" text="Verfügbarkeiten, Favoriten und Kosten planen." />
-            <ActionLink href="/checklist" title="Checkliste" text="Packliste und Vorbereitung abhaken." />
+            <ActionLink
+              href="/checklist"
+              title="Checkliste"
+              text={
+                checklistReadiness
+                  ? `${checklistReadiness.completed}/${checklistReadiness.total} erledigt, naechster Schritt: ${checklistReadiness.nextTask}`
+                  : "Packliste und Vorbereitung abhaken."
+              }
+            />
             <ActionLink href="/map" title="Karte" text="Resorts räumlich vergleichen." />
           </div>
         </GlassCard>

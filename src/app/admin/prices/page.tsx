@@ -149,7 +149,7 @@ export default function AdminPricesPage() {
                         className="mt-2 inline-block text-xs text-slate-300 underline"
                         href={row.skipass_url}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                       >
                         Skipass Link öffnen
                       </a>

@@ -38,14 +38,14 @@ export default function ParticipantList({ members, highlightMemberId }: Particip
               </div>
               {member.isDemo ? (
                 <div className="mt-2 text-xs text-amber-100">
-                  Demo-Profil: {String(member.demoProfile?.note ?? "Testperson für Gruppensimulation")}
+                  Beispiel-Profil: {String(member.demoProfile?.note ?? "Gruppenprofil für die lokale Planung")}
                 </div>
               ) : null}
             </div>
             <div className="flex gap-2">
               {member.isDemo ? (
                 <span className="rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-[11px] text-amber-50">
-                  Demo
+                  Beispiel
                 </span>
               ) : null}
               <span className={`rounded-full border px-2.5 py-1 text-[11px] ${roleChip(member.role)}`}>{member.role}</span>

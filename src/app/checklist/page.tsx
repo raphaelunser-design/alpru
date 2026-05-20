@@ -7,6 +7,7 @@ import AppShell from "@/components/premium/AppShell";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
 import Toast from "@/components/Toast";
+import { setChecklistReadiness } from "@/lib/tripState";
 import { supabase } from "@/lib/supabase";
 
 type TravelMode = "car" | "train" | "bus" | "flight";
@@ -451,6 +452,16 @@ export default function ChecklistPage() {
   const progress = allVisibleItems.length ? Math.round((completed / allVisibleItems.length) * 100) : 0;
   const remaining = Math.max(0, allVisibleItems.length - completed);
   const nextRecommended = allVisibleItems.find((item) => !item.isChecked);
+
+  useEffect(() => {
+    setChecklistReadiness({
+      percent: progress,
+      completed,
+      total: allVisibleItems.length,
+      open: remaining,
+      nextTask: nextRecommended?.label ?? "Alles erledigt",
+    });
+  }, [allVisibleItems.length, completed, nextRecommended?.label, progress, remaining]);
 
   const updateSettings = (updates: Partial<ChecklistSettings>) => {
     checklistStore.set({ ...state, settings: { ...state.settings, ...updates } });

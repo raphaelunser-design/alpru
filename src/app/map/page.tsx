@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
+import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import MetricChip from "@/components/premium/MetricChip";
+import { getResortActionLinks } from "@/data/resortActionLinks";
 import { addTripDraftResort, isFavoriteSlug, setSelectedMapResort, toggleFavoriteSlug } from "@/lib/alpivoLocalState";
-import { getAlpivoResortBySlug, getAlpivoTopMatches, type AlpivoResort } from "@/lib/alpivoResortData";
+import { getAlpivoResortBySlug, getAlpivoTopMatches, type AlpivoResort } from "@/data/resorts";
 
 type Layer = "terrain" | "pisten" | "anreise" | "wetter";
 
@@ -57,6 +59,8 @@ function SelectedResortPanel({
   onTripDraft: () => void;
   compact?: boolean;
 }) {
+  const actionLinks = getResortActionLinks(resort.slug);
+
   return (
     <aside className={`${compact ? "" : "h-full"} overflow-hidden rounded-[2rem] border border-white/12 bg-slate-950/86 text-white shadow-[0_34px_100px_rgba(2,6,23,0.48)] backdrop-blur-xl`}>
       <div className="relative h-56 overflow-hidden">
@@ -120,6 +124,13 @@ function SelectedResortPanel({
             {favorite ? "Favorit entfernen" : "Favorit speichern"}
           </button>
         </div>
+
+        <ExternalActionLinks
+          links={actionLinks}
+          limit={3}
+          title="Offiziell prüfen"
+          subtitle="Live-Status, Tickets und Details direkt bei der offiziellen Quelle öffnen."
+        />
       </div>
     </aside>
   );
@@ -163,7 +174,7 @@ export default function MapPage() {
 
   const handleTripDraft = () => {
     addTripDraftResort(selected.slug);
-    setMessage(`${selected.name} wurde deinem lokalen Trip-Entwurf hinzugefügt.`);
+    setMessage(`${selected.name} wurde deinem lokalen Trip-Entwurf hinzugefügt. Als Gast bleibt er auf diesem Gerät gespeichert.`);
   };
 
   const routePath = `M ${munich.x} ${munich.y} C 25 ${Math.max(16, selected.mapPosition.y - 24)}, 41 ${selected.mapPosition.y + 8}, ${selected.mapPosition.x} ${selected.mapPosition.y}`;

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import MetricChip, { MetricIcon, type MetricIconName } from "@/components/premium/MetricChip";
 import ScoreRing from "@/components/ScoreRing";
-import type { PremiumMatch } from "@/lib/premiumDemoMatches";
+import type { PremiumMatch } from "@/data/resorts";
 
 type ResortMatchCardProps = {
   match: PremiumMatch;

@@ -5,7 +5,7 @@ const badgeMap: Record<SkiCourseDataStatus, { status: DataStatus; label: string 
   official: { status: "verified", label: "Offizielle Quelle" },
   curated: { status: "curated", label: "Kuratierte Daten" },
   estimated: { status: "estimated", label: "Schätzung" },
-  demo: { status: "demo", label: "Demo-Daten" },
+  demo: { status: "demo", label: "Beta-Daten" },
   unknown: { status: "unknown", label: "Datenstand offen" },
 };
 

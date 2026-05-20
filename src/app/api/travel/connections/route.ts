@@ -38,7 +38,7 @@ const providerSettings: Record<ProviderId, { label: string; envKeys: string[]; m
     label: "Omio",
     envKeys: ["OMIO_API_KEY", "OMIO_PARTNER_ID"],
     modes: ["train", "bus", "flight"],
-    capability: "Vergleich für Bahn, Bus, Flug und Partnerlink",
+    capability: "Externe Suche für Bahn, Bus und Flug",
   },
   trainline: {
     label: "Trainline",
@@ -100,6 +100,6 @@ export async function POST(req: Request) {
     requestedDate: tripStartDate,
     note: configured
       ? "Mindestens ein Travel-Provider ist konfiguriert. Sobald die konkrete Provider-Integration aktiv ist, erscheinen hier echte Preise."
-      : "Noch kein Travel-Provider ist per API oder Partner-ID konfiguriert. Alpivo nutzt deshalb aktuell nur ausgehende Suchlinks.",
+      : "Noch keine Travel-Provider-API ist konfiguriert. Alpivo nutzt deshalb aktuell nur ausgehende Suchlinks.",
   });
 }

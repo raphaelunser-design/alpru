@@ -1,7 +1,7 @@
 export const brand = {
   name: "Alpivo",
   shortName: "Alpivo",
-  logoPath: "/brand/alpivo-logo-v2-transparent.png",
-  iconPath: "/brand/alpivo-mark-v2-transparent.png",
+  logoPath: "/brand/logo-v2.png",
+  iconPath: "/brand/icon-v2.png",
   primaryColor: "#00265a",
 };

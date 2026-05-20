@@ -1,4 +1,4 @@
-import { getPremiumMatches, heroAlpivoMatch, type PremiumMatch } from "@/lib/alpivoResortData";
+import { getPremiumMatches, heroAlpivoMatch, type PremiumMatch } from "@/data/resorts";
 
 export type { PremiumMatch };
 

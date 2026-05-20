@@ -1,3 +1,7 @@
+import { alpivoDataSources, defaultPilotSourceIds } from "@/data/dataSources";
+import { getResortActionLinks } from "@/data/resortActionLinks";
+import type { AlpivoScoreFactor, DataConfidence, Resort as CanonicalResort, ResortScoreBreakdown } from "@/types/alpivo";
+
 export type AlpivoResort = {
   slug: string;
   aliases?: string[];
@@ -517,6 +521,202 @@ export function toPremiumMatch(resort: AlpivoResort): PremiumMatch {
     description: resort.description,
     marker: resort.mapPosition,
   };
+}
+
+function firstNumber(value: string) {
+  const match = value.match(/\d+(?:[.,]\d+)?/);
+  if (!match) return undefined;
+  const parsed = Number(match[0].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function allNumbers(value: string) {
+  return Array.from(value.matchAll(/\d+(?:[.,]\d+)?/g))
+    .map((match) => Number(match[0].replace(",", ".")))
+    .filter(Number.isFinite);
+}
+
+function parseDistanceKm(value: string) {
+  return firstNumber(value);
+}
+
+function parseFuelCost(value: string) {
+  return firstNumber(value);
+}
+
+function parseDurationMinutes(value: string) {
+  const hours = value.match(/(\d+(?:[.,]\d+)?)\s*h/);
+  const minutes = value.match(/(\d+)\s*min/);
+  const hourValue = hours ? Number(hours[1].replace(",", ".")) : 0;
+  const minuteValue = minutes ? Number(minutes[1]) : 0;
+  const total = Math.round(hourValue * 60 + minuteValue);
+  return total > 0 ? total : undefined;
+}
+
+function parseAltitude(value: string) {
+  const values = allNumbers(value);
+  return {
+    min: values[0],
+    max: values.length > 1 ? values[1] : values[0],
+  };
+}
+
+function pisteDifficultyKm(resort: AlpivoResort, label: string) {
+  return firstNumber(resort.detail.slopeDifficulty.find((item) => item.label.toLowerCase() === label)?.value ?? "");
+}
+
+function scoreFactorFromLabel(label: string): AlpivoScoreFactor {
+  const normalized = label.toLowerCase();
+  if (normalized.includes("schnee")) return "snow";
+  if (normalized.includes("vibe") || normalized.includes("après") || normalized.includes("event")) return "vibe";
+  if (normalized.includes("pisten")) return "pistes";
+  if (normalized.includes("anreise")) return "travel";
+  if (normalized.includes("budget") || normalized.includes("preis")) return "budget";
+  if (normalized.includes("famil")) return "family";
+  if (normalized.includes("unterkunft")) return "accommodation";
+  return "events";
+}
+
+function normalizeSnowLabel(value: string): CanonicalResort["snow"]["label"] {
+  if (value === "sehr gut" || value === "gut" || value === "mittel" || value === "unsicher") return value;
+  return "mittel";
+}
+
+function scoreBreakdown(resort: AlpivoResort): ResortScoreBreakdown[] {
+  const totalScore = resort.detail.factorScores.reduce((sum, item) => sum + item.score, 0) || 1;
+  return resort.detail.factorScores.map((item) => ({
+    factor: scoreFactorFromLabel(item.label),
+    label: item.label,
+    score: item.score,
+    weight: Math.round((item.score / totalScore) * 100) / 100,
+    explanation: item.note,
+    confidence: "estimated",
+    sourceIds: defaultPilotSourceIds,
+  }));
+}
+
+function confidenceSummary(resort: AlpivoResort): { confidence: DataConfidence; missingFields: string[] } {
+  const missingFields = [
+    "Live-Unterkunftsverfügbarkeit",
+    "verbindliche Skipasspreise je Datum",
+    "Live-Wetter-/Lawinenlage",
+  ];
+
+  if (!resort.detail.externalLinks.length) missingFields.push("offizielle Resort-Quelle");
+  return {
+    confidence: resort.rank <= 4 ? "demo" : "estimated",
+    missingFields,
+  };
+}
+
+export function toCanonicalResort(resort: AlpivoResort): CanonicalResort {
+  const altitude = parseAltitude(resort.altitude);
+  const dataQuality = confidenceSummary(resort);
+  const officialInfoUrl =
+    getResortActionLinks(resort.slug).officialInfo?.url ??
+    resort.detail.externalLinks.find((link) => /^https?:\/\//.test(link.href))?.href;
+
+  return {
+    id: resort.slug,
+    slug: resort.slug,
+    name: resort.name,
+    country: resort.country,
+    region: resort.region,
+    coordinates: { lat: resort.coordinates.lat, lng: resort.coordinates.lon },
+    rank: resort.rank,
+    matchScore: resort.score,
+    matchLabel: resort.rank === 1 ? "Top Match" : `#${resort.rank} Match`,
+    heroImage: resort.image,
+    mapImage: resort.image,
+    tags: resort.tags,
+    shortDescription: resort.description,
+    longDescription: resort.detail.weather.summary,
+    price: {
+      estimatedPerPerson: resort.pricePerPerson,
+      currency: "EUR",
+      range: {
+        min: Math.max(0, resort.pricePerPerson - 70),
+        max: resort.pricePerPerson + 90,
+      },
+      confidence: "estimated",
+      sourceIds: [alpivoDataSources.alpivoEstimate.id, alpivoDataSources.alpivoPilot.id],
+    },
+    travelFromMunich: {
+      durationLabel: resort.travelTimeFromMunich,
+      durationMinutes: parseDurationMinutes(resort.travelTimeFromMunich),
+      distanceKm: parseDistanceKm(resort.distanceFromMunich),
+      fuelEstimate: parseFuelCost(resort.fuelCost),
+      carRouteLabel: resort.detail.travelOptions.find((option) => option.mode === "Auto")?.route,
+      trainOptionLabel: resort.detail.travelOptions.find((option) => option.mode.toLowerCase().includes("bahn"))?.duration,
+      caveat: resort.routeSummary.note,
+      confidence: "estimated",
+      sourceIds: defaultPilotSourceIds,
+    },
+    snow: {
+      label: normalizeSnowLabel(resort.snowLabel),
+      seasonLabel: resort.detail.seasonLabel,
+      altitudeMin: altitude.min,
+      altitudeMax: altitude.max,
+      glacier: resort.tags.some((tag) => tag.toLowerCase().includes("gletscher")),
+      snowmakingNote: resort.detail.weather.metrics.find((metric) => metric.label.toLowerCase().includes("schnee"))?.note,
+      caveat: resort.detail.weather.metrics.find((metric) => metric.label.toLowerCase().includes("risiko") || metric.label.toLowerCase().includes("wind"))?.note,
+      confidence: "estimated",
+      sourceIds: defaultPilotSourceIds,
+    },
+    skiArea: {
+      pisteKm: firstNumber(resort.pisteKm),
+      lifts: firstNumber(resort.detail.lifts),
+      altitudeLabel: resort.altitude,
+      blueKm: pisteDifficultyKm(resort, "blau"),
+      redKm: pisteDifficultyKm(resort, "rot"),
+      blackKm: pisteDifficultyKm(resort, "schwarz"),
+      beginnerFit: resort.detail.factorScores.find((score) => score.label.toLowerCase().includes("pisten"))?.score,
+      intermediateFit: resort.score,
+      advancedFit: resort.detail.factorScores.find((score) => score.label.toLowerCase().includes("sport"))?.score,
+      confidence: "estimated",
+      sourceIds: defaultPilotSourceIds,
+    },
+    vibe: {
+      label: resort.vibeLabel,
+      apresFit: resort.detail.factorScores.find((score) => score.label.toLowerCase().includes("vibe"))?.score,
+      familyFit: resort.detail.factorScores.find((score) => score.label.toLowerCase().includes("famil"))?.score,
+      quietFit: resort.vibeLabel.toLowerCase().includes("ruhig") ? 85 : undefined,
+      sportFit: resort.vibeLabel.toLowerCase().includes("sport") ? 88 : undefined,
+      eventFit: resort.detail.eventHighlights.length ? 76 : undefined,
+      notes: resort.detail.vibeDetails.map((item) => `${item.label}: ${item.note}`),
+      confidence: "demo",
+      sourceIds: [alpivoDataSources.alpivoPilot.id],
+    },
+    accommodation: {
+      fitLabel: resort.detail.stayOptions[0]?.fit,
+      examples: resort.detail.stayOptions.map((option) => ({
+        name: option.name,
+        type: option.type,
+        priceTier: option.price as "€" | "€€" | "€€€" | "€€€€",
+        note: option.fit,
+        confidence: "demo",
+      })),
+      caveat: "Beispiel-Unterkünfte sind Produktdaten für die Beta und keine geprüfte Live-Verfügbarkeit.",
+    },
+    actionLinks: getResortActionLinks(resort.slug),
+    matchReasons: resort.reasons,
+    drawback: resort.drawback,
+    scoreBreakdown: scoreBreakdown(resort),
+    officialInfoUrl,
+    dataStatus: {
+      summary: "Beta-Daten: Score, Kosten und Signale sind kuratierte Orientierung, keine Buchungsgarantie.",
+      missingFields: dataQuality.missingFields,
+      lastUpdated: "2026-05-17",
+      overallConfidence: dataQuality.confidence,
+    },
+  };
+}
+
+export const alpivoCanonicalResorts = alpivoResorts.map(toCanonicalResort);
+
+export function getCanonicalResortBySlug(slug: string | null | undefined) {
+  const resort = getAlpivoResortBySlug(slug);
+  return resort ? toCanonicalResort(resort) : null;
 }
 
 export function getAlpivoTopMatches() {

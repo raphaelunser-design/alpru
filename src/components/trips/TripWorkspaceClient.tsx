@@ -20,6 +20,7 @@ import ResortFavoriteCard from "@/components/trips/ResortFavoriteCard";
 import SettlementCard from "@/components/trips/SettlementCard";
 import TripNavigation from "@/components/trips/TripNavigation";
 import TripsStateCard from "@/components/trips/TripsStateCard";
+import { getAlpivoResortBySlug } from "@/data/resorts";
 import {
   buildComparisonRows,
   budgetCategoryLabels,
@@ -195,7 +196,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       } catch (loadError) {
         if (!mounted) return;
         if (shouldFallbackToDemo(loadError as { code: string; message: string })) {
-          setError("Die Trip-Tabellen sind remote noch nicht aktiv. Demo-Trip bitte über /trips öffnen.");
+          setError("Die Trip-Tabellen sind remote noch nicht aktiv. Öffne ein Gast-Tripboard über /trips.");
         } else {
           setError(loadError instanceof Error ? loadError.message : "Trip konnte nicht geladen werden");
         }
@@ -347,12 +348,12 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       }));
 
     if (!nextMembers.length) {
-      setToast("Demo-Teilnehmer sind bereits im Trip.");
+      setToast("Beispiel-Teilnehmer sind bereits im Trip.");
       return;
     }
 
     if (bundle.isDemo) {
-      await mutateDemo({ ...bundle, members: [...bundle.members, ...nextMembers] }, "Demo-Teilnehmer hinzugefügt.");
+      await mutateDemo({ ...bundle, members: [...bundle.members, ...nextMembers] }, "Beispiel-Teilnehmer hinzugefügt.");
       return;
     }
 
@@ -401,7 +402,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           }
         : currentBundle
     );
-    setToast("Demo-Teilnehmer hinzugefügt.");
+    setToast("Beispiel-Teilnehmer hinzugefügt.");
   }
 
   async function handleCreateInvite(payload: { email: string; role: "admin" | "member"; note: string }) {
@@ -427,7 +428,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
             },
           ],
         },
-        "Demo-Invite erzeugt."
+        "Gast-Invite erzeugt."
       );
       return { url: inviteUrl };
     }
@@ -632,6 +633,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       isPinned: false,
       createdAt: new Date().toISOString(),
     };
+    const centralResort = getAlpivoResortBySlug(candidate.slug);
 
     if (bundle.isDemo) {
       await mutateDemo(
@@ -642,20 +644,20 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
             ...bundle.resorts,
             [candidate.slug]: {
               id: candidate.id,
-              slug: candidate.slug,
-              name: candidate.name,
-              country: candidate.country,
-              region: candidate.region,
-              imageUrl: candidate.image_url ?? "/bg/skilandschaft.png",
-              pisteKm: candidate.piste_km_total ?? candidate.piste_km ?? null,
-              elevationMinM: null,
+              slug: centralResort?.slug ?? candidate.slug,
+              name: centralResort?.name ?? candidate.name,
+              country: centralResort?.country ?? candidate.country,
+              region: centralResort?.region ?? candidate.region,
+              imageUrl: centralResort?.image ?? candidate.image_url ?? "/bg/skilandschaft.png",
+              pisteKm: centralResort ? Number(centralResort.pisteKm.match(/\d+/)?.[0] ?? 0) : candidate.piste_km_total ?? candidate.piste_km ?? null,
+              elevationMinM: centralResort ? Number(centralResort.altitude.match(/\d+/)?.[0] ?? 0) : null,
               elevationMaxM: candidate.elevation_max_m ?? null,
               verticalM: null,
               skipassPriceFrom: candidate.skipass_price_from ?? null,
-              officialUrl: null,
-              lat: null,
-              lon: null,
-              matchPct: 68,
+              officialUrl: centralResort?.detail.externalLinks.find((link) => /^https?:\/\//.test(link.href))?.href ?? null,
+              lat: centralResort?.coordinates.lat ?? null,
+              lon: centralResort?.coordinates.lon ?? null,
+              matchPct: centralResort?.score ?? 68,
             },
           },
         },
@@ -1322,7 +1324,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
         <div className="mx-auto grid w-full max-w-[1480px] gap-6">
           <PageHeader
-            eyebrow={bundle.isDemo ? "Demo Trip" : "Trip Workspace"}
+            eyebrow={bundle.isDemo ? "Gast-Tripboard" : "Trip Workspace"}
             title={bundle.trip.title}
             subtitle={bundle.trip.description ?? "Ski-Trip mit Gruppenlogik, Alpivo-Resorts und transparenter Kostenplanung."}
             actions={
@@ -1377,8 +1379,8 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
         {bundle.isDemo ? (
           <TripsStateCard
-            title="Demo-Trip"
-            text="Diese Ansicht läuft komplett im Frontend und zeigt dir den geplanten Gruppen-Workflow, solange die neue Supabase-Migration remote noch nicht aktiv ist."
+            title="Gast-Tripboard"
+            text="Diese Ansicht läuft lokal im Browser und zeigt den Gruppen-Workflow, solange die dauerhafte Supabase-Speicherung remote noch nicht aktiv ist."
             tone="default"
           />
         ) : null}
@@ -1428,7 +1430,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                         type="button"
                         onClick={handleAddDemoParticipants}
                       >
-                        Demo-Teilnehmer hinzufügen
+                        Beispiel-Teilnehmer hinzufügen
                       </button>
                       <InviteDialog onCreateInvite={handleCreateInvite} />
                     </div>

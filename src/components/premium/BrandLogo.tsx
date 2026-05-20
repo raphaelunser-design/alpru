@@ -7,15 +7,13 @@ type BrandLogoProps = {
   className?: string;
 };
 
-const fullLogoPath = "/brand/alpivo-logo-v2-transparent.png";
-const compactLogoPath = "/brand/alpivo-mark-v2-transparent.png";
-
-function shouldInvertForDarkSurface(className: string) {
-  return /\btext-(white|slate-50|slate-100|sky-50|cyan-50|zinc-50|neutral-50)\b/.test(className);
-}
+const fullLogoPath = "/brand/logo-v2.png";
+const compactLogoPath = "/brand/icon-v2.png";
 
 export function AlpivoLogo({ href = "/", compact = false, className = "" }: BrandLogoProps) {
-  const imageClassName = shouldInvertForDarkSurface(className) ? "brightness-0 invert" : "";
+  const frameClassName = compact
+    ? "relative block h-11 w-11 overflow-hidden rounded-2xl bg-white shadow-[0_12px_34px_rgba(2,6,23,0.24)] ring-1 ring-white/20"
+    : "relative block h-12 w-[158px] overflow-hidden rounded-2xl bg-white shadow-[0_12px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/20 sm:w-[184px]";
 
   return (
     <Link
@@ -23,14 +21,16 @@ export function AlpivoLogo({ href = "/", compact = false, className = "" }: Bran
       aria-label="Alpivo Startseite"
       className={`inline-flex shrink-0 items-center transition hover:opacity-90 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300/40 ${className}`}
     >
-      <Image
-        src={compact ? compactLogoPath : fullLogoPath}
-        alt="Alpivo"
-        width={compact ? 96 : 216}
-        height={compact ? 96 : 78}
-        className={`${compact ? "h-10 w-10" : "h-10 w-auto sm:h-12"} object-contain ${imageClassName}`}
-        priority={false}
-      />
+      <span className={frameClassName}>
+        <Image
+          src={compact ? compactLogoPath : fullLogoPath}
+          alt="Alpivo"
+          fill
+          sizes={compact ? "44px" : "184px"}
+          className={`${compact ? "scale-[1.55] object-contain" : "object-cover"} object-center`}
+          priority={false}
+        />
+      </span>
     </Link>
   );
 }

@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import AppShell from "@/components/premium/AppShell";
+import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import PageHeader from "@/components/premium/PageHeader";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
 import TrustPoint from "@/components/premium/TrustPoint";
+import { getResortActionLinks } from "@/data/resortActionLinks";
 import { addTripDraftResort, setSelectedMapResort } from "@/lib/alpivoLocalState";
-import { getAlpivoTopMatches, toPremiumMatch } from "@/lib/alpivoResortData";
+import { getAlpivoTopMatches, toPremiumMatch } from "@/data/resorts";
 
 type SortKey = "match" | "price" | "drive";
 
@@ -32,12 +34,13 @@ export default function ResultsPage() {
   const matches = resorts.map(toPremiumMatch);
   const topMatch = matches[0];
   const topResort = resorts[0];
+  const topActionLinks = getResortActionLinks(topResort?.slug);
   const alternatives = matches.slice(1, 3);
 
   const addTopMatchToTrip = () => {
     if (!topResort) return;
     addTripDraftResort(topResort.slug);
-    setMessage(`${topResort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt.`);
+    setMessage(`${topResort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt. Als Gast bleibt er auf diesem Gerät gespeichert.`);
   };
 
   return (
@@ -45,7 +48,7 @@ export default function ResultsPage() {
       <main className="alpivo-page-shell min-h-screen px-4 py-8 md:px-8">
         <div className="mx-auto max-w-[1480px] space-y-7">
           <PageHeader
-            eyebrow="Demo Top Matches"
+            eyebrow="Eure Top Matches"
             title="Eure Top Matches"
             subtitle="Basierend auf euren Präferenzen. Alpivo zeigt Score, Kosten, Anreise, Schnee, Vibe, Gründe und Haken auf einen Blick."
             actions={
@@ -84,7 +87,7 @@ export default function ResultsPage() {
               <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-200/80">Nächster Schritt</p>
               <h2 className="mt-2 text-2xl font-black text-white">Top Match prüfen oder direkt in die Planung übernehmen.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                Wenn noch kein persönlicher Wizard-State vorhanden ist, nutzt Alpivo diese konsistenten Demo-Matches als Fallback.
+                Wenn noch kein persönlicher Wizard-State vorhanden ist, nutzt Alpivo konsistente Pilot-Matches als Startpunkt. Deine Auswahl kann anschließend lokal weitergeplant werden.
               </p>
               {message ? <p className="mt-3 rounded-2xl border border-emerald-200/18 bg-emerald-300/[0.08] px-4 py-3 text-sm text-emerald-50">{message}</p> : null}
             </div>
@@ -102,6 +105,13 @@ export default function ResultsPage() {
               </button>
             </div>
           </section>
+
+          <ExternalActionLinks
+            links={topActionLinks}
+            limit={5}
+            title="Offizielle Links zum Top Match"
+            subtitle="Prüfe Tickets, Live-Status, Unterkunft und Anreise direkt bei den offiziellen Quellen."
+          />
 
           <section className="grid gap-4 md:grid-cols-3">
             <TrustPoint icon="shield" title="Unabhängig & transparent" text="Wir erklären Resorts neutral und ohne unbelegte Partner-Claims." />

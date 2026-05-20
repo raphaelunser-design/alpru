@@ -15,8 +15,8 @@ export default function DatenhinweisPage() {
         </p>
         <div className="mt-6 grid gap-3 text-sm text-slate-200 md:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
-            <div className="font-semibold text-white">Demo</div>
-            <p className="mt-2 text-slate-400">Kuratierte MVP-Daten, wenn Live-Daten fehlen oder nicht laden.</p>
+            <div className="font-semibold text-white">Beta-/Pilotdaten</div>
+            <p className="mt-2 text-slate-400">Kuratierte Orientierung, wenn Live-Daten fehlen oder nicht laden.</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
             <div className="font-semibold text-white">Geschätzt</div>

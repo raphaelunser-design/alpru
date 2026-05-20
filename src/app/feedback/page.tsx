@@ -20,6 +20,7 @@ export default function FeedbackPage() {
   const [rating, setRating] = useState(4);
   const [pagePath, setPagePath] = useState("");
   const [message, setMessage] = useState("");
+  const [sendBrowserInfo, setSendBrowserInfo] = useState(true);
   const [status, setStatus] = useState<{ tone: "success" | "error" | "idle"; text: string }>({ tone: "idle", text: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,11 +52,13 @@ export default function FeedbackPage() {
         pagePath: pagePath.trim() || window.location.pathname,
         pageUrl: window.location.href,
         message: trimmed,
-        browserInfo: {
-          language: navigator.language,
-          viewport: `${window.innerWidth}x${window.innerHeight}`,
-          platform: navigator.platform,
-        },
+        browserInfo: sendBrowserInfo
+          ? {
+              language: navigator.language,
+              viewport: `${window.innerWidth}x${window.innerHeight}`,
+              platform: navigator.platform,
+            }
+          : null,
       }),
     });
 
@@ -77,7 +80,7 @@ export default function FeedbackPage() {
           <PageHeader
             eyebrow="Feedback & Vertrauen"
             title="Sag uns, was besser werden soll."
-            subtitle="Jede Rückmeldung verbessert den Match. Bugs, Design-Reibung, fehlende Daten und falsche Ergebnisse landen mit Seitenkontext im Admin-Bereich."
+            subtitle="Jede Rückmeldung verbessert den Match. Wenn Speichern klappt, wird dein Hinweis mit Seitenkontext im Admin-Bereich sichtbar."
           />
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -144,8 +147,17 @@ export default function FeedbackPage() {
                 />
               </label>
 
+              <label className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-5 text-slate-300">
+                <span>Browser-/Device-Info zur Fehleranalyse mitsenden</span>
+                <input
+                  type="checkbox"
+                  checked={sendBrowserInfo}
+                  onChange={(event) => setSendBrowserInfo(event.target.checked)}
+                  className="h-5 w-5 accent-sky-500"
+                />
+              </label>
               <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-5 text-slate-400">
-                Account-ID und Browserinfos werden nur zur Fehleranalyse genutzt.
+                Account-ID und technische Infos werden nur genutzt, um Fehler einzugrenzen. Ohne Login bleibt Feedback anonym.
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -176,7 +188,7 @@ export default function FeedbackPage() {
             <aside className="grid content-start gap-4">
               <TrustPoint icon="shield" title="Unabhängig & objektiv" text="Dein Feedback hilft, Match-Gründe und Haken klarer zu erklären." />
               <TrustPoint icon="lock" title="Sicher & transparent" text="Wir nutzen technische Infos nur, um Fehler schneller einzugrenzen." />
-              <TrustPoint icon="data" title="Aktuelle Daten" text="Hinweise zu Preisen, Schnee und fehlenden Resortdaten fließen in die Beta-Priorisierung." />
+              <TrustPoint icon="data" title="Beta-Daten verbessern" text="Hinweise zu Preisen, Schnee und fehlenden Resortdaten fließen in die Beta-Priorisierung." />
               <div className="rounded-[1.8rem] border border-white/12 bg-white/[0.065] p-5">
                 <div className="text-lg font-black text-white">Beta-Roadmap</div>
                 <p className="mt-2 text-sm leading-6 text-slate-300">Map, Tripboards und Resortdaten werden schrittweise erweitert. Dein Hinweis hilft bei der Reihenfolge.</p>

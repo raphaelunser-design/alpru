@@ -4,11 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import ScoreRing from "@/components/ScoreRing";
-
-const matches = [
-  { rank: "2", name: "Sölden", region: "Tirol, Österreich", score: "89", cost: "€ 610", drive: "3:30 h", image: "/images/ski.jpg" },
-  { rank: "3", name: "Zell am See", region: "Salzburg, Österreich", score: "86", cost: "€ 470", drive: "3:15 h", image: "/bg/skilandschaft.png" },
-] as const;
+import { getAlpivoTopMatches } from "@/data/resorts";
 
 function ArrowIcon() {
   return (
@@ -19,6 +15,9 @@ function ArrowIcon() {
 }
 
 export default function ExampleMatchCard() {
+  const [topMatch, ...alternatives] = getAlpivoTopMatches();
+  const previewMatches = alternatives.slice(0, 2);
+
   return (
     <section id="beispiel-match" className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-[#081426] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(14,165,233,0.14),transparent_32%)]" />
@@ -39,26 +38,26 @@ export default function ExampleMatchCard() {
           <div className="grid gap-4">
             <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.12)]">
               <div className="relative h-72 overflow-hidden">
-                <Image src="/bg/site-hero.jpg" alt="Obertauern Top-Match Vorschau" fill sizes="(min-width: 1024px) 580px, 92vw" className="object-cover" />
+                <Image src={topMatch.image} alt={`${topMatch.name} Top-Match Vorschau`} fill sizes="(min-width: 1024px) 580px, 92vw" className="object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-950/4 via-slate-950/12 to-slate-950/72" />
-                <div className="absolute left-4 top-4 grid h-12 w-12 place-items-center rounded-xl bg-emerald-300 text-xl font-extrabold text-emerald-950">1</div>
+                <div className="absolute left-4 top-4 grid h-12 w-12 place-items-center rounded-xl bg-emerald-300 text-xl font-extrabold text-emerald-950">{topMatch.rank}</div>
                 <div className="absolute right-4 top-4 rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-950">
                   Top Match
                 </div>
                 <div className="absolute bottom-5 left-5 right-28">
-                  <h3 className="text-3xl font-extrabold text-white">Obertauern</h3>
-                  <p className="mt-1 text-sm font-semibold text-white/86">Salzburg, Österreich</p>
+                  <h3 className="text-3xl font-extrabold text-white">{topMatch.name}</h3>
+                  <p className="mt-1 text-sm font-semibold text-white/86">{topMatch.regionLabel}</p>
                 </div>
                 <div className="absolute bottom-4 right-4">
-                  <ScoreRing value={92} size="sm" label="Match" />
+                  <ScoreRing value={topMatch.score} size="sm" label="Match" />
                 </div>
               </div>
               <div className="grid divide-y divide-slate-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
                 {[
-                  ["€ 520", "pro Person"],
-                  ["3:45 h", "ab München"],
-                  ["Schneesicher", "sehr gut"],
-                  ["Vibe & Events", "lebendig"],
+                  [topMatch.priceLabel, "pro Person"],
+                  [topMatch.travelTimeFromMunich, "ab München"],
+                  ["Schneesicher", topMatch.snowLabel],
+                  ["Vibe & Events", topMatch.vibeLabel],
                 ].map(([value, label]) => (
                   <div key={value} className="px-4 py-4">
                     <div className="text-sm font-extrabold text-slate-950">{value}</div>
@@ -68,9 +67,9 @@ export default function ExampleMatchCard() {
               </div>
               <div className="p-5">
                 <p className="text-sm leading-6 text-slate-600">
-                  Schneesicher, abwechslungsreiche Pisten und legendäres Après-Ski.
+                  {topMatch.reasons.slice(0, 3).join(", ")}.
                 </p>
-                <Link href="/quiz" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-extrabold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50">
+                <Link href={`/resort/${topMatch.slug}`} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-extrabold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50">
                   Details ansehen
                   <ArrowIcon />
                 </Link>
@@ -78,7 +77,7 @@ export default function ExampleMatchCard() {
             </article>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              {matches.map((match) => (
+              {previewMatches.map((match) => (
                 <article key={match.name} className="grid overflow-hidden rounded-[1.15rem] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:grid-cols-[0.48fr_1fr] lg:grid-cols-[0.42fr_1fr]">
                   <div className="relative min-h-36 overflow-hidden">
                     <Image src={match.image} alt={`${match.name} Resort-Vorschau`} fill sizes="220px" className="object-cover" />
@@ -91,7 +90,7 @@ export default function ExampleMatchCard() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-extrabold text-slate-950">{match.name}</h3>
-                        <p className="mt-0.5 text-xs font-semibold text-slate-500">{match.region}</p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500">{match.regionLabel}</p>
                       </div>
                       <div className="rounded-full border border-slate-200 px-3 py-2 text-center">
                         <div className="text-xl font-extrabold text-slate-950">{match.score}</div>
@@ -100,11 +99,11 @@ export default function ExampleMatchCard() {
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <div className="rounded-xl bg-slate-50 px-3 py-2">
-                        <strong className="block text-slate-950">{match.cost}</strong>
+                        <strong className="block text-slate-950">{match.priceLabel}</strong>
                         <span className="text-slate-500">pro Person</span>
                       </div>
                       <div className="rounded-xl bg-slate-50 px-3 py-2">
-                        <strong className="block text-slate-950">{match.drive}</strong>
+                        <strong className="block text-slate-950">{match.travelTimeFromMunich}</strong>
                         <span className="text-slate-500">ab München</span>
                       </div>
                     </div>

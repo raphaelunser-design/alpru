@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       pagePath: string;
       pageUrl?: string;
       rating?: number | null;
+      browserInfo?: Record<string, unknown> | null;
     };
 
     const category = categories.has(body.category ?? "") ? body.category! : "feedback";
@@ -30,6 +31,14 @@ export async function POST(req: Request) {
     const pagePath = cleanText(body.pagePath, 300);
     const pageUrl = cleanText(body.pageUrl, 700);
     const rating = Number(body.rating);
+    const browserInfo = body.browserInfo && typeof body.browserInfo === "object"
+      ? cleanText(
+          Object.entries(body.browserInfo)
+            .map(([key, value]) => `${key}: ${String(value)}`)
+            .join(" | "),
+          280
+        )
+      : "";
 
     if (message.length < 3) {
       return NextResponse.json({ error: "Bitte etwas Feedback eingeben." }, { status: 400 });
@@ -60,7 +69,7 @@ export async function POST(req: Request) {
       page_path: pagePath || null,
       page_url: pageUrl || pagePath || null,
       rating: Number.isFinite(rating) && rating >= 1 && rating <= 5 ? rating : null,
-      user_agent: cleanText(req.headers.get("user-agent"), 500) || null,
+      user_agent: cleanText([req.headers.get("user-agent"), browserInfo].filter(Boolean).join(" | "), 500) || null,
     });
 
     if (error) {

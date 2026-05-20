@@ -140,7 +140,7 @@ const providerConfig: ProviderConfig[] = [
     id: "omio",
     label: "Omio",
     eyebrow: "Bahn & Bus",
-    description: "Vergleich für Bahn- und Busverbindungen, später ideal für Partnerlinks.",
+    description: "Externe Suche für Bahn- und Busverbindungen, solange keine Live-API angebunden ist.",
     baseUrl: process.env.NEXT_PUBLIC_OMIO_TRAVEL_URL || "https://www.omio.de/",
     modes: ["train", "bus", "flight"],
   },
@@ -696,12 +696,12 @@ export default function TravelConnectionPanel({
                   <div className="font-medium text-white">{cheapestConnection.title}</div>
                   <div className="mt-1">
                     {formatConnectionTime(cheapestConnection.departureTime)} - {formatConnectionTime(cheapestConnection.arrivalTime)} ·{" "}
-                    {formatDurationMinutes(cheapestConnection.durationMinutes)} ? {typeof cheapestConnection.changes === "number" ? cheapestConnection.changes : "-"} Umstiege
+                    {formatDurationMinutes(cheapestConnection.durationMinutes)} · {typeof cheapestConnection.changes === "number" ? cheapestConnection.changes : "-"} Umstiege
                   </div>
                 </div>
               ) : (
                 <p className="mt-3 text-xs leading-relaxed text-slate-400">
-                  Für echte Bahn-/Buspreise braucht Alpivo einen Omio-, Trainline- oder vergleichbaren Partnerzugang. Das Datum wird
+                  Für echte Bahn-/Buspreise braucht Alpivo eine freigegebene Travel-Provider-API. Das Datum wird
                   bereits an die Suchlinks übergeben; echte Preislisten werden nicht geraten.
                 </p>
               )}
@@ -781,7 +781,7 @@ export default function TravelConnectionPanel({
                   className="group rounded-lg border border-white/10 bg-white/[0.055] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-sky-200/25 hover:bg-white/[0.085]"
                   href={href}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -813,7 +813,7 @@ export default function TravelConnectionPanel({
                   : (apiState.data && apiState.data.note ? apiState.data.note : "API-Slot: Live-Fahrplan, Dauer, Umstiege, Preis und Buchungslink können später pro Provider ergänzt werden.")}
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-              Partnerlink möglich, wenn ein Anbieter Provision zahlt. Der Nutzerpreis soll gleich bleiben; keine Bannerwerbung.
+              Alpivo öffnet aktuell externe Suchseiten. Eigene Buchung oder Provisionen werden nicht behauptet.
             </div>
           </div>
         </div>

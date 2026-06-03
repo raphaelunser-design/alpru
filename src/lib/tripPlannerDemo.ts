@@ -456,7 +456,7 @@ const demoTrips: DemoTripRaw[] = [
       budgetPerPerson: 610,
       skiLevel: "advanced",
       focus: ["snow", "budget", "quiet"],
-      preferredResortSlugs: ["zermatt", "laax", "solden", "sankt-anton-am-arlberg"],
+      preferredResortSlugs: ["solden", "obertauern", "zell-am-see", "saalbach"],
       createdBy: "demo-user-nico",
       createdAt: "2027-03-01T10:00:00Z",
       updatedAt: "2027-03-04T08:30:00Z",
@@ -480,18 +480,18 @@ const demoTrips: DemoTripRaw[] = [
       { id: "demo-spring-av-6", tripId: "demo-trip-spring", dateOptionId: "demo-date-spring-2", memberId: "demo-member-ben", status: "available" },
     ],
     favorites: [
-      { id: "demo-fav-spring-1", tripId: "demo-trip-spring", resortId: null, resortSlug: "zermatt", note: "Spring-Classic, aber Premium.", proposedByMemberId: "demo-member-nico", isPinned: true, createdAt: "2027-03-01T10:15:00Z" },
-      { id: "demo-fav-spring-2", tripId: "demo-trip-spring", resortId: null, resortSlug: "laax", note: "Park und moderne Infrastruktur.", proposedByMemberId: "demo-member-lea", isPinned: false, createdAt: "2027-03-01T10:16:00Z" },
-      { id: "demo-fav-spring-3", tripId: "demo-trip-spring", resortId: null, resortSlug: "solden", note: "Gletscher nimmt Risiko raus.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:17:00Z" },
-      { id: "demo-fav-spring-4", tripId: "demo-trip-spring", resortId: null, resortSlug: "sankt-anton-am-arlberg", note: "Mehr Terrain, aber teurer in Summe.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:18:00Z" },
+      { id: "demo-fav-spring-1", tripId: "demo-trip-spring", resortId: null, resortSlug: "solden", note: "Schneesicher, sportlich und stark für einen späten Saisontrip.", proposedByMemberId: "demo-member-nico", isPinned: true, createdAt: "2027-03-01T10:15:00Z" },
+      { id: "demo-fav-spring-2", tripId: "demo-trip-spring", resortId: null, resortSlug: "obertauern", note: "Sehr runder Gruppen-Fit mit klaren offiziellen Aktionslinks.", proposedByMemberId: "demo-member-lea", isPinned: false, createdAt: "2027-03-01T10:16:00Z" },
+      { id: "demo-fav-spring-3", tripId: "demo-trip-spring", resortId: null, resortSlug: "zell-am-see", note: "Gute Value-Alternative, Schnee je nach Lage offiziell prüfen.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:17:00Z" },
+      { id: "demo-fav-spring-4", tripId: "demo-trip-spring", resortId: null, resortSlug: "saalbach", note: "Großes Gebiet und lebendig, für ruhige Trips bewusst abwägen.", proposedByMemberId: "demo-member-ben", isPinned: false, createdAt: "2027-03-01T10:18:00Z" },
     ],
     votes: [
       { id: "demo-spring-vote-1", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-3", memberId: "demo-member-ben", voteKind: "favorite", createdAt: "2027-03-01T10:21:00Z" },
       { id: "demo-spring-vote-2", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-2", memberId: "demo-member-lea", voteKind: "favorite", createdAt: "2027-03-01T10:21:30Z" },
     ],
     comments: [
-      { id: "demo-spring-comment-1", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-2", memberId: "demo-member-lea", body: "Laax ist für den Preis gut, wenn wir das kürzere Fenster nehmen.", createdAt: "2027-03-01T10:25:00Z" },
-      { id: "demo-spring-comment-2", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-3", memberId: "demo-member-nico", body: "Sölden gewinnt bei Schnee plus Preis fast immer.", createdAt: "2027-03-01T10:27:00Z" },
+      { id: "demo-spring-comment-1", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-2", memberId: "demo-member-lea", body: "Obertauern bleibt als Gruppenoption stark, wenn wir etwas mehr Vibe wollen.", createdAt: "2027-03-01T10:25:00Z" },
+      { id: "demo-spring-comment-2", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-1", memberId: "demo-member-nico", body: "Sölden gewinnt bei Schnee plus sportlichem Fit aktuell knapp.", createdAt: "2027-03-01T10:27:00Z" },
     ],
     priceSnapshots: [
       { id: "demo-spring-price-1", tripId: "demo-trip-spring", favoriteId: "demo-fav-spring-1", dateOptionId: "demo-date-spring-1", currency: "EUR", skipass: 188, accommodation: 245, travel: 92, rental: 0, skiSchool: 0, food: 98, buffer: 44, totalOverride: null, note: null, sourceKind: "seed", updatedByMemberId: "demo-member-nico", updatedAt: "2027-03-01T11:00:00Z" },

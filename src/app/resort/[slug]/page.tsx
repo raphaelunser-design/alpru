@@ -4,17 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import DataStatusPanel from "@/components/premium/DataStatusPanel";
 import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
-import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
+import ResortActionHub from "@/components/premium/ResortActionHub";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
+import SkipassAssistant from "@/components/premium/SkipassAssistant";
 import TrustPoint from "@/components/premium/TrustPoint";
 import { getResortActionLinks } from "@/data/resortActionLinks";
-import { getAlpivoResortBySlug, getAlpivoTopMatches, toPremiumMatch } from "@/data/resorts";
-import { addTripDraftResort, isFavoriteSlug, setSelectedMapResort, toggleFavoriteSlug } from "@/lib/alpivoLocalState";
+import { getAlpivoResortBySlug, getAlpivoTopMatches, getCanonicalResortBySlug, toPremiumMatch } from "@/data/resorts";
+import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
 
 function CheckIcon() {
   return (
@@ -81,16 +83,25 @@ function FactorBar({ label, score, note }: { label: string; score: number; note:
   );
 }
 
+function fitLabel(score: number | undefined) {
+  if (typeof score !== "number") return "Daten fehlen";
+  if (score >= 88) return "sehr stark";
+  if (score >= 78) return "stark";
+  if (score >= 66) return "solide";
+  return "nur bedingt";
+}
+
+function fitScore(score: number | undefined) {
+  return typeof score === "number" ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+}
+
 export default function ResortDetailPage() {
   const params = useParams<{ slug?: string }>();
   const resort = useMemo(() => getAlpivoResortBySlug(params?.slug), [params?.slug]);
-  const [favorite, setFavorite] = useState(false);
+  const canonical = useMemo(() => getCanonicalResortBySlug(params?.slug), [params?.slug]);
+  const { state: guestState, selectResort, toggleFavorite, addTripDraftResort, markActionCompleted } = useAlpivoGuestState();
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (!resort) return;
-    setFavorite(isFavoriteSlug(resort.slug));
-  }, [resort]);
+  const favorite = resort ? guestState.favoriteResortSlugs.includes(resort.slug) : false;
 
   if (!resort) {
     return (
@@ -123,9 +134,33 @@ export default function ResortDetailPage() {
     .slice(0, 3)
     .map(toPremiumMatch);
   const actionLinks = getResortActionLinks(resort.slug);
+  const skipassLink = actionLinks.skipassShop ?? actionLinks.ticketInfo;
+  const groupFits = [
+    { label: "Freunde", score: Math.max(canonical?.vibe.apresFit ?? 0, canonical?.vibe.eventFit ?? 0, resort.score - 2), note: "Gemeinsame Abende, kurze Wege und Gruppenenergie." },
+    { label: "Familie", score: canonical?.vibe.familyFit ?? canonical?.skiArea.beginnerFit ?? 68, note: "Orientierung aus Pistenprofil, Infrastruktur und Vibe." },
+    { label: "Paar", score: canonical?.vibe.quietFit ?? (resort.vibeLabel.toLowerCase().includes("lebendig") ? 66 : 78), note: "Abhängig davon, ob Ruhe oder Abendprogramm wichtiger ist." },
+    { label: "Sportgruppe", score: Math.max(canonical?.vibe.sportFit ?? 0, canonical?.skiArea.advancedFit ?? 0, resort.score - 4), note: "Pistenleistung, Höhenlage und Trainings-/Guiding-Fit." },
+    { label: "Anfänger", score: canonical?.skiArea.beginnerFit ?? 72, note: "Breite Pisten und Skischul-/Verleih-Angebote als Orientierung." },
+    { label: "Fortgeschrittene", score: canonical?.skiArea.intermediateFit ?? resort.score, note: "Pistenvielfalt und mittlere bis sportliche Abfahrten." },
+    { label: "Après-Ski", score: canonical?.vibe.apresFit ?? canonical?.vibe.eventFit ?? 70, note: "Hütten, Events und lebendige Treffpunkte." },
+    { label: "ruhiger Trip", score: canonical?.vibe.quietFit ?? (resort.vibeLabel.toLowerCase().includes("lebendig") ? 52 : 78), note: "Für sehr ruhige Trips vor Buchung Ortsteil und Unterkunftslage prüfen." },
+  ];
+  const resortSpecificCaveats: Record<string, string[]> = {
+    obertauern: ["In der Hochsaison und an Wochenenden können Ort und beliebte Pisten voller werden.", "Für sehr ruhige Trips Unterkunftslage und Abendnähe bewusst wählen."],
+    solden: ["Sölden ist sportlich und teils teurer, besonders rund um starke Termine.", "Für Einsteigergruppen kann das Gebiet ambitionierter wirken als kompakte Resorts."],
+    "zell-am-see": ["Schnee je nach Lage, Höhe und Zeitraum stärker prüfen.", "Wer reinen Après-Fokus sucht, findet lebendigere Alternativen."],
+    saalbach: ["Saalbach ist lebendig und nicht ideal für sehr ruhige Trips.", "An beliebten Wochenenden kann frühes Buchen entscheidend sein."],
+  };
+  const bookingChecklist = [
+    "Skipasspreise offiziell prüfen",
+    "Live-Schnee und Liftstatus prüfen",
+    "Webcams vor Abfahrt ansehen",
+    "Unterkunftsverfügbarkeit und Storno-/Umbuchungsbedingungen prüfen",
+    "Anreise, Wetter und Wochenendverkehr prüfen",
+    "Gruppenabstimmung finalisieren",
+  ];
   const handleFavorite = () => {
-    const isNowFavorite = toggleFavoriteSlug(resort.slug);
-    setFavorite(isNowFavorite);
+    const isNowFavorite = toggleFavorite(resort.slug);
     setMessage(isNowFavorite ? "Favorit gespeichert. Das Cockpit kann diesen Resort jetzt aufgreifen." : "Favorit entfernt.");
   };
 
@@ -143,14 +178,28 @@ export default function ResortDetailPage() {
             title={resort.name}
             subtitle={`${resort.regionLabel}. Ein erklärbares Top-Match mit Score, Kosten, Anreise, Schnee, Vibe, Gründen und Haken.`}
             actions={
-              <Link
-                href={`/map?resort=${encodeURIComponent(resort.slug)}`}
-                onClick={() => setSelectedMapResort(resort.slug)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
-              >
-                Auf Karte ansehen
-                <ArrowIcon />
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                {skipassLink ? (
+                  <a
+                    href={skipassLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => markActionCompleted("skipassChecked", resort.slug)}
+                    className="button-lift inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+                  >
+                    Skipass offiziell kaufen
+                    <ArrowIcon />
+                  </a>
+                ) : null}
+                <Link
+                  href={`/map?resort=${encodeURIComponent(resort.slug)}`}
+                  onClick={() => selectResort(resort.slug)}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
+                >
+                  Auf Karte ansehen
+                  <ArrowIcon />
+                </Link>
+              </div>
             }
           />
 
@@ -240,7 +289,7 @@ export default function ResortDetailPage() {
                   </button>
                   <Link
                     href={`/map?resort=${encodeURIComponent(resort.slug)}`}
-                    onClick={() => setSelectedMapResort(resort.slug)}
+                    onClick={() => selectResort(resort.slug)}
                     className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-sky-200/20 bg-sky-300/[0.08] px-5 text-sm font-extrabold text-sky-50 hover:bg-sky-300/[0.13]"
                   >
                     Auf Karte ansehen
@@ -249,11 +298,18 @@ export default function ResortDetailPage() {
                 {message ? <p className="mt-4 rounded-2xl border border-emerald-200/18 bg-emerald-300/[0.08] px-4 py-3 text-sm text-emerald-50">{message}</p> : null}
               </div>
 
-              <ExternalActionLinks
-                links={actionLinks}
+              <ResortActionHub
+                resortSlug={resort.slug}
+                variant="compact"
                 limit={4}
                 title="Offiziell weiterplanen"
-                subtitle="Direkt zu Skipass, Live-Status, Unterkunft und weiteren offiziellen Seiten."
+                subtitle="Direkt zu Skipass, Live-Status, Unterkunft und offiziellen Resort-Infos."
+                onActionClick={(link) => {
+                  if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", resort.slug);
+                  if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", resort.slug);
+                  if (link.kind === "accommodation") markActionCompleted("accommodationChecked", resort.slug);
+                  if (link.kind === "travel") markActionCompleted("routeChecked", resort.slug);
+                }}
               />
 
               <div className="grid gap-3">
@@ -267,14 +323,19 @@ export default function ResortDetailPage() {
           <nav className="flex gap-2 overflow-x-auto rounded-[1.5rem] border border-white/10 bg-slate-950/58 p-2 text-sm font-extrabold text-slate-200 [scrollbar-width:none]">
             {[
               ["Match", "#match"],
+              ["Aktionen", "#aktionen"],
+              ["Skipass", "#skipass"],
               ["Fakten", "#fakten"],
               ["Wetter", "#wetter"],
               ["Kosten", "#kosten"],
               ["Anreise", "#anreise"],
               ["Vibe", "#vibe"],
+              ["Gruppenfit", "#gruppenfit"],
+              ["Buchungscheck", "#buchungscheck"],
               ["Kurse", "#services"],
               ["Links", "#links"],
               ["Datenstatus", "#datenstatus"],
+              ["FAQ", "#faq"],
             ].map(([label, href]) => (
               <a key={href} href={href} className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 hover:border-sky-200/28 hover:bg-sky-300/10 hover:text-white">
                 {label}
@@ -284,6 +345,30 @@ export default function ResortDetailPage() {
 
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
             <div className="space-y-6">
+              <SectionCard id="aktionen" eyebrow="Direkt handeln" title="Aus dem Match in die Planung">
+                <ResortActionHub
+                  resortSlug={resort.slug}
+                  title="Offizielle Actions für diesen Resort"
+                  subtitle="Alle externen Links öffnen offizielle Seiten. Alpivo wickelt keine Buchung und keinen Skipasskauf ab."
+                  onActionClick={(link) => {
+                    if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", resort.slug);
+                    if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", resort.slug);
+                    if (link.kind === "accommodation") markActionCompleted("accommodationChecked", resort.slug);
+                    if (link.kind === "travel") markActionCompleted("routeChecked", resort.slug);
+                  }}
+                />
+              </SectionCard>
+
+              <SectionCard id="skipass" eyebrow="Ticket-Planung" title="Welcher Skipass ist plausibel?">
+                <SkipassAssistant
+                  resort={resort}
+                  preferences={guestState.preferences}
+                  groupSize={guestState.tripDraft?.groupSize ?? guestState.preferences.peopleCount}
+                  completed={guestState.completedActions.skipassChecked}
+                  onComplete={() => markActionCompleted("skipassChecked", resort.slug)}
+                />
+              </SectionCard>
+
               <SectionCard id="match" eyebrow="Match-Erklärung" title="Warum Alpivo dieses Resort empfiehlt">
                 <div className="grid gap-4 lg:grid-cols-2">
                   {resort.detail.factorScores.map((factor) => (
@@ -432,6 +517,54 @@ export default function ResortDetailPage() {
                   </div>
                 </div>
               </SectionCard>
+
+              <SectionCard id="gruppenfit" eyebrow="Gruppen-Fit" title="Für wen dieses Resort besonders gut passt">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {groupFits.map((fit) => (
+                    <div key={fit.label} className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-white">{fit.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-400">{fit.note}</p>
+                        </div>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-black ${fitScore(fit.score) ? "border-emerald-200/20 bg-emerald-300/10 text-emerald-50" : "border-amber-200/20 bg-amber-300/10 text-amber-50"}`}>
+                          {fitScore(fit.score) ? `${fitScore(fit.score)} · ${fitLabel(fit.score)}` : "Daten fehlen"}
+                        </span>
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(6, fitScore(fit.score))}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 rounded-2xl border border-amber-200/18 bg-amber-300/[0.08] px-4 py-3 text-sm leading-6 text-amber-50/90">
+                  Gruppen-Fit ist in der Beta eine Orientierung aus zentralen Alpivo-Daten, Pistenprofil und Vibe-Signalen. Fehlende Live-Daten werden bewusst nicht als Fakt ausgegeben.
+                </p>
+              </SectionCard>
+
+              <SectionCard id="buchungscheck" eyebrow="Ehrlicher Check" title="Was vor Buchung geprüft werden sollte">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="rounded-3xl border border-amber-200/20 bg-amber-300/[0.08] p-5">
+                    <h3 className="text-lg font-black text-amber-100">Wann passt dieses Resort nicht?</h3>
+                    <ul className="mt-4 space-y-3">
+                      {(resortSpecificCaveats[resort.slug] ?? [resort.drawback]).map((item) => (
+                        <li key={item} className="text-sm leading-6 text-amber-50/90">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
+                    <h3 className="text-lg font-black text-white">Vor Buchung prüfen</h3>
+                    <ul className="mt-4 space-y-3">
+                      {bookingChecklist.map((item) => (
+                        <li key={item} className="flex gap-3 text-sm leading-6 text-slate-300">
+                          <span className="mt-0.5 text-emerald-300"><CheckIcon /></span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </SectionCard>
             </div>
 
             <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
@@ -447,28 +580,29 @@ export default function ResortDetailPage() {
               </SectionCard>
 
               <SectionCard id="links" eyebrow="Action Links" title="Offizielle Links">
-                <ExternalActionLinks
-                  links={actionLinks}
+                <ResortActionHub
+                  resortSlug={resort.slug}
+                  variant="compact"
                   title="Aus Alpivo heraus weiterhandeln"
                   subtitle="Alpivo erklärt den Match. Tickets, Live-Status, Unterkunft und Anreise prüfst du anschließend bei den offiziellen Quellen."
+                  onActionClick={(link) => {
+                    if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", resort.slug);
+                    if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", resort.slug);
+                    if (link.kind === "accommodation") markActionCompleted("accommodationChecked", resort.slug);
+                    if (link.kind === "travel") markActionCompleted("routeChecked", resort.slug);
+                  }}
                 />
               </SectionCard>
 
               <SectionCard id="datenstatus" eyebrow="Datenstatus" title="Was aktuell sicher ist">
-                <ul className="space-y-3">
-                  {resort.detail.dataStatus.map((item) => (
-                    <li key={item} className="rounded-2xl border border-white/10 bg-white/[0.05] p-3 text-sm leading-6 text-slate-300">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                <DataStatusPanel resortSlug={resort.slug} />
                 <div className="mt-5 grid gap-3">
                   {resort.detail.externalLinks.map((link) =>
                     link.href.startsWith("/") ? (
                       <Link
                         key={link.label}
                         href={link.href}
-                        onClick={link.href.startsWith("/map") ? () => setSelectedMapResort(resort.slug) : undefined}
+                        onClick={link.href.startsWith("/map") ? () => selectResort(resort.slug) : undefined}
                         className="inline-flex min-h-11 items-center justify-between rounded-2xl border border-white/12 bg-white/[0.055] px-4 text-sm font-bold text-slate-100 hover:bg-white/10"
                       >
                         {link.label}
@@ -487,6 +621,24 @@ export default function ResortDetailPage() {
                       </a>
                     ),
                   )}
+                </div>
+              </SectionCard>
+
+              <SectionCard id="faq" eyebrow="FAQ" title="Häufige Fragen">
+                <div className="space-y-3">
+                  {[
+                    ["Für wen passt dieses Resort?", `${resort.name} passt besonders, wenn ${resort.reasons[0]?.toLowerCase() ?? "der Match-Fit"} wichtig ist und ihr Gründe sowie Haken bewusst abwägen wollt.`],
+                    ["Was ist der größte Haken?", resort.drawback],
+                    ["Wie früh sollte man Skipass und Unterkunft prüfen?", "Sobald Zeitraum und Gruppengröße feststehen. Bei Wochenenden, Ferien oder sehr beliebten Orten früher prüfen."],
+                    ["Welche Kosten sind geschätzt?", "Budget, Unterkunft, Anreiseanteil und Skipass-Orientierung sind Beta-Schätzungen. Verbindliche Preise liegen bei offiziellen Quellen."],
+                    ["Welche Links sind offiziell?", "Action-Links im Hub führen zu offiziellen Resort-, Ticket-, Live-, Webcam- oder Unterkunftsseiten und öffnen in einem neuen Tab."],
+                    ["Was sollte vor Buchung final geprüft werden?", "Skipasspreise, Live-Schnee/Lifte, Unterkunftsverfügbarkeit, Wetter/Route, Storno-/Umbuchungsbedingungen und Gruppenabstimmung."],
+                  ].map(([question, answer]) => (
+                    <details key={question} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+                      <summary className="cursor-pointer text-sm font-black text-white">{question}</summary>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{answer}</p>
+                    </details>
+                  ))}
                 </div>
               </SectionCard>
             </aside>

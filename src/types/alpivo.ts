@@ -1,3 +1,5 @@
+import type { MatchPayload } from "@/lib/matching/matchPayload";
+
 export type DataConfidence = "verified" | "official" | "estimated" | "demo" | "missing";
 
 export type DataSource = {
@@ -174,4 +176,68 @@ export type DemoTripState = {
   budgetPerPerson: number;
   groupSize: number;
   resortSlugs: string[];
+};
+
+export type TripPreferences = MatchPayload & {
+  originLabel: string;
+  priorities: string[];
+  maxTravelHours?: string;
+  minPisteKm?: string;
+};
+
+export type TripDraft = {
+  id: string;
+  title: string;
+  primaryResortSlug?: string;
+  resortSlugs: string[];
+  originLabel: string;
+  dateLabel: string;
+  budgetLabel: string;
+  groupSize: number;
+  updatedAt: string;
+  source: "guest";
+};
+
+export type ChecklistState = {
+  percent: number;
+  completed: number;
+  total: number;
+  open: number;
+  nextTask: string;
+  updatedAt: string;
+};
+
+export type ActivityItem = {
+  id: string;
+  type:
+    | "match_created"
+    | "favorite_added"
+    | "favorite_removed"
+    | "trip_draft_updated"
+    | "map_resort_selected"
+    | "checklist_updated"
+    | "action_completed";
+  label: string;
+  createdAt: string;
+  resortSlug?: string;
+  href?: string;
+};
+
+export type AlpivoGuestState = {
+  preferences: TripPreferences;
+  selectedResortSlug?: string;
+  favoriteResortSlugs: string[];
+  tripDraft?: TripDraft;
+  checklistState: ChecklistState;
+  completedActions: {
+    skipassChecked?: boolean;
+    accommodationChecked?: boolean;
+    routeChecked?: boolean;
+    liveStatusChecked?: boolean;
+    budgetChecked?: boolean;
+    rentalChecked?: boolean;
+    skiSchoolChecked?: boolean;
+    groupDecisionChecked?: boolean;
+  };
+  recentActivity: ActivityItem[];
 };

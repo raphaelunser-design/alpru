@@ -16,7 +16,7 @@ export default function FeedbackButton() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
-  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d";
+  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d" || pathname === "/map/real-spike" || pathname === "/map/terrain-lab" || pathname === "/map/3d-real";
 
   if (usesImmersiveShell) return null;
 

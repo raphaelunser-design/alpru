@@ -7,16 +7,47 @@ import TrustPoint from "@/components/premium/TrustPoint";
 import { supabase } from "@/lib/supabase";
 
 const categories = [
+  { value: "data_missing", label: "Daten fehlen" },
+  { value: "link_missing", label: "Link fehlt" },
+  { value: "price_wrong", label: "Preis falsch" },
+  { value: "resort_missing", label: "Resort fehlt" },
+  { value: "design", label: "UI/Design" },
   { value: "bug", label: "Bug" },
-  { value: "design", label: "Design" },
-  { value: "feedback", label: "Ergebnis falsch" },
-  { value: "idea", label: "Daten fehlen" },
   { value: "feature", label: "Feature-Wunsch" },
-  { value: "general", label: "Allgemein" },
-];
+  { value: "general", label: "Sonstiges" },
+] as const;
+
+type FeedbackCategory = (typeof categories)[number]["value"];
+
+const categoryAliases: Record<string, FeedbackCategory> = {
+  "daten-fehlen": "data_missing",
+  data_missing: "data_missing",
+  "data-missing": "data_missing",
+  idea: "data_missing",
+  "link-fehlt": "link_missing",
+  link_missing: "link_missing",
+  "link-missing": "link_missing",
+  "preis-falsch": "price_wrong",
+  price_wrong: "price_wrong",
+  "price-wrong": "price_wrong",
+  "resort-fehlt": "resort_missing",
+  resort_missing: "resort_missing",
+  "resort-missing": "resort_missing",
+  design: "design",
+  ui: "design",
+  bug: "bug",
+  feature: "feature",
+  general: "general",
+  sonstiges: "general",
+};
+
+function normalizeCategory(value: string | null): FeedbackCategory {
+  if (!value) return "general";
+  return categoryAliases[value.trim().toLowerCase()] ?? "general";
+}
 
 export default function FeedbackPage() {
-  const [category, setCategory] = useState("general");
+  const [category, setCategory] = useState<FeedbackCategory>("general");
   const [rating, setRating] = useState(4);
   const [pagePath, setPagePath] = useState("");
   const [message, setMessage] = useState("");
@@ -25,7 +56,34 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setPagePath(window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    const queryCategory = normalizeCategory(params.get("category"));
+    const resort = params.get("resort")?.trim();
+    const feature = params.get("feature")?.trim();
+    const task = params.get("task")?.trim();
+    const contextParts = [
+      window.location.pathname,
+      resort ? `Resort: ${resort}` : "",
+      feature ? `Funktion: ${feature}` : "",
+      task ? `Aufgabe: ${task}` : "",
+    ].filter(Boolean);
+    setCategory(queryCategory);
+    setPagePath(contextParts.join(" · "));
+    if ((resort || feature || task) && !message) {
+      setMessage(
+        [
+          resort ? `Resort: ${resort}` : "",
+          feature ? `Kontext: ${feature}` : "",
+          task ? `Aufgabe: ${task}` : "",
+          "",
+          "Was fehlt oder ist falsch?",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
+    }
+    // Query params should prefill once on first client render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submitFeedback() {
@@ -80,7 +138,7 @@ export default function FeedbackPage() {
           <PageHeader
             eyebrow="Feedback & Vertrauen"
             title="Sag uns, was besser werden soll."
-            subtitle="Jede Rückmeldung verbessert den Match. Wenn Speichern klappt, wird dein Hinweis mit Seitenkontext im Admin-Bereich sichtbar."
+            subtitle="Jede Rückmeldung verbessert den Match. Feedback wird im Beta-Backend mit Seitenkontext gespeichert, wenn der Speichervorgang klappt."
           />
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">

@@ -135,7 +135,7 @@ export const alpivoResorts: AlpivoResort[] = [
         { label: "Höhe", value: "1.740 - 2.313 m", detail: "Guter Höhen-Fit für Schneesicherheit." },
         { label: "Pisten", value: "100 km", detail: "Breite Mischung für Gruppen mit verschiedenen Levels." },
         { label: "Lifte", value: "26 Anlagen", detail: "Kompaktes Gebiet mit kurzen Wegen." },
-        { label: "Beste Reisezeit", value: "Jan. - März", detail: "Sehr starker Fit für die Demo-Reise 20. - 24. Jan. 2027." },
+        { label: "Beste Reisezeit", value: "Jan. - März", detail: "Sehr starker Fit für die Beispielreise 20. - 24. Jan. 2027." },
         { label: "Gruppen-Fit", value: "Sehr hoch", detail: "Viele Treffpunkte, kurze Wege, lebendiger Abend." },
       ],
       factorScores: [
@@ -346,7 +346,7 @@ export const alpivoResorts: AlpivoResort[] = [
         { label: "Gebietstyp", value: "See, Stadt & Ski", detail: "Guter Mix aus Pisten, Ort und Freizeit." },
         { label: "Höhe", value: "757 - 3.029 m", detail: "Mit Gletscherverbund stärker als reines Talgebiet." },
         { label: "Pisten", value: "138 km", detail: "Vielseitig für gemischte Gruppen." },
-        { label: "Anreise", value: "3:15 h", detail: "Kürzester Anreise-Fit im Demo-Set." },
+        { label: "Anreise", value: "3:15 h", detail: "Kürzester Anreise-Fit im Pilot-Set." },
         { label: "Budget", value: "€ 470 p. P.", detail: "Guter Value-Fit." },
         { label: "Gruppen-Fit", value: "Ausgewogen", detail: "Mehr Stadtgefühl, weniger reiner Party-Fokus." },
       ],
@@ -375,7 +375,7 @@ export const alpivoResorts: AlpivoResort[] = [
         { label: "Orientierung gesamt", value: "€ 470 p. P.", note: "Günstigste Top-3-Empfehlung." },
         { label: "Unterkunft", value: "ca. € 250 - 330", note: "Stadtlage und Seeblick können Preis erhöhen." },
         { label: "Skipass", value: "ca. € 230 - 280", note: "Verbund-/Saisonpreise offiziell prüfen." },
-        { label: "Anreiseanteil", value: "ca. € 30", note: "Kurzer Demo-Routenfit ab München." },
+        { label: "Anreiseanteil", value: "ca. € 30", note: "Kurzer Routenfit ab München." },
       ],
       skipass: [
         { label: "Erwachsene", value: "ab ca. € 62 / Tag", note: "Orientierung, je nach Ticketverbund." },
@@ -443,7 +443,7 @@ export const alpivoResorts: AlpivoResort[] = [
       facts: [
         { label: "Gebietstyp", value: "Großer Skicircus", detail: "Sehr viele Pisten und Orte im Verbund." },
         { label: "Höhe", value: "1.003 - 2.096 m", detail: "Breit, aber nicht so hoch wie Obertauern/Sölden." },
-        { label: "Pisten", value: "270 km", detail: "Stärkste Pistenmenge im Demo-Set." },
+        { label: "Pisten", value: "270 km", detail: "Stärkste Pistenmenge im Pilot-Set." },
         { label: "Lifte", value: "70 Anlagen", detail: "Sehr hohe Infrastrukturbreite." },
         { label: "Beste Reisezeit", value: "Jan. - März", detail: "Für Gruppen und Events stark." },
         { label: "Gruppen-Fit", value: "Sehr hoch", detail: "Perfekt, wenn Größe und Abendprogramm zählen." },

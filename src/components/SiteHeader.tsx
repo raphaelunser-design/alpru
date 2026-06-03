@@ -29,7 +29,7 @@ export default function SiteHeader() {
   const usesPremiumShell = ["/results", "/resorts", "/resort", "/trips", "/checklist", "/account", "/feedback", "/quiz", "/map", "/admin"].some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
-  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d" || pathname === "/map/real-spike";
+  const usesImmersiveShell = pathname === "/map/3d" || pathname === "/karte/3d" || pathname === "/map/real-spike" || pathname === "/map/3d-real";
 
   if (isHome || usesPremiumShell || usesImmersiveShell) return null;
 

@@ -4,7 +4,35 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-const categories = new Set(["bug", "feature", "feedback", "idea", "design", "general"]);
+const categories = new Set(["data_missing", "link_missing", "price_wrong", "resort_missing", "design", "bug", "feature", "general"]);
+const categoryAliases = new Map<string, string>([
+  ["daten-fehlen", "data_missing"],
+  ["data-missing", "data_missing"],
+  ["data_missing", "data_missing"],
+  ["idea", "data_missing"],
+  ["link-fehlt", "link_missing"],
+  ["link-missing", "link_missing"],
+  ["link_missing", "link_missing"],
+  ["preis-falsch", "price_wrong"],
+  ["price-wrong", "price_wrong"],
+  ["price_wrong", "price_wrong"],
+  ["resort-fehlt", "resort_missing"],
+  ["resort-missing", "resort_missing"],
+  ["resort_missing", "resort_missing"],
+  ["ui", "design"],
+  ["design", "design"],
+  ["bug", "bug"],
+  ["feature", "feature"],
+  ["feedback", "general"],
+  ["general", "general"],
+  ["sonstiges", "general"],
+]);
+
+function cleanCategory(value: unknown) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  const aliased = categoryAliases.get(normalized) ?? normalized;
+  return categories.has(aliased) ? aliased : "general";
+}
 
 function cleanText(value: unknown, maxLength: number) {
   return String(value ?? "")
@@ -25,8 +53,8 @@ export async function POST(req: Request) {
       browserInfo?: Record<string, unknown> | null;
     };
 
-    const category = categories.has(body.category ?? "") ? body.category! : "feedback";
-    const feedbackType = categories.has(body.feedbackType ?? "") ? body.feedbackType! : category;
+    const category = cleanCategory(body.category);
+    const feedbackType = cleanCategory(body.feedbackType ?? category);
     const message = cleanText(body.message, 2000);
     const pagePath = cleanText(body.pagePath, 300);
     const pageUrl = cleanText(body.pageUrl, 700);

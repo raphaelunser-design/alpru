@@ -8,10 +8,11 @@ import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
-import TrustPoint from "@/components/premium/TrustPoint";
-import { getAlpivoTopMatches } from "@/data/resorts";
+import { alpivoCanonicalResorts, getAlpivoResortBySlug, getAlpivoTopMatches, getResortActionLinks } from "@/data/resorts";
+import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
 import { isOwnerAdminEmail } from "@/lib/adminShared";
 import { fetchJsonWithTimeout } from "@/lib/clientFetch";
+import { calculateMatchResults } from "@/lib/matchScore";
 import { buildMatchPayload, buildResortQuery, MATCH_PREF_DEFAULTS } from "@/lib/matching/matchPayload";
 import { supabase } from "@/lib/supabase";
 import { getChecklistReadiness, type ChecklistReadinessState } from "@/lib/tripState";
@@ -174,8 +175,12 @@ function computeReadinessScore(prefs: StoredPrefs | null, resultCount: number, i
 
 function feedbackTypeLabel(value: string | null | undefined) {
   if (value === "bug") return "Bug";
-  if (value === "idea" || value === "feature") return "Idee";
-  if (value === "design") return "Design";
+  if (value === "idea" || value === "feature") return "Feature-Wunsch";
+  if (value === "design") return "UI/Design";
+  if (value === "data_missing") return "Daten fehlen";
+  if (value === "link_missing") return "Link fehlt";
+  if (value === "price_wrong") return "Preis falsch";
+  if (value === "resort_missing") return "Resort fehlt";
   return "Feedback";
 }
 
@@ -346,6 +351,7 @@ function sessionUserFromSession(session: Session | null): AccountUser | null {
 }
 
 export default function AccountPage() {
+  const { state: guestState } = useAlpivoGuestState();
   const accountRequestRef = useRef(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -753,13 +759,44 @@ export default function AccountPage() {
   const user = account?.user ?? sessionUser;
   const isLoggedIn = Boolean(user);
   const isAdmin = profile?.role === "admin" || isOwnerAdminEmail(user?.email);
-  const displayPrefs = prefs ?? defaultPrefs;
+  const displayPrefs = prefs ?? guestState.preferences ?? defaultPrefs;
   const demoResults = useMemo(() => demoAccountResults(), []);
-  const topResults = useMemo(() => (results.length ? results : demoResults).slice(0, 3), [demoResults, results]);
+  const guestMatchResults = useMemo(
+    () =>
+      calculateMatchResults(guestState.preferences, alpivoCanonicalResorts)
+        .filter((result) => !result.hardExclusion?.excluded)
+        .slice(0, 3)
+        .map((result) => ({
+          id: result.resort.slug,
+          slug: result.resort.slug,
+          name: result.resort.name,
+          country: result.resort.country,
+          region: result.resort.region,
+          matchPct: result.totalScore,
+          budgetStatus: "green",
+          tripStyleHint: result.resort.vibe.label,
+          pisteKm: result.resort.skiArea.pisteKm ?? null,
+          reasons: result.reasons,
+        })) as ResortDecision[],
+    [guestState.preferences]
+  );
+  const topResults = useMemo(() => (results.length ? results : guestMatchResults.length ? guestMatchResults : demoResults).slice(0, 3), [demoResults, guestMatchResults, results]);
   const isDemoTopResults = results.length === 0;
   const favorite = topResults[0];
-  const readinessScore = checklistReadiness?.percent ?? computeReadinessScore(prefs, topResults.length, isLoggedIn);
+  const guestReadiness = guestState.checklistState.updatedAt || guestState.checklistState.total > 0 ? guestState.checklistState : null;
+  const readinessScore = checklistReadiness?.percent ?? guestReadiness?.percent ?? computeReadinessScore(displayPrefs, topResults.length, isLoggedIn);
   const greetingName = profile?.display_name || user?.email || "Alpivo Tester";
+  const favoriteResorts = guestState.favoriteResortSlugs.map(getAlpivoResortBySlug).filter((resort): resort is NonNullable<ReturnType<typeof getAlpivoResortBySlug>> => Boolean(resort));
+  const tripDraftResorts = (guestState.tripDraft?.resortSlugs ?? []).map(getAlpivoResortBySlug).filter((resort): resort is NonNullable<ReturnType<typeof getAlpivoResortBySlug>> => Boolean(resort));
+  const primaryPlanningSlug = guestState.tripDraft?.primaryResortSlug ?? favoriteResorts[0]?.slug ?? topResults[0]?.slug ?? guestState.selectedResortSlug ?? "obertauern";
+  const primaryPlanningResort = getAlpivoResortBySlug(primaryPlanningSlug) ?? getAlpivoResortBySlug("obertauern");
+  const primaryActionLinks = getResortActionLinks(primaryPlanningResort?.slug);
+  const activeTripHref = guestState.tripDraft?.id ? `/trips/${encodeURIComponent(guestState.tripDraft.id)}` : "/trips/demo-trip-crew";
+  const activeCompareHref = `${activeTripHref}/compare`;
+  const nextPlanningTask = checklistReadiness?.nextTask ?? guestReadiness?.nextTask ?? "Skipass / Ticket prüfen";
+  const prioritySummary = guestState.preferences.priorities?.length
+    ? guestState.preferences.priorities.slice(0, 3).join(", ")
+    : "Après-Ski & Events, Pistenvielfalt, Schneesicherheit";
   const preferenceSignals = [
     { label: "Value", value: displayPrefs.valueForMoney },
     { label: "Schnee", value: displayPrefs.snowReliability },
@@ -768,103 +805,6 @@ export default function AccountPage() {
     { label: "Familie", value: displayPrefs.family },
     { label: "Gletscher", value: displayPrefs.summerGlacier },
   ];
-
-  if (!accountLoading && !isLoggedIn) {
-    return (
-      <AppShell>
-        <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
-          <div className="mx-auto grid w-full max-w-[1480px] gap-6">
-            <PageHeader
-              eyebrow="Alpivo Cockpit"
-              title="Dein Alpivo Cockpit."
-              subtitle="Starte lokal als Gast oder logge dich ein, damit DNA, Feedback, Top-Matches und Trips dauerhaft zusammenbleiben."
-              actions={
-                <Link
-                  href="/quiz"
-                  className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
-                >
-                  Match starten
-                </Link>
-              }
-            />
-
-          <section className="grid gap-4 md:grid-cols-3">
-            <TrustPoint icon="shield" title="Gastmodus klar" text="Ohne Login bleibt dein Match lokal in diesem Browser." />
-            <TrustPoint icon="data" title="Speichern nach Login" text="Mit Konto werden DNA, Feedback und Top-Matches deinem Profil zugeordnet." />
-            <TrustPoint icon="lock" title="Keine leeren Werte" text="Offene Bereiche erscheinen als klare Empty States statt als technische Platzhalter." />
-          </section>
-
-          <GlassCard className="p-6 md:p-8">
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-sky-100/80">Gastmodus</p>
-                <h2 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-                  Match starten, speichern, später weiterplanen.
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Ohne Login bleibt dein Match lokal im Browser. Mit Konto werden DNA, Feedback und Top-Matches deinem Profil zugeordnet.
-                </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                  <ActionLink href="/quiz" title="Match speichern" text="Starte den Match und sichere ihn danach im Konto." />
-                  <ActionLink href="/trips" title="Freunde einladen" text="Plane Gruppentrips, sobald dein Board aktiv ist." />
-                  <ActionLink href="/feedback" title="Feedback geben" text="Melde Bugs, Design-Hinweise oder fehlende Daten." />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
-                <div className="flex gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-                  {(["signin", "signup", "magic"] as AccessMode[]).map((item) => (
-                    <button
-                      key={item}
-                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                        mode === item ? "bg-sky-200 text-slate-950" : "text-slate-200 hover:bg-white/10"
-                      }`}
-                      onClick={() => setMode(item)}
-                    >
-                      {item === "signin" ? "Login" : item === "signup" ? "Registrieren" : "Magic Link"}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-4 grid gap-3 text-sm">
-                  {mode === "signup" ? (
-                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" placeholder="Anzeigename, z. B. Raphael" value={displayNameInput} onChange={(event) => setDisplayNameInput(event.target.value)} />
-                  ) : null}
-                  <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="email" placeholder="E-Mail" value={email} onChange={(event) => setEmail(event.target.value)} />
-                  {mode !== "magic" ? (
-                    <input className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-200/50" type="password" placeholder="Passwort" value={password} onChange={(event) => setPassword(event.target.value)} />
-                  ) : (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4 text-xs leading-5 text-slate-300">
-                      Du bekommst einen sicheren Login-Link per E-Mail. Das ist für Beta-Tester oft der bequemste Einstieg.
-                    </div>
-                  )}
-                  <button
-                    className="button-lift rounded-xl bg-sky-200 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-60"
-                    onClick={mode === "signin" ? handleSignIn : mode === "signup" ? handleSignUp : handleMagicLink}
-                    disabled={authState.status === "loading" || helperState.status === "loading"}
-                  >
-                    {authState.status === "loading" || helperState.status === "loading"
-                      ? "Bitte warten..."
-                      : mode === "signin"
-                        ? "Einloggen"
-                        : mode === "signup"
-                          ? "Account erstellen"
-                          : "Magic-Link senden"}
-                  </button>
-                  {authState.message ? <div className={`rounded-xl border p-3 text-xs ${authState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{authState.message}</div> : null}
-                  {helperState.message ? <div className={`rounded-xl border p-3 text-xs ${helperState.status === "error" ? "border-red-300/30 bg-red-500/10 text-red-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>{helperState.message}</div> : null}
-                  <button className="justify-self-start text-xs font-medium text-sky-100 transition hover:text-white" onClick={handlePasswordResetEmail} type="button">
-                    Passwort vergessen? Reset-Link senden
-                  </button>
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-          </div>
-        </main>
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell>
@@ -895,9 +835,78 @@ export default function AccountPage() {
           <section className="grid gap-4 lg:grid-cols-4">
             <MetricChip icon="shield" value={isLoggedIn ? profile?.role === "admin" ? "Admin" : "Beta Nutzer" : "Gast"} label="Status" variant="glass" />
             <MetricChip icon="data" value={`${topResults.length}`} label={isDemoTopResults ? "Eure Top-Matches" : "gespeicherte Top-Matches"} variant="glass" />
-            <MetricChip icon="vibe" value={tripStyleLabel(displayPrefs.tripStyle)} label="Alpivo DNA" variant="glass" />
-            <MetricChip icon="time" value={formatShortDate(displayPrefs.tripStartDate)} label="nächster Zeitraum" variant="glass" />
+            <MetricChip icon="vibe" value={`${favoriteResorts.length}`} label="Favoriten lokal" variant="glass" />
+            <MetricChip icon="time" value={tripDraftResorts.length ? `${tripDraftResorts.length} Resorts` : formatShortDate(displayPrefs.tripStartDate)} label={tripDraftResorts.length ? "Trip-Entwurf" : "nächster Zeitraum"} variant="glass" />
           </section>
+
+          <GlassCard className="p-6">
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                  {isLoggedIn ? "Konto synchronisiert" : "Gastmodus: lokal gespeichert"}
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Match & Planung sind verbunden.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  Dein aktueller Guest State bündelt Profil, Zeitraum, Budget, Favoriten, Trip-Entwurf und Checklist Readiness. Ohne Login bleibt dieser Stand lokal in diesem Browser.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatCard label="Profil" value={tripStyleLabel(displayPrefs.tripStyle)} hint="aktueller Wizard-Stand" />
+                  <StatCard label="Zeitraum" value={`${formatShortDate(displayPrefs.tripStartDate)} - ${formatShortDate(displayPrefs.tripEndDate)}`} hint={guestState.preferences.originLabel || "München"} />
+                  <StatCard label="Budget" value={formatBudget(displayPrefs)} hint={`${displayPrefs.peopleCount || guestState.preferences.peopleCount || 6} Personen`} />
+                  <StatCard label="Prioritäten" value={prioritySummary} hint="Top 3" />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-black text-white">Nächste konkrete Aktion</div>
+                    <div className="mt-2 text-xl font-semibold text-white">{nextPlanningTask}</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Primäres Resort: {primaryPlanningResort?.name ?? "Obertauern"} · Readiness {readinessScore}%
+                    </p>
+                  </div>
+                  <div className="rounded-[1.35rem] border border-white/10 bg-slate-950/70 p-2">
+                    <ScoreRing value={readinessScore} size="sm" label="Bereit" />
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl bg-sky-500 px-4 text-sm font-extrabold text-white hover:bg-sky-400" href="/quiz">
+                    Match bearbeiten
+                  </Link>
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-white hover:bg-white/10" href="/results">
+                    Results ansehen
+                  </Link>
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-white hover:bg-white/10" href={activeCompareHref}>
+                    Favoriten vergleichen
+                  </Link>
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-white hover:bg-white/10" href={activeTripHref}>
+                    Trip öffnen
+                  </Link>
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-white hover:bg-white/10" href="/checklist">
+                    Checklist öffnen
+                  </Link>
+                  {primaryActionLinks.skipassShop || primaryActionLinks.ticketInfo ? (
+                    <a
+                      className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-200/22 bg-emerald-300/[0.10] px-4 text-sm font-extrabold text-emerald-50 hover:bg-emerald-300/[0.16]"
+                      href={(primaryActionLinks.skipassShop ?? primaryActionLinks.ticketInfo)?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Skipass prüfen
+                    </a>
+                  ) : (
+                    <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-200/22 bg-amber-300/[0.10] px-4 text-sm font-extrabold text-amber-50 hover:bg-amber-300/[0.16]" href={`/feedback?category=link-fehlt&feature=skipass&resort=${encodeURIComponent(primaryPlanningResort?.slug ?? "obertauern")}`}>
+                      Skipass-Link melden
+                    </Link>
+                  )}
+                  <Link className="button-lift inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-200/22 bg-amber-300/[0.10] px-4 text-sm font-extrabold text-amber-50 hover:bg-amber-300/[0.16]" href={`/feedback?category=daten-fehlen&feature=cockpit&resort=${encodeURIComponent(primaryPlanningResort?.slug ?? "obertauern")}`}>
+                    Datenlücke melden
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
 
         {!accountLoading && !isLoggedIn ? (
           <GlassCard className="p-6 md:p-8">
@@ -1185,7 +1194,7 @@ export default function AccountPage() {
             <div className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-sm text-slate-300 sm:grid-cols-2">
               <div>
                 <div className="text-xs text-slate-500">Budget</div>
-                <div className="mt-1 text-white">{formatBudget(prefs)}</div>
+                <div className="mt-1 text-white">{formatBudget(displayPrefs)}</div>
               </div>
               <div>
                 <div className="text-xs text-slate-500">Profil</div>
@@ -1247,6 +1256,72 @@ export default function AccountPage() {
             </div>
           </GlassCard>
         </div>
+
+        <GlassCard className="p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gastmodus</p>
+              <h2 className="mt-2 text-xl font-semibold text-white">Lokal verbundene Planung</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                Favoriten, Trip-Entwurf, Checklist Readiness und letzte Aktionen werden auf diesem Gerät zusammengeführt. Mit Login kann dieser Stand später dauerhaft gespeichert werden.
+              </p>
+            </div>
+            <span className="rounded-full border border-emerald-200/18 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-bold text-emerald-50">
+              lokal gespeichert
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+              <div className="text-sm font-semibold text-white">Favoriten</div>
+              <div className="mt-3 grid gap-2">
+                {favoriteResorts.length ? (
+                  favoriteResorts.slice(0, 3).map((resort) => (
+                    <Link key={resort.slug} href={`/resort/${resort.slug}`} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm font-bold text-slate-100 hover:bg-white/10">
+                      {resort.name} · {resort.score} Match
+                    </Link>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-slate-300">Noch keine Favoriten gespeichert. Nutze „Favorit speichern“ in Results, Map oder Resort Detail.</p>
+                )}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+              <div className="text-sm font-semibold text-white">Trip-Entwurf</div>
+              <div className="mt-3 grid gap-2">
+                {tripDraftResorts.length ? (
+                  <>
+                    <p className="text-sm leading-6 text-slate-300">{guestState.tripDraft?.dateLabel} · {guestState.tripDraft?.budgetLabel}</p>
+                    {tripDraftResorts.slice(0, 3).map((resort) => (
+                      <Link key={resort.slug} href={`/resort/${resort.slug}`} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm font-bold text-slate-100 hover:bg-white/10">
+                        {resort.name}
+                      </Link>
+                    ))}
+                    <Link href="/trips" className="mt-1 inline-flex min-h-10 items-center justify-center rounded-xl bg-sky-500 px-3 text-xs font-extrabold text-white hover:bg-sky-400">
+                      Tripboard öffnen
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-sm leading-6 text-slate-300">Noch kein Resort im Trip-Entwurf. Füge ein Top-Match hinzu, um weiterzuplanen.</p>
+                )}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+              <div className="text-sm font-semibold text-white">Letzte Aktionen</div>
+              <div className="mt-3 grid gap-2">
+                {guestState.recentActivity.length ? (
+                  guestState.recentActivity.slice(0, 4).map((activity) => (
+                    <Link key={activity.id} href={activity.href ?? "/account"} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm text-slate-200 hover:bg-white/10">
+                      <span className="block font-bold text-white">{activity.label}</span>
+                      <span className="mt-1 block text-xs text-slate-400">{formatDate(activity.createdAt)}</span>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-slate-300">Noch keine lokalen Aktionen. Starte den Wizard oder speichere ein Resort als Favorit.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </GlassCard>
 
         <GlassCard className="p-6">
           <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Nächste Schritte</p>

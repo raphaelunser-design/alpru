@@ -21,6 +21,7 @@ import {
   type MatchResultError,
   type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
+import { readGuestState, setGuestPreferences } from "@/lib/guestState";
 import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
 import { skiCourseNeedOptions, type SkiCourseNeed } from "@/lib/skiCourses";
 import { supabase } from "@/lib/supabase";
@@ -267,20 +268,19 @@ export default function QuizPage() {
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
-    const rawPrefs = localStorage.getItem(STORAGE_KEY);
-    if (rawPrefs) {
-      try {
-        const nextPrefs: Prefs = buildMatchPayload(JSON.parse(rawPrefs));
-        setPrefs(nextPrefs);
+    const guestState = readGuestState();
+    const guestPrefs = buildMatchPayload(guestState.preferences);
+    setPrefs(guestPrefs);
+    setPrefilters((current) => ({
+      ...current,
+      minPisteKm: guestState.preferences.minPisteKm ?? current.minPisteKm,
+      maxDriveHours: guestState.preferences.maxTravelHours ?? current.maxDriveHours,
+    }));
 
-        const from = parseIsoDate(nextPrefs.tripStartDate);
-        const to = parseIsoDate(nextPrefs.tripEndDate);
-        if (from || to) {
-          setDateRange({ from, to });
-        }
-      } catch {
-        // ignore invalid storage
-      }
+    const from = parseIsoDate(guestPrefs.tripStartDate);
+    const to = parseIsoDate(guestPrefs.tripEndDate);
+    if (from || to) {
+      setDateRange({ from, to });
     }
 
     const rawFilters = localStorage.getItem(FILTER_STORAGE_KEY);
@@ -289,8 +289,8 @@ export default function QuizPage() {
         const saved = buildResortQuery(JSON.parse(rawFilters));
         setPrefilters({
           countryFilter: saved.countryFilter,
-          minPisteKm: saved.minPisteKm,
-          maxDriveHours: saved.maxDriveHours,
+          minPisteKm: saved.minPisteKm || guestState.preferences.minPisteKm || "",
+          maxDriveHours: saved.maxDriveHours || guestState.preferences.maxTravelHours || "",
         });
       } catch {
         // ignore invalid storage
@@ -420,6 +420,13 @@ export default function QuizPage() {
       }
     }
     const payload = buildMatchPayload(prefs);
+    setGuestPreferences({
+      ...payload,
+      originLabel: "München",
+      priorities: topPriorities,
+      maxTravelHours: prefilters.maxDriveHours,
+      minPisteKm: prefilters.minPisteKm,
+    });
     const mergedFilters = buildResortQuery({
       ...originFields,
       countryFilter: prefilters.countryFilter,
@@ -666,7 +673,7 @@ export default function QuizPage() {
       ]
         .sort(([, a], [, b]) => Number(b) - Number(a))
         .slice(0, 3)
-        .map(([label]) => label),
+        .map(([label]) => String(label)),
     [prefs]
   );
   const currentWizardStep = wizardSteps[activeStep] ?? wizardSteps[0];

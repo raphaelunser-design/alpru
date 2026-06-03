@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { brand } from "@/config/brand";
 
 type BrandLogoProps = {
   href?: string;
@@ -7,8 +8,8 @@ type BrandLogoProps = {
   className?: string;
 };
 
-const fullLogoPath = "/brand/logo-v2.png";
-const compactLogoPath = "/brand/icon-v2.png";
+const fullLogoPath = brand.logoPath;
+const compactLogoPath = brand.iconPath;
 
 export function AlpivoLogo({ href = "/", compact = false, className = "" }: BrandLogoProps) {
   const frameClassName = compact

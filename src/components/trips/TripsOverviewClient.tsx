@@ -12,7 +12,7 @@ import { getChecklistReadiness, type ChecklistReadinessState } from "@/lib/tripS
 import TripCard from "@/components/trips/TripCard";
 import TripsStateCard from "@/components/trips/TripsStateCard";
 import { loadDemoTripBundles, loadTripBundlesForUser, shouldFallbackToDemo } from "@/lib/tripPlannerData";
-import { buildDemoBundles, demoTripResortSlugs } from "@/data/demoTrip";
+import { buildDemoBundles, demoTripResortSlugs } from "@/data/demoTrips";
 import { getMvpTripResortLookup } from "@/lib/mvpResorts";
 import { supabase } from "@/lib/supabase";
 import type { SkiTripBundle } from "@/lib/tripPlanner";

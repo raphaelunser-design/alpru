@@ -1,2 +1,2 @@
-export { buildDemoBundles, demoTripIds, demoTripResortSlugs, getDemoTripBundle } from "@/lib/tripPlannerDemo";
-export type { DemoTripState } from "@/types/alpivo";
+export { buildDemoBundles, demoTripIds, demoTripResortSlugs, getDemoTripBundle } from "@/data/demoTrips";
+export type { DemoTripState } from "@/data/demoTrips";

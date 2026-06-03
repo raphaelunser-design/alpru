@@ -5,7 +5,7 @@ import Link from "next/link";
 import BrandLogo from "@/components/premium/BrandLogo";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
 import TrustPoint from "@/components/premium/TrustPoint";
-import { heroMatch } from "@/lib/premiumDemoMatches";
+import { heroMatch } from "@/data/matches";
 
 function ArrowIcon() {
   return (

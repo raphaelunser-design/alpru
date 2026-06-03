@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { DataFreshnessNote } from "@/components/DataStatusBadge";
 import GlassCard from "@/components/GlassCard";
 import ResortDecisionCard from "@/components/ResortDecisionCard";
 import Section from "@/components/Section";
 import SelectControl from "@/components/SelectControl";
 import AppShell from "@/components/premium/AppShell";
-import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import PageHeader from "@/components/premium/PageHeader";
+import ResortActionHub from "@/components/premium/ResortActionHub";
 import ResortMatchCard from "@/components/premium/ResortMatchCard";
 import TrustPoint from "@/components/premium/TrustPoint";
-import { getResortActionLinks } from "@/data/resortActionLinks";
+import { topMatches } from "@/data/matches";
 import { deriveResortDecision, type MatchPreferences, type ResortSignalRow } from "@/lib/resortSignals";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
-import { premiumMatches } from "@/lib/premiumDemoMatches";
 
 type Resort = ResortSignalRow;
 
@@ -230,7 +230,7 @@ export default function ResortsPage() {
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_310px]">
             <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
-              {premiumMatches.slice(0, 3).map((match, index) => (
+              {topMatches.slice(0, 3).map((match, index) => (
                 <ResortMatchCard key={match.slug} match={match} variant="grid" priority={index === 0} />
               ))}
             </div>
@@ -254,8 +254,9 @@ export default function ResortsPage() {
             <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben bei dir." />
           </div>
 
-          <ExternalActionLinks
-            links={getResortActionLinks("obertauern")}
+          <ResortActionHub
+            resortSlug="obertauern"
+            variant="compact"
             limit={4}
             title="Schnell zum Top-Match handeln"
             subtitle="Für den stärksten Pilot-Match Obertauern kannst du direkt offizielle Infos, Tickets, Live-Status und Unterkunft prüfen."
@@ -341,9 +342,13 @@ export default function ResortsPage() {
 
         {error ? (
           <GlassCard className="p-6 text-sm text-amber-100">
-            Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Demo-Resorts. Technischer Hinweis: {error}
+            Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Beta-Pilotdaten. Technischer Hinweis: {error}
           </GlassCard>
         ) : null}
+
+        <DataFreshnessNote>
+          Resortdaten, Kosten und Verfügbarkeiten sind Orientierung. Prüfe Skipasspreise, Unterkunft und Live-Status immer über die offiziellen Links auf der Detailseite.
+        </DataFreshnessNote>
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {loading

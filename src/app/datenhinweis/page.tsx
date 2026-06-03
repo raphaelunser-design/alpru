@@ -27,6 +27,20 @@ export default function DatenhinweisPage() {
             <p className="mt-2 text-slate-400">Werte mit gepflegter Quelle oder direktem Import.</p>
           </div>
         </div>
+        <div className="mt-6 grid gap-3 text-sm text-slate-200 md:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
+            <div className="font-semibold text-white">Keine Buchung über Alpivo</div>
+            <p className="mt-2 text-slate-400">
+              Alpivo verlinkt zu offiziellen Quellen. Skipässe, Unterkünfte, Wetter, Liftstatus und Öffnungszeiten müssen dort geprüft werden.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.05] p-4">
+            <div className="font-semibold text-white">Guest Mode</div>
+            <p className="mt-2 text-slate-400">
+              Favoriten, Trip-Entwürfe und Checklist-Haken werden ohne Login lokal auf diesem Gerät gespeichert. Mit Login ist eine dauerhafte Speicherung über Supabase vorbereitet.
+            </p>
+          </div>
+        </div>
         <Link className="mt-6 inline-flex rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white" href="/quiz">
           Match starten
         </Link>

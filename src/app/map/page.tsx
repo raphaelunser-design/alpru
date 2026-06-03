@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { DataFreshnessNote } from "@/components/DataStatusBadge";
 import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
-import ExternalActionLinks from "@/components/premium/ExternalActionLinks";
 import MetricChip from "@/components/premium/MetricChip";
-import { getResortActionLinks } from "@/data/resortActionLinks";
-import { addTripDraftResort, isFavoriteSlug, setSelectedMapResort, toggleFavoriteSlug } from "@/lib/alpivoLocalState";
+import ResortActionHub from "@/components/premium/ResortActionHub";
 import { getAlpivoResortBySlug, getAlpivoTopMatches, type AlpivoResort } from "@/data/resorts";
+import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
+import type { ExternalActionLink } from "@/types/alpivo";
 
 type Layer = "terrain" | "pisten" | "anreise" | "wetter";
 
@@ -51,16 +53,16 @@ function SelectedResortPanel({
   favorite,
   onFavorite,
   onTripDraft,
+  onActionClick,
   compact = false,
 }: {
   resort: AlpivoResort;
   favorite: boolean;
   onFavorite: () => void;
   onTripDraft: () => void;
+  onActionClick: (link: ExternalActionLink) => void;
   compact?: boolean;
 }) {
-  const actionLinks = getResortActionLinks(resort.slug);
-
   return (
     <aside className={`${compact ? "" : "h-full"} overflow-hidden rounded-[2rem] border border-white/12 bg-slate-950/86 text-white shadow-[0_34px_100px_rgba(2,6,23,0.48)] backdrop-blur-xl`}>
       <div className="relative h-56 overflow-hidden">
@@ -110,26 +112,32 @@ function SelectedResortPanel({
         </div>
 
         <div className="grid gap-3">
+          <button type="button" onClick={onTripDraft} className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400">
+            Zum Trip hinzufügen
+          </button>
           <Link
             href={`/resort/${encodeURIComponent(resort.slug)}`}
-            className="button-lift inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
           >
             Details ansehen
             <ArrowIcon />
           </Link>
-          <button type="button" onClick={onTripDraft} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10">
-            Zum Trip hinzufügen
-          </button>
           <button type="button" onClick={onFavorite} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-sky-200/20 bg-sky-300/[0.08] px-5 text-sm font-extrabold text-sky-50 hover:bg-sky-300/[0.13]">
             {favorite ? "Favorit entfernen" : "Favorit speichern"}
           </button>
         </div>
 
-        <ExternalActionLinks
-          links={actionLinks}
-          limit={3}
+        <DataFreshnessNote>
+          Die Kartenansicht ist ein Alpivo-Beta-Layer. Route, Fahrzeit und Live-Signale bitte vor Abfahrt bei offiziellen Quellen gegenprüfen.
+        </DataFreshnessNote>
+
+        <ResortActionHub
+          resortSlug={resort.slug}
+          variant="mapPanel"
+          limit={4}
           title="Offiziell prüfen"
           subtitle="Live-Status, Tickets und Details direkt bei der offiziellen Quelle öffnen."
+          onActionClick={onActionClick}
         />
       </div>
     </aside>
@@ -137,44 +145,57 @@ function SelectedResortPanel({
 }
 
 export default function MapPage() {
+  const router = useRouter();
+  const { state: guestState, selectResort: selectGuestResort, toggleFavorite, addTripDraftResort, markActionCompleted } = useAlpivoGuestState();
   const resorts = useMemo(() => getAlpivoTopMatches(), []);
   const [selectedSlug, setSelectedSlug] = useState("obertauern");
   const [activeLayer, setActiveLayer] = useState<Layer>("terrain");
   const [search, setSearch] = useState("");
-  const [favorite, setFavorite] = useState(false);
   const [message, setMessage] = useState("");
 
   const selected = (getAlpivoResortBySlug(selectedSlug) ?? resorts[0]) as AlpivoResort;
   const filteredResorts = resorts.filter((resort) => `${resort.name} ${resort.regionLabel}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const favorite = guestState.favoriteResortSlugs.includes(selected.slug);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = getAlpivoResortBySlug(params.get("resort"));
-    if (fromQuery) {
-      setSelectedSlug(fromQuery.slug);
-      setSelectedMapResort(fromQuery.slug);
-    }
-  }, []);
+    const syncSelectionFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = getAlpivoResortBySlug(params.get("resort"));
+      const fromGuest = getAlpivoResortBySlug(guestState.selectedResortSlug);
+      const nextSlug = fromQuery?.slug ?? fromGuest?.slug ?? "obertauern";
+      setSelectedSlug(nextSlug);
+      if (fromQuery && fromQuery.slug !== guestState.selectedResortSlug) {
+        selectGuestResort(fromQuery.slug);
+      }
+    };
 
-  useEffect(() => {
-    setFavorite(isFavoriteSlug(selected.slug));
-  }, [selected.slug]);
+    syncSelectionFromUrl();
+    window.addEventListener("popstate", syncSelectionFromUrl);
+    return () => window.removeEventListener("popstate", syncSelectionFromUrl);
+  }, [guestState.selectedResortSlug, selectGuestResort]);
 
   const selectResort = (slug: string) => {
     setSelectedSlug(slug);
-    setSelectedMapResort(slug);
+    selectGuestResort(slug);
+    router.replace(`/map?resort=${encodeURIComponent(slug)}`, { scroll: false });
     setMessage("");
   };
 
   const handleFavorite = () => {
-    const isNowFavorite = toggleFavoriteSlug(selected.slug);
-    setFavorite(isNowFavorite);
+    const isNowFavorite = toggleFavorite(selected.slug);
     setMessage(isNowFavorite ? `${selected.name} ist als Favorit gespeichert.` : `${selected.name} wurde aus Favoriten entfernt.`);
   };
 
   const handleTripDraft = () => {
     addTripDraftResort(selected.slug);
     setMessage(`${selected.name} wurde deinem lokalen Trip-Entwurf hinzugefügt. Als Gast bleibt er auf diesem Gerät gespeichert.`);
+  };
+
+  const handleActionClick = (link: ExternalActionLink) => {
+    if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", selected.slug);
+    if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", selected.slug);
+    if (link.kind === "accommodation") markActionCompleted("accommodationChecked", selected.slug);
+    if (link.kind === "travel") markActionCompleted("routeChecked", selected.slug);
   };
 
   const routePath = `M ${munich.x} ${munich.y} C 25 ${Math.max(16, selected.mapPosition.y - 24)}, 41 ${selected.mapPosition.y + 8}, ${selected.mapPosition.x} ${selected.mapPosition.y}`;
@@ -335,11 +356,11 @@ export default function MapPage() {
           </section>
 
           <div className="hidden p-5 xl:block">
-            <SelectedResortPanel resort={selected} favorite={favorite} onFavorite={handleFavorite} onTripDraft={handleTripDraft} />
+            <SelectedResortPanel resort={selected} favorite={favorite} onFavorite={handleFavorite} onTripDraft={handleTripDraft} onActionClick={handleActionClick} />
           </div>
 
           <div className="relative z-30 px-4 pb-28 xl:hidden">
-            <SelectedResortPanel resort={selected} favorite={favorite} onFavorite={handleFavorite} onTripDraft={handleTripDraft} compact />
+            <SelectedResortPanel resort={selected} favorite={favorite} onFavorite={handleFavorite} onTripDraft={handleTripDraft} onActionClick={handleActionClick} compact />
           </div>
         </div>
       </main>

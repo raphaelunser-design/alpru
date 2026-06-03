@@ -24,11 +24,14 @@ type FeedbackRow = {
 
 const categoryOptions = [
   { value: "all", label: "Alle Kategorien", description: "Alle Feedback-Arten" },
-  { value: "general", label: "Allgemein", description: "Allgemeine Rückmeldungen" },
+  { value: "data_missing", label: "Daten fehlen", description: "Fehlende Datenpunkte" },
+  { value: "link_missing", label: "Link fehlt", description: "Fehlende oder kaputte offizielle Links" },
+  { value: "price_wrong", label: "Preis falsch", description: "Hinweise zu Kosten und Schätzungen" },
+  { value: "resort_missing", label: "Resort fehlt", description: "Gewünschte Skigebiete" },
+  { value: "general", label: "Sonstiges", description: "Allgemeine Rückmeldungen" },
   { value: "bug", label: "Bugs", description: "Fehler und Probleme" },
-  { value: "idea", label: "Ideen", description: "Feature-Wünsche" },
-  { value: "design", label: "Design", description: "UI- und UX-Hinweise" },
-  { value: "feedback", label: "Feedback", description: "Sonstiges Feedback" },
+  { value: "feature", label: "Feature-Wünsche", description: "Produktideen" },
+  { value: "design", label: "UI/Design", description: "UI- und UX-Hinweise" },
 ];
 
 const statusOptions = [
@@ -51,8 +54,12 @@ function formatDate(value: string) {
 function typeLabel(row: FeedbackRow) {
   const type = row.feedback_type || row.category;
   if (type === "bug") return "Bug";
-  if (type === "feature" || type === "idea") return "Idee";
-  if (type === "design") return "Design";
+  if (type === "feature" || type === "idea") return "Feature-Wunsch";
+  if (type === "design") return "UI/Design";
+  if (type === "data_missing") return "Daten fehlen";
+  if (type === "link_missing") return "Link fehlt";
+  if (type === "price_wrong") return "Preis falsch";
+  if (type === "resort_missing") return "Resort fehlt";
   return "Feedback";
 }
 
@@ -75,7 +82,7 @@ export default function AdminFeedbackPage() {
     return {
       total: rows.length,
       bugs: rows.filter((row) => (row.feedback_type || row.category) === "bug").length,
-      ideas: rows.filter((row) => ["feature", "idea"].includes(String(row.feedback_type || row.category))).length,
+      ideas: rows.filter((row) => ["feature", "idea", "data_missing", "link_missing", "price_wrong", "resort_missing"].includes(String(row.feedback_type || row.category))).length,
       open: rows.filter((row) => ["new", "reviewed", "planned"].includes(row.status)).length,
     };
   }, [rows]);

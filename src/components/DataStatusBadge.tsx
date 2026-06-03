@@ -83,3 +83,26 @@ export function DataFreshnessNote({
     </div>
   );
 }
+
+export function BetaDataNotice({ className = "" }: { className?: string }) {
+  return (
+    <DataFreshnessNote className={className}>
+      Alpivo befindet sich in der Beta. Kosten, Unterkunftsbeispiele, Fahrzeiten und Schneesignale sind Orientierung; offizielle Preise, Wetter, Liftstatus und Verfügbarkeit bitte vor Buchung prüfen.
+    </DataFreshnessNote>
+  );
+}
+
+export function DataMissingHint({
+  label = "Daten fehlen? Feedback senden",
+  className = "",
+}: {
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <DataFreshnessNote className={className}>
+      <span className="font-semibold text-slate-100">{label}</span>
+      <span className="ml-1">Wir kennzeichnen fehlende oder geschätzte Daten bewusst und ergänzen offizielle Quellen schrittweise.</span>
+    </DataFreshnessNote>
+  );
+}

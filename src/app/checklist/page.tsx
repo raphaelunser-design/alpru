@@ -1,14 +1,20 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { DataFreshnessNote } from "@/components/DataStatusBadge";
 import ScoreRing from "@/components/ScoreRing";
 import AppShell from "@/components/premium/AppShell";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
+import ResortActionHub from "@/components/premium/ResortActionHub";
+import SkipassAssistant from "@/components/premium/SkipassAssistant";
 import Toast from "@/components/Toast";
-import { setChecklistReadiness } from "@/lib/tripState";
+import { getAlpivoResortBySlug, getResortActionLinks } from "@/data/resorts";
+import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
 import { supabase } from "@/lib/supabase";
+import type { AlpivoGuestState, ExternalActionLink } from "@/types/alpivo";
 
 type TravelMode = "car" | "train" | "bus" | "flight";
 type TripType = "day" | "overnight";
@@ -74,6 +80,20 @@ type DisplayItem = {
 
 const STORAGE_KEY = "pistematch_checklist_v2";
 
+type CompletedActionKey = keyof AlpivoGuestState["completedActions"];
+
+type ChecklistActionCardModel = {
+  id: string;
+  title: string;
+  text: string;
+  actionKey: CompletedActionKey;
+  href: string;
+  external?: boolean;
+  primaryLabel: string;
+  missing?: boolean;
+  missingContext?: string;
+};
+
 const DEFAULT_STATE: ChecklistState = {
   settings: {
     rental: "own",
@@ -88,6 +108,8 @@ const DEFAULT_STATE: ChecklistState = {
 
 const BASE_ITEMS: ChecklistItem[] = [
   { id: "base-pass", label: "Skipass / Ticket", detail: "Digital speichern und offline griffbereit haben." },
+  { id: "base-group-decision", label: "Gruppenentscheidung finalisieren", detail: "Favoriten vergleichen und gemeinsame Entscheidung festhalten." },
+  { id: "base-cost-check", label: "Kosten prüfen", detail: "Budget, Skipass, Unterkunft und Puffer im Tripboard abgleichen." },
   { id: "base-id", label: "Ausweis / Reisepass", detail: "Wichtig für Verleih, Hotel und Notfall." },
   { id: "base-helmet", label: "Helm", detail: "Vor Abfahrt auf Sitz und Verschluss prüfen." },
   { id: "base-goggles", label: "Skibrille", detail: "Passendes Glas für Wetter und Sicht einpacken." },
@@ -102,6 +124,7 @@ const BASE_ITEMS: ChecklistItem[] = [
 
 const RENTAL_ITEMS: ChecklistItem[] = [
   { id: "rental-booking", label: "Verleih reserviert", detail: "Bestätigung und Abholzeit speichern." },
+  { id: "rental-school", label: "Skikurs geprüft", detail: "Falls jemand Kurs braucht: Verfügbarkeit und Treffpunkt offiziell prüfen." },
   { id: "rental-id", label: "Ausweis für Verleih", detail: "Viele Shops brauchen ein Dokument als Sicherheit." },
   { id: "rental-insurance", label: "Versicherung geprüft", detail: "Kurz klären, ob Bruch/Diebstahl abgedeckt ist." },
 ];
@@ -262,8 +285,85 @@ function ChipButton({ active, children, onClick }: { active: boolean; children: 
   );
 }
 
+function actionKeyForItem(itemId: string | null | undefined): CompletedActionKey | null {
+  if (!itemId) return null;
+  if (itemId === "base-pass") return "skipassChecked";
+  if (itemId === "base-group-decision") return "groupDecisionChecked";
+  if (itemId === "base-cost-check") return "budgetChecked";
+  if (itemId === "overnight-booking") return "accommodationChecked";
+  if (itemId === "car-route") return "routeChecked";
+  if (itemId === "rental-booking") return "rentalChecked";
+  if (itemId === "rental-school") return "skiSchoolChecked";
+  return null;
+}
+
+function feedbackHref(resortSlug: string, feature: string) {
+  const params = new URLSearchParams({
+    category: "link-fehlt",
+    feature,
+    resort: resortSlug,
+  });
+  return `/feedback?${params.toString()}`;
+}
+
+function linkHref(link: ExternalActionLink | undefined, fallback: string) {
+  return link?.url ?? fallback;
+}
+
+function ChecklistActionCard({
+  action,
+  done,
+  onToggle,
+}: {
+  action: ChecklistActionCardModel;
+  done: boolean;
+  onToggle: () => void;
+}) {
+  const actionClass =
+    "button-lift inline-flex min-h-11 items-center justify-center rounded-xl bg-sky-500 px-4 text-sm font-extrabold text-white hover:bg-sky-400";
+  const secondaryClass =
+    done
+      ? "inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-200/30 bg-emerald-300/12 px-4 text-sm font-extrabold text-emerald-50 hover:bg-emerald-300/18"
+      : "inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-slate-100 hover:bg-white/10";
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[0_18px_52px_rgba(2,6,23,0.2)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-black text-white">{action.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{action.text}</p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full border px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${
+            done ? "border-emerald-200/30 bg-emerald-300/12 text-emerald-50" : "border-white/12 bg-white/[0.055] text-slate-300"
+          }`}
+        >
+          {done ? "erledigt" : "offen"}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {action.external ? (
+          <a href={action.href} target="_blank" rel="noopener noreferrer" className={actionClass}>
+            {action.primaryLabel}
+          </a>
+        ) : (
+          <Link href={action.href} className={actionClass}>
+            {action.primaryLabel}
+          </Link>
+        )}
+        <button type="button" className={secondaryClass} onClick={onToggle}>
+          {done ? "Wieder öffnen" : "Als erledigt markieren"}
+        </button>
+      </div>
+      {action.external ? <p className="mt-2 text-xs leading-5 text-slate-500">Öffnet eine offizielle externe Website. Alpivo wickelt keinen Kauf ab.</p> : null}
+      {action.missing ? <p className="mt-2 text-xs leading-5 text-amber-100">Offizieller Link fehlt noch. Melde die Datenlücke mit Kontext an Alpivo.</p> : null}
+    </article>
+  );
+}
+
 export default function ChecklistPage() {
   const state = useSyncExternalStore(checklistStore.subscribe, checklistStore.getSnapshot, () => DEFAULT_STATE);
+  const { state: guestState, markActionCompleted, setActionCompleted, setChecklist } = useAlpivoGuestState();
   const [toast, setToast] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [tripId, setTripId] = useState<string | null>(null);
@@ -452,16 +552,93 @@ export default function ChecklistPage() {
   const progress = allVisibleItems.length ? Math.round((completed / allVisibleItems.length) * 100) : 0;
   const remaining = Math.max(0, allVisibleItems.length - completed);
   const nextRecommended = allVisibleItems.find((item) => !item.isChecked);
+  const activeResort = getAlpivoResortBySlug(guestState.tripDraft?.primaryResortSlug ?? guestState.selectedResortSlug ?? "obertauern");
+  const activeTripId = tripId ?? guestState.tripDraft?.id ?? "demo-trip-crew";
+  const activeLinks = useMemo(() => getResortActionLinks(activeResort?.slug), [activeResort?.slug]);
+  const checklistActions = useMemo<ChecklistActionCardModel[]>(() => {
+    const resortSlug = activeResort?.slug ?? "obertauern";
+    const skipassLink = activeLinks.skipassShop ?? activeLinks.ticketInfo;
+    const accommodationLink = activeLinks.accommodationSearch;
+    const rentalLink = activeLinks.rental;
+    const skiSchoolLink = activeLinks.skiSchool;
+
+    return [
+      {
+        id: "skipass",
+        title: "Skipass / Ticket",
+        text: "Tickettyp und Preise offiziell prüfen. Je nach Anreisezeit kann ein 3- oder 4-Tages-Ticket sinnvoll sein.",
+        actionKey: "skipassChecked",
+        href: linkHref(skipassLink, feedbackHref(resortSlug, "skipass")),
+        external: Boolean(skipassLink),
+        primaryLabel: skipassLink ? "Skipass offiziell öffnen" : "Datenlücke melden",
+        missing: !skipassLink,
+      },
+      {
+        id: "accommodation",
+        title: "Unterkunft finalisieren",
+        text: "Verfügbarkeit, Lage, Storno und Parkplatz beim offiziellen Unterkunftsangebot gegenprüfen.",
+        actionKey: "accommodationChecked",
+        href: linkHref(accommodationLink, feedbackHref(resortSlug, "unterkunft")),
+        external: Boolean(accommodationLink),
+        primaryLabel: accommodationLink ? "Unterkunft offiziell suchen" : "Datenlücke melden",
+        missing: !accommodationLink,
+      },
+      {
+        id: "route-weather",
+        title: "Route + Wetterlage prüfen",
+        text: "Karte, Fahrzeit, Live-Status und Webcams prüfen, bevor die Gruppe final losfährt.",
+        actionKey: "routeChecked",
+        href: `/map?resort=${encodeURIComponent(resortSlug)}`,
+        primaryLabel: "Auf Karte prüfen",
+      },
+      {
+        id: "rental",
+        title: "Ausrüstung leihen",
+        text: "Wenn jemand Material braucht: offiziellen Verleih prüfen oder fehlenden Link melden.",
+        actionKey: "rentalChecked",
+        href: linkHref(rentalLink, feedbackHref(resortSlug, "verleih")),
+        external: Boolean(rentalLink),
+        primaryLabel: rentalLink ? "Verleih offiziell öffnen" : "Datenlücke melden",
+        missing: !rentalLink,
+      },
+      {
+        id: "ski-school",
+        title: "Skikurs buchen",
+        text: "Für Anfänger oder Kinder frühzeitig Skischule und Treffpunkt prüfen.",
+        actionKey: "skiSchoolChecked",
+        href: linkHref(skiSchoolLink, feedbackHref(resortSlug, "skischule")),
+        external: Boolean(skiSchoolLink),
+        primaryLabel: skiSchoolLink ? "Skischule offiziell öffnen" : "Datenlücke melden",
+        missing: !skiSchoolLink,
+      },
+      {
+        id: "group-decision",
+        title: "Gruppenentscheidung finalisieren",
+        text: "Favoriten, Haken und Votes im Trip-Vergleich zusammenführen.",
+        actionKey: "groupDecisionChecked",
+        href: `/trips/${encodeURIComponent(activeTripId)}/compare`,
+        primaryLabel: "Favoriten vergleichen",
+      },
+      {
+        id: "costs",
+        title: "Kosten prüfen",
+        text: "Unterkunft, Skipass, Anreise und Puffer als Beta-Orientierung gegenrechnen.",
+        actionKey: "budgetChecked",
+        href: `/trips/${encodeURIComponent(activeTripId)}/expenses`,
+        primaryLabel: "Gruppenkosten ansehen",
+      },
+    ];
+  }, [activeLinks, activeResort?.slug, activeTripId]);
 
   useEffect(() => {
-    setChecklistReadiness({
+    setChecklist({
       percent: progress,
       completed,
       total: allVisibleItems.length,
       open: remaining,
       nextTask: nextRecommended?.label ?? "Alles erledigt",
     });
-  }, [allVisibleItems.length, completed, nextRecommended?.label, progress, remaining]);
+  }, [allVisibleItems.length, completed, nextRecommended?.label, progress, remaining, setChecklist]);
 
   const updateSettings = (updates: Partial<ChecklistSettings>) => {
     checklistStore.set({ ...state, settings: { ...state.settings, ...updates } });
@@ -477,11 +654,15 @@ export default function ChecklistPage() {
   }
 
   const toggleItem = async (item: DisplayItem) => {
+    const nextChecked = !item.isChecked;
+    const actionKey = actionKeyForItem(item.defaultKey ?? item.id);
     if (item.isRemote && item.rowId) {
-      await patchRemoteRow(item.rowId, { is_checked: !item.isChecked });
+      await patchRemoteRow(item.rowId, { is_checked: nextChecked });
+      if (actionKey) setActionCompleted(actionKey, nextChecked, activeResort?.slug);
       return;
     }
-    checklistStore.set({ ...state, checked: { ...state.checked, [item.id]: !state.checked[item.id] } });
+    checklistStore.set({ ...state, checked: { ...state.checked, [item.id]: nextChecked } });
+    if (actionKey) setActionCompleted(actionKey, nextChecked, activeResort?.slug);
   };
 
   const addCustomItem = async () => {
@@ -694,6 +875,67 @@ export default function ChecklistPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {activeResort ? (
+        <section className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+          <SkipassAssistant
+            resort={activeResort}
+            preferences={guestState.preferences}
+            groupSize={guestState.tripDraft?.groupSize ?? guestState.preferences.peopleCount}
+            variant="checklist"
+            completed={guestState.completedActions.skipassChecked}
+            onComplete={() => {
+              markActionCompleted("skipassChecked", activeResort.slug);
+              setToast("Skipass-Prüfung als erledigt markiert.");
+            }}
+          />
+          <ResortActionHub
+            resortSlug={activeResort.slug}
+            variant="checklist"
+            limit={4}
+            title={`Offizielle Checks für ${activeResort.name}`}
+            subtitle="Nutze offizielle Quellen für Ticket, Live-Status, Unterkunft und Anreise. Alpivo speichert hier nur deine lokale Planung."
+            onActionClick={(link) => {
+              if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", activeResort.slug);
+              if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", activeResort.slug);
+              if (link.kind === "accommodation") markActionCompleted("accommodationChecked", activeResort.slug);
+              if (link.kind === "travel") markActionCompleted("routeChecked", activeResort.slug);
+            }}
+          />
+        </section>
+      ) : null}
+
+      <section className="animate-rise rounded-2xl border border-white/10 bg-slate-950/48 p-4 shadow-[0_18px_52px_rgba(2,6,23,0.28)] md:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Aktionen</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">Konkrete nächste Schritte</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Aktion öffnen und Erledigen sind getrennt: externe Links prüfst du offiziell, der Haken bleibt lokal in deinem Guest State gespeichert.
+            </p>
+          </div>
+          <span className="rounded-full border border-emerald-200/18 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-bold text-emerald-50">
+            lokal auf diesem Gerät
+          </span>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {checklistActions.map((action) => (
+            <ChecklistActionCard
+              key={action.id}
+              action={action}
+              done={Boolean(guestState.completedActions[action.actionKey])}
+              onToggle={() => {
+                const nextDone = !guestState.completedActions[action.actionKey];
+                setActionCompleted(action.actionKey, nextDone, activeResort?.slug);
+                setToast(nextDone ? "Planungsaktion als erledigt markiert." : "Planungsaktion wieder geöffnet.");
+              }}
+            />
+          ))}
+        </div>
+        <DataFreshnessNote className="mt-5">
+          Aktion öffnen und Erledigen bleiben getrennt: externe Links prüfst du offiziell, Haken und Readiness speichert Alpivo im Gastmodus lokal auf diesem Gerät.
+        </DataFreshnessNote>
       </section>
 
       <section className="animate-rise rounded-2xl border border-white/10 bg-slate-950/48 p-4 shadow-[0_18px_52px_rgba(2,6,23,0.28)] md:p-5">

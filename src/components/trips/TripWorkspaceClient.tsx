@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { DataFreshnessNote } from "@/components/DataStatusBadge";
 import AppShell from "@/components/premium/AppShell";
 import GlassCard from "@/components/GlassCard";
 import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
+import ResortActionHub from "@/components/premium/ResortActionHub";
 import SelectControl from "@/components/SelectControl";
+import SkipassAssistant from "@/components/premium/SkipassAssistant";
 import Toast from "@/components/Toast";
 import AvailabilityCalendar from "@/components/trips/AvailabilityCalendar";
 import BestDatesPanel from "@/components/trips/BestDatesPanel";
@@ -20,7 +24,8 @@ import ResortFavoriteCard from "@/components/trips/ResortFavoriteCard";
 import SettlementCard from "@/components/trips/SettlementCard";
 import TripNavigation from "@/components/trips/TripNavigation";
 import TripsStateCard from "@/components/trips/TripsStateCard";
-import { getAlpivoResortBySlug } from "@/data/resorts";
+import { getAlpivoResortBySlug, getResortActionLinks } from "@/data/resorts";
+import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
 import {
   buildComparisonRows,
   budgetCategoryLabels,
@@ -37,12 +42,14 @@ import {
   type SkiTripFavoriteRecord,
   type SkiTripMemberRecord,
   type SkiTripPriceSnapshotRecord,
+  type ComparisonRow,
   type TripWorkspaceView,
 } from "@/lib/tripPlanner";
 import { loadTripBundleById, shouldFallbackToDemo } from "@/lib/tripPlannerData";
 import { supabase } from "@/lib/supabase";
 import type { ResortLoadResult } from "@/lib/resortRepository";
 import type { ResortSignalRow } from "@/lib/resortSignals";
+import type { AlpivoGuestState } from "@/types/alpivo";
 
 type ResortCandidate = {
   id: string;
@@ -91,6 +98,25 @@ type ExpenseFormState = {
   customAmounts: Record<string, string>;
 };
 
+type PlanActionKey = keyof AlpivoGuestState["completedActions"];
+
+type TripPlanAction = {
+  key: PlanActionKey;
+  title: string;
+  text: string;
+  href: string;
+  external?: boolean;
+};
+
+type CostPlanningItem = {
+  key: PlanActionKey;
+  title: string;
+  value: string;
+  text: string;
+  href: string;
+  external?: boolean;
+};
+
 const budgetCategoryOptions = Object.entries(budgetCategoryLabels).map(([value, label]) => ({ value, label }));
 
 const demoParticipants = [
@@ -127,6 +153,13 @@ function toNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function firstNumber(value: string) {
+  const match = value.match(/\d+(?:[.,]\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function expenseDefaultState(memberId: string | null, memberIds: string[]): ExpenseFormState {
   return {
     category: "other",
@@ -140,6 +173,270 @@ function expenseDefaultState(memberId: string | null, memberIds: string[]): Expe
     selectedMemberIds: memberIds,
     customAmounts: {},
   };
+}
+
+function ActionTarget({
+  href,
+  external,
+  children,
+  className = "",
+  onClick,
+}: {
+  href: string;
+  external?: boolean;
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
+  const classes = `button-lift inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/12 bg-white/[0.055] px-4 text-sm font-extrabold text-white hover:bg-white/[0.09] ${className}`;
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={classes}>
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} onClick={onClick} className={classes}>
+      {children}
+    </Link>
+  );
+}
+
+function TripActionChecklist({
+  actions,
+  completedActions,
+  onToggle,
+}: {
+  actions: TripPlanAction[];
+  completedActions: AlpivoGuestState["completedActions"];
+  onToggle: (key: PlanActionKey, completed: boolean) => void;
+}) {
+  return (
+    <div className="grid gap-3">
+      {actions.map((action) => {
+        const completed = Boolean(completedActions[action.key]);
+        return (
+          <div key={action.key} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => onToggle(action.key, !completed)}
+                className="flex min-w-0 flex-1 items-start gap-3 text-left"
+              >
+                <span
+                  className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg border text-xs font-black ${
+                    completed
+                      ? "border-emerald-300/35 bg-emerald-300/18 text-emerald-100"
+                      : "border-white/18 bg-slate-950/35 text-slate-400"
+                  }`}
+                >
+                  {completed ? "✓" : ""}
+                </span>
+                <span>
+                  <span className="block text-sm font-extrabold text-white">{action.title}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">{action.text}</span>
+                </span>
+              </button>
+              <ActionTarget href={action.href} external={action.external} className="min-h-10 px-3 text-xs">
+                Öffnen
+              </ActionTarget>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TripReadinessPanel({
+  percent,
+  completed,
+  total,
+  nextAction,
+}: {
+  percent: number;
+  completed: number;
+  total: number;
+  nextAction: string;
+}) {
+  return (
+    <GlassCard className="p-6">
+      <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trip Readiness</p>
+      <div className="mt-4 flex flex-wrap items-center gap-5">
+        <div className="grid h-28 w-28 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 text-center shadow-[0_16px_48px_rgba(16,185,129,0.14)]">
+          <div>
+            <div className="text-3xl font-black text-white">{percent}%</div>
+            <div className="text-xs font-bold text-emerald-100">bereit</div>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-black text-white">{completed} von {total} Planungsaktionen erledigt</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">Nächster sinnvoller Schritt: {nextAction}</p>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-300" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function CompareDecisionCards({
+  rows,
+  onTripDraft,
+  onSkipass,
+}: {
+  rows: ComparisonRow[];
+  onTripDraft: (slug: string) => void;
+  onSkipass: (slug: string) => void;
+}) {
+  const bestRowsByResort = Array.from(
+    rows
+      .reduce((map, row) => {
+        const current = map.get(row.favorite.resortSlug);
+        if (!current || row.combinedScore > current.combinedScore) map.set(row.favorite.resortSlug, row);
+        return map;
+      }, new Map<string, ComparisonRow>())
+      .values()
+  ).sort((a, b) => b.combinedScore - a.combinedScore);
+  const winner = bestRowsByResort[0] ?? rows[0] ?? null;
+
+  if (!winner) return null;
+
+  return (
+    <div className="grid gap-4">
+      <GlassCard className="p-6">
+        <p className="text-xs uppercase tracking-[0.24em] text-emerald-200/80">Beste Wahl für diese Gruppe</p>
+        <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+          <div>
+            <h2 className="text-2xl font-black text-white">
+              {winner.resort?.name ?? winner.favorite.resortSlug} für {formatDateRange(winner.dateOption.startDate, winner.dateOption.endDate)}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+              Alpivo liest hier Kosten, Gruppenverfügbarkeit und Resort-Fit zusammen. Ausschlaggebend ist {winner.decisionReason}; die Beträge bleiben Beta-Orientierung und sollten offiziell geprüft werden.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <MetricChip icon="cost" value={formatCurrency(winner.totalPerPerson)} label="p. P. Orientierung" variant="glass" />
+            <MetricChip icon="vibe" value={`${Math.round(winner.combinedScore * 100)}%`} label="Entscheidungs-Fit" variant="glass" />
+            <MetricChip icon="piste" value={`${winner.resort?.matchPct ?? 52}%`} label="Alpivo-Fit" variant="glass" />
+          </div>
+        </div>
+      </GlassCard>
+
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {bestRowsByResort.slice(0, 6).map((row) => {
+          const central = getAlpivoResortBySlug(row.favorite.resortSlug);
+          const links = getResortActionLinks(row.favorite.resortSlug);
+          const skipassUrl = links.skipassShop?.url ?? links.ticketInfo?.url;
+          return (
+            <article key={`${row.favorite.id}-${row.dateOption.id}`} className="rounded-[1.5rem] border border-white/12 bg-slate-950/68 p-4 shadow-[0_20px_70px_rgba(2,6,23,0.24)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-white">{central?.name ?? row.resort?.name ?? row.favorite.resortSlug}</h3>
+                  <p className="mt-1 text-xs text-slate-400">{central?.regionLabel ?? row.resort?.region ?? "Resort-Favorit"}</p>
+                </div>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
+                  {central?.score ?? row.resort?.matchPct ?? 52} Match
+                </span>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <MetricChip icon="cost" value={formatCurrency(row.totalPerPerson)} label="p. P." variant="glass" />
+                <MetricChip icon="time" value={formatDateRange(row.dateOption.startDate, row.dateOption.endDate)} label={row.dateOption.label} variant="glass" />
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-300">{row.decisionReason}</p>
+              {central ? (
+                <div className="mt-3 grid gap-1 text-xs text-slate-400">
+                  <span>Schnee: {central.snowLabel}</span>
+                  <span>Vibe: {central.vibeLabel}</span>
+                  <span>Haken: {central.drawback}</span>
+                </div>
+              ) : null}
+              <div className="mt-4 grid gap-2">
+                <ActionTarget href={`/resort/${encodeURIComponent(row.favorite.resortSlug)}`} className="min-h-10 text-xs">
+                  Details ansehen
+                </ActionTarget>
+                <ActionTarget href={`/map?resort=${encodeURIComponent(row.favorite.resortSlug)}`} className="min-h-10 text-xs">
+                  Auf Karte ansehen
+                </ActionTarget>
+                {skipassUrl ? (
+                  <ActionTarget href={skipassUrl} external onClick={() => onSkipass(row.favorite.resortSlug)} className="min-h-10 text-xs">
+                    Skipass offiziell prüfen
+                  </ActionTarget>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onTripDraft(row.favorite.resortSlug)}
+                  className="button-lift inline-flex min-h-10 items-center justify-center rounded-2xl bg-sky-500 px-4 text-xs font-extrabold text-white hover:bg-sky-400"
+                >
+                  Zum Trip hinzufügen
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ExpensePlanningPanel({
+  items,
+  completedActions,
+  onToggle,
+}: {
+  items: CostPlanningItem[];
+  completedActions: AlpivoGuestState["completedActions"];
+  onToggle: (key: PlanActionKey, completed: boolean) => void;
+}) {
+  return (
+    <GlassCard className="p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Kostenrechner</p>
+          <h2 className="mt-2 text-2xl font-black text-white">Orientierung vor der Buchung</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+            Die Werte sind Beta-Orientierung für die Gruppe. Skipass, Unterkunft, Storno und Live-Status werden bewusst über offizielle Quellen geprüft.
+          </p>
+        </div>
+        <span className="rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1 text-xs font-black text-amber-100">Schätzung</span>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => {
+          const completed = Boolean(completedActions[item.key]);
+          return (
+            <div key={item.key} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-extrabold text-white">{item.title}</div>
+                  <div className="mt-1 text-2xl font-black text-white">{item.value}</div>
+                  <p className="mt-2 text-xs leading-5 text-slate-400">{item.text}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggle(item.key, !completed)}
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl border text-xs font-black ${
+                    completed ? "border-emerald-300/35 bg-emerald-300/18 text-emerald-100" : "border-white/14 bg-slate-950/45 text-slate-400"
+                  }`}
+                  aria-label={completed ? `${item.title} wieder öffnen` : `${item.title} als geprüft markieren`}
+                >
+                  {completed ? "✓" : ""}
+                </button>
+              </div>
+              <ActionTarget href={item.href} external={item.external} className="mt-4 min-h-10 w-full text-xs">
+                {item.external ? "Offiziell prüfen" : "Öffnen"}
+              </ActionTarget>
+            </div>
+          );
+        })}
+      </div>
+      <DataFreshnessNote className="mt-5">
+        Kostenrechner und Gruppensplit sind Planungswerte. Offizielle Skipasspreise, Unterkunft, Storno- und Zahlungsbedingungen bitte außerhalb von Alpivo prüfen.
+      </DataFreshnessNote>
+    </GlassCard>
+  );
 }
 
 export default function TripWorkspaceClient({ tripId, view }: { tripId: string; view: TripWorkspaceView }) {
@@ -171,6 +468,7 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
   });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(expenseDefaultState(null, []));
   const [busy, setBusy] = useState(false);
+  const { state: guestState, markActionCompleted, setActionCompleted, addTripDraftResort } = useAlpivoGuestState();
 
   useEffect(() => {
     let mounted = true;
@@ -279,10 +577,106 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       bundle.resorts[bundle.favorites[0]?.resortSlug ?? ""] ??
       null
     : null;
+  const primaryFavoriteSlug = bundle?.favorites.find((favorite) => favorite.isPinned)?.resortSlug ?? bundle?.favorites[0]?.resortSlug ?? "obertauern";
+  const primaryAlpivoResort = getAlpivoResortBySlug(primaryFavoriteSlug);
+  const primaryDateOption = bundle?.dateOptions[0] ?? null;
+  const skipassPreferences = {
+    ...guestState.preferences,
+    tripStartDate: primaryDateOption?.startDate ?? guestState.preferences.tripStartDate,
+    tripEndDate: primaryDateOption?.endDate ?? guestState.preferences.tripEndDate,
+    peopleCount: joinedMembers.length || guestState.preferences.peopleCount,
+  };
   const comparisonRows = useMemo(() => (bundle ? buildComparisonRows(bundle) : []), [bundle]);
   const budgetSummary = useMemo(() => (bundle ? computeBudgetSummary(bundle) : null), [bundle]);
   const balances = useMemo(() => (bundle ? computeExpenseBalances(bundle) : []), [bundle]);
   const expenseSummary = useMemo(() => (bundle ? computeExpenseSummary(bundle) : null), [bundle]);
+  const bestDecisionRow = useMemo(
+    () => comparisonRows.reduce<ComparisonRow | null>((best, row) => (!best || row.combinedScore > best.combinedScore ? row : best), null),
+    [comparisonRows]
+  );
+  const primaryActionLinks = primaryAlpivoResort ? getResortActionLinks(primaryAlpivoResort.slug) : null;
+  const planActions = useMemo<TripPlanAction[]>(() => {
+    const slug = primaryAlpivoResort?.slug ?? primaryFavoriteSlug;
+    const links = primaryActionLinks;
+    return [
+      {
+        key: "groupDecisionChecked",
+        title: "Gruppenentscheidung finalisieren",
+        text: "Vergleicht Favoriten, Zeitfenster und Gruppen-Fit, bevor ihr euch festlegt.",
+        href: `/trips/${encodeURIComponent(tripId)}/compare`,
+      },
+      {
+        key: "budgetChecked",
+        title: "Budget und Gruppenkosten prüfen",
+        text: "Kosten bleiben Orientierung, werden aber pro Person und Gruppe zusammengeführt.",
+        href: `/trips/${encodeURIComponent(tripId)}/expenses`,
+      },
+      {
+        key: "skipassChecked",
+        title: "Skipass offiziell prüfen",
+        text: "Ticketdauer, Altersgruppen und KeyCard-Regeln müssen offiziell bestätigt werden.",
+        href: links?.skipassShop?.url ?? links?.ticketInfo?.url ?? `/feedback?category=link-fehlt&feature=skipass&resort=${encodeURIComponent(slug)}`,
+        external: Boolean(links?.skipassShop?.url ?? links?.ticketInfo?.url),
+      },
+      {
+        key: "accommodationChecked",
+        title: "Unterkunftsverfügbarkeit prüfen",
+        text: "Unterkunft, Storno und Lage zum Lift offiziell gegenchecken.",
+        href: links?.accommodationSearch?.url ?? `/feedback?category=link-fehlt&feature=unterkunft&resort=${encodeURIComponent(slug)}`,
+        external: Boolean(links?.accommodationSearch?.url),
+      },
+      {
+        key: "routeChecked",
+        title: "Route und Wetterlage prüfen",
+        text: "Route, Wochenendverkehr, Live-Status und Webcams vor Abfahrt aktualisieren.",
+        href: `/map?resort=${encodeURIComponent(slug)}`,
+      },
+    ];
+  }, [primaryActionLinks, primaryAlpivoResort?.slug, primaryFavoriteSlug, tripId]);
+  const completedPlanActions = planActions.filter((action) => guestState.completedActions[action.key]).length;
+  const readinessPercent = Math.round((completedPlanActions / Math.max(planActions.length, 1)) * 100);
+  const nextPlanAction = planActions.find((action) => !guestState.completedActions[action.key])?.title ?? "Trip final bestätigen";
+  const expensePlanningItems = useMemo<CostPlanningItem[]>(() => {
+    const slug = primaryAlpivoResort?.slug ?? primaryFavoriteSlug;
+    const links = primaryActionLinks;
+    const snapshot = bestDecisionRow?.snapshot;
+    const accommodation = snapshot?.accommodation ?? primaryAlpivoResort?.pricePerPerson ?? 0;
+    const skipass = snapshot?.skipass ?? 0;
+    const travel = snapshot?.travel ?? firstNumber(primaryAlpivoResort?.fuelCost ?? "") ?? 0;
+    const food = snapshot?.food ?? 0;
+    return [
+      {
+        key: "accommodationChecked",
+        title: "Unterkunft",
+        value: accommodation ? formatCurrency(accommodation) : "offen",
+        text: "Preis und Verfügbarkeit offiziell prüfen, keine Alpivo-Buchung.",
+        href: links?.accommodationSearch?.url ?? `/feedback?category=link-fehlt&feature=unterkunft&resort=${encodeURIComponent(slug)}`,
+        external: Boolean(links?.accommodationSearch?.url),
+      },
+      {
+        key: "skipassChecked",
+        title: "Skipass",
+        value: skipass ? formatCurrency(skipass) : "offiziell prüfen",
+        text: "Ticketdauer und Altersgruppen im offiziellen Shop bestätigen.",
+        href: links?.skipassShop?.url ?? links?.ticketInfo?.url ?? `/feedback?category=link-fehlt&feature=skipass&resort=${encodeURIComponent(slug)}`,
+        external: Boolean(links?.skipassShop?.url ?? links?.ticketInfo?.url),
+      },
+      {
+        key: "routeChecked",
+        title: "Anreise",
+        value: travel ? formatCurrency(travel) : primaryAlpivoResort?.travelTimeFromMunich ?? "prüfen",
+        text: "Route, Wetter und Verkehr vor Abfahrt aktualisieren.",
+        href: `/map?resort=${encodeURIComponent(slug)}`,
+      },
+      {
+        key: "budgetChecked",
+        title: "Food & Puffer",
+        value: food ? formatCurrency(food) : "Orientierung",
+        text: "Hütten, Abendessen und Puffer mit der Gruppe abstimmen.",
+        href: `/trips/${encodeURIComponent(tripId)}/budget`,
+      },
+    ];
+  }, [bestDecisionRow?.snapshot, primaryActionLinks, primaryAlpivoResort, primaryFavoriteSlug, tripId]);
 
   useEffect(() => {
     if (!bundle) return;
@@ -1312,7 +1706,21 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
       <AppShell>
         <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
           <div className="mx-auto max-w-[1480px]">
-            <TripsStateCard title="Trip nicht verfügbar" text={error || "Dieser Trip konnte nicht geladen werden."} tone="error" />
+            <TripsStateCard
+              title="Trip nicht verfügbar"
+              text={error || "Dieser Trip konnte nicht geladen werden."}
+              tone="error"
+              action={
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/trips" className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/15 px-4 text-sm font-extrabold text-white hover:bg-white/10">
+                    Zurück zu Trips
+                  </Link>
+                  <Link href="/trips/new" className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-sky-500 px-4 text-sm font-extrabold text-white hover:bg-sky-400">
+                    Neuen Trip planen
+                  </Link>
+                </div>
+              }
+            />
           </div>
         </main>
       </AppShell>
@@ -1399,9 +1807,49 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
           />
         </div>
 
+        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <GlassCard className="p-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trip Header</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricChip icon="time" value={primaryDateOption ? formatDateRange(primaryDateOption.startDate, primaryDateOption.endDate) : "Zeitraum offen"} label={primaryDateOption?.label ?? "Reisedaten"} variant="glass" />
+              <MetricChip icon="data" value={bundle.isDemo ? "Gastmodus" : "Live"} label="Status: Planung" variant="glass" />
+              <MetricChip icon="cost" value={bundle.trip.budgetPerPerson ? formatCurrency(bundle.trip.budgetPerPerson) : "Budget offen"} label="Budget p. P." variant="glass" />
+              <MetricChip icon="route" value={bundle.trip.startRegion ?? guestState.preferences.originLabel} label="Abfahrt" variant="glass" />
+            </div>
+          </GlassCard>
+          <TripReadinessPanel percent={readinessPercent} completed={completedPlanActions} total={planActions.length} nextAction={nextPlanAction} />
+        </section>
+
+        {primaryAlpivoResort ? (
+          <section className="grid gap-5 xl:grid-cols-[1fr_0.92fr]">
+            <ResortActionHub
+              resortSlug={primaryAlpivoResort.slug}
+              variant="trip"
+              limit={5}
+              title={`Direkt weiterplanen: ${primaryAlpivoResort.name}`}
+              subtitle="Öffne offizielle Ticket-, Live-, Unterkunfts- und Anreisequellen für das führende Resort im Tripboard."
+              onActionClick={(link) => {
+                if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", primaryAlpivoResort.slug);
+                if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", primaryAlpivoResort.slug);
+                if (link.kind === "accommodation") markActionCompleted("accommodationChecked", primaryAlpivoResort.slug);
+                if (link.kind === "travel") markActionCompleted("routeChecked", primaryAlpivoResort.slug);
+              }}
+            />
+            <SkipassAssistant
+              resort={primaryAlpivoResort}
+              preferences={skipassPreferences}
+              groupSize={joinedMembers.length || guestState.preferences.peopleCount}
+              variant="trip"
+              completed={guestState.completedActions.skipassChecked}
+              onComplete={() => markActionCompleted("skipassChecked", primaryAlpivoResort.slug)}
+            />
+          </section>
+        ) : null}
+
         {view === "overview" ? (
-          <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-            <GlassCard className="p-6">
+          <div className="grid gap-5">
+            <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+              <GlassCard className="p-6">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Beste Zeiträume</p>
@@ -1414,10 +1862,10 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
               <div className="mt-5">
                 <BestDatesPanel bundle={bundle} />
               </div>
-            </GlassCard>
+              </GlassCard>
 
-            <div className="grid gap-5">
-              <GlassCard className="p-6">
+              <div className="grid gap-5">
+                <GlassCard className="p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Team</p>
@@ -1439,9 +1887,9 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                 <div className="mt-5">
                   <ParticipantList members={bundle.members} highlightMemberId={currentMember?.id ?? null} />
                 </div>
-              </GlassCard>
+                </GlassCard>
 
-              <GlassCard className="p-6">
+                <GlassCard className="p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Vorne im Rennen</p>
@@ -1472,6 +1920,48 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
                       </div>
                     );
                   })}
+                </div>
+                </GlassCard>
+              </div>
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+              <GlassCard className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Nächste konkrete Aktion</p>
+                <h2 className="mt-2 text-2xl font-black text-white">{nextPlanAction}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Diese Schritte verbinden Tripboard, Resortdaten und offizielle Quellen. Erledigte Punkte bleiben im Gastmodus lokal gespeichert.
+                </p>
+                <div className="mt-5">
+                  <TripActionChecklist
+                    actions={planActions}
+                    completedActions={guestState.completedActions}
+                    onToggle={(key, completed) => setActionCompleted(key, completed, primaryAlpivoResort?.slug ?? primaryFavoriteSlug)}
+                  />
+                </div>
+              </GlassCard>
+
+              <GlassCard className="p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Aktivität</p>
+                    <h2 className="mt-2 text-2xl font-black text-white">Was zuletzt passiert ist</h2>
+                  </div>
+                  <Link href={`/trips/${encodeURIComponent(bundle.trip.id)}/compare`} className="rounded-2xl border border-white/12 px-4 py-2 text-sm font-extrabold text-white hover:bg-white/10">
+                    Favoriten vergleichen
+                  </Link>
+                </div>
+                <div className="mt-5 grid gap-3">
+                  {[
+                    { label: "Top Match im Tripboard gesetzt", detail: primaryAlpivoResort ? primaryAlpivoResort.name : primaryFavoriteSlug },
+                    { label: "Budgetrahmen vorbereitet", detail: budgetSummary ? `${formatCurrency(budgetSummary.perPerson)} p. P. Orientierung` : "Budget noch offen" },
+                    { label: "Checkliste gekoppelt", detail: `${readinessPercent}% Readiness aus lokalen Aktionen` },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+                      <div className="text-sm font-extrabold text-white">{item.label}</div>
+                      <div className="mt-1 text-xs text-slate-400">{item.detail}</div>
+                    </div>
+                  ))}
                 </div>
               </GlassCard>
             </div>
@@ -1576,6 +2066,15 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
         {view === "compare" ? (
           <div className="grid gap-5">
+            <CompareDecisionCards
+              rows={comparisonRows}
+              onTripDraft={(slug) => {
+                addTripDraftResort(slug);
+                setToast("Resort im lokalen Trip-Entwurf vorgemerkt.");
+              }}
+              onSkipass={(slug) => markActionCompleted("skipassChecked", slug)}
+            />
+
             <GlassCard className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -1730,6 +2229,23 @@ export default function TripWorkspaceClient({ tripId, view }: { tripId: string; 
 
         {view === "expenses" ? (
           <div className="grid gap-5">
+            {primaryAlpivoResort ? (
+              <SkipassAssistant
+                resort={primaryAlpivoResort}
+                preferences={skipassPreferences}
+                groupSize={joinedMembers.length || guestState.preferences.peopleCount}
+                variant="trip"
+                completed={guestState.completedActions.skipassChecked}
+                onComplete={() => markActionCompleted("skipassChecked", primaryAlpivoResort.slug)}
+              />
+            ) : null}
+
+            <ExpensePlanningPanel
+              items={expensePlanningItems}
+              completedActions={guestState.completedActions}
+              onToggle={(key, completed) => setActionCompleted(key, completed, primaryAlpivoResort?.slug ?? primaryFavoriteSlug)}
+            />
+
             <GlassCard className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Splitwise Layer</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">Zusatzkosten und Ausgleich</h2>

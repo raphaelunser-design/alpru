@@ -16,12 +16,13 @@ Die aktive Arbeitswurzel ist dieser Ordner (`ski-match/`). Starte npm-, Supabase
 
 Von einem anderen Gerät arbeiten:
 ```bash
-git clone https://github.com/raphaelunser-design/alpru.git
+git clone -b feature/ski-courses https://github.com/raphaelunser-design/alpru.git
 cd alpru
 npm install
 npx vercel env pull .env.local
 npm run dev
 ```
+`main` ist aktuell der GitHub-Default-Branch. Bis dieser Arbeitsstand gemerged ist, ist `feature/ski-courses` der relevante Entwicklungsstand.
 Falls Port 3000 schon belegt ist:
 ```bash
 npm run dev -- -p 3007

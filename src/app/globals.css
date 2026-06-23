@@ -1,22 +1,45 @@
 @import "tailwindcss";
 @import "react-day-picker/style.css";
 @import "leaflet/dist/leaflet.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   --background: #08111f;
   --foreground: #eef6ff;
+  --alpivo-deep-navy: #071b3a;
+  --alpivo-alpine-blue: #2f6bff;
+  --alpivo-snow-white: #f8fbff;
+  --alpivo-mist-gray: #d9e2f0;
+  --alpivo-ink: #0b1830;
+  --alpivo-ink-muted: #516075;
+  --alpivo-border-subtle: rgba(7, 27, 58, 0.12);
+  --alpivo-border-strong: rgba(7, 27, 58, 0.2);
+  --alpivo-radius-sm: 0.75rem;
+  --alpivo-radius-md: 1rem;
+  --alpivo-radius-lg: 1.35rem;
+  --alpivo-radius-xl: 1.75rem;
+  --alpivo-radius-2xl: 2.25rem;
+  --alpivo-space-page-x: clamp(1rem, 3vw, 3rem);
+  --alpivo-space-section-y: clamp(3rem, 7vw, 6rem);
+  --alpivo-shadow-sm: 0 10px 24px rgba(7, 27, 58, 0.08);
+  --alpivo-shadow-md: 0 18px 48px rgba(7, 27, 58, 0.12);
+  --alpivo-shadow-lg: 0 28px 80px rgba(7, 27, 58, 0.16);
+  --alpivo-font-heading: var(--font-display), var(--font-sans), Arial, sans-serif;
+  --alpivo-font-body: var(--font-sans), Arial, sans-serif;
+  --alpivo-heading-weight: 600;
+  --alpivo-body-weight: 400;
   --surface: rgba(8, 17, 31, 0.72);
   --surface-muted: rgba(15, 23, 42, 0.55);
-  --brand-900: #00265a;
-  --brand-700: #114a7f;
+  --brand-900: var(--alpivo-deep-navy);
+  --brand-700: #174985;
   --accent: #78d5ff;
-  --accent-strong: #2aa7df;
+  --accent-strong: var(--alpivo-alpine-blue);
   --warm: #f6b24b;
   --alpivo-midnight: #020817;
-  --alpivo-navy: #06162a;
+  --alpivo-navy: var(--alpivo-deep-navy);
   --alpivo-surface: rgba(8, 22, 42, 0.74);
-  --alpivo-snow: #f8fbff;
-  --alpivo-blue: #0a74ff;
+  --alpivo-snow: var(--alpivo-snow-white);
+  --alpivo-blue: var(--alpivo-alpine-blue);
   --alpivo-ice: #7dd3fc;
   --alpivo-mint: #6ee7b7;
   --alpivo-amber: #f59e0b;
@@ -30,8 +53,65 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-alpivo-navy: #071b3a;
+  --color-alpivo-blue: #2f6bff;
+  --color-alpivo-snow: #f8fbff;
+  --color-alpivo-mist: #d9e2f0;
+  --color-alpivo-ink: #0b1830;
+  --color-alpivo-muted: #516075;
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
+}
+
+@layer base {
+  :root {
+    --alpivo-deep-navy: #071b3a;
+    --alpivo-alpine-blue: #2f6bff;
+    --alpivo-snow-white: #f8fbff;
+    --alpivo-mist-gray: #d9e2f0;
+    --alpivo-ink: #0b1830;
+    --alpivo-ink-muted: #516075;
+    --alpivo-border-subtle: rgba(7, 27, 58, 0.12);
+    --alpivo-border-strong: rgba(7, 27, 58, 0.2);
+    --alpivo-radius-sm: 0.75rem;
+    --alpivo-radius-md: 1rem;
+    --alpivo-radius-lg: 1.35rem;
+    --alpivo-radius-xl: 1.75rem;
+    --alpivo-radius-2xl: 2.25rem;
+    --alpivo-space-page-x: clamp(1rem, 3vw, 3rem);
+    --alpivo-space-section-y: clamp(3rem, 7vw, 6rem);
+    --alpivo-shadow-sm: 0 10px 24px rgba(7, 27, 58, 0.08);
+    --alpivo-shadow-md: 0 18px 48px rgba(7, 27, 58, 0.12);
+    --alpivo-shadow-lg: 0 28px 80px rgba(7, 27, 58, 0.16);
+    --alpivo-font-heading: var(--font-display), var(--font-sans), Arial, sans-serif;
+    --alpivo-font-body: var(--font-sans), Arial, sans-serif;
+    --alpivo-heading-weight: 600;
+    --alpivo-body-weight: 400;
+  }
+
+  .alpivo-ui-root {
+    background: var(--alpivo-snow-white);
+    color: var(--alpivo-deep-navy);
+    font-family: var(--alpivo-font-body);
+  }
+
+  .alpivo-ui-heading {
+    color: var(--alpivo-deep-navy);
+    font-family: var(--alpivo-font-heading);
+    font-weight: var(--alpivo-heading-weight);
+    letter-spacing: 0;
+  }
+
+  .alpivo-ui-card {
+    border: 1px solid var(--alpivo-border-subtle);
+    border-radius: var(--alpivo-radius-xl);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--alpivo-shadow-sm);
+  }
+
+  .alpivo-ui-card-elevated {
+    box-shadow: var(--alpivo-shadow-md);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,7 +126,8 @@ body {
     linear-gradient(180deg, rgba(232, 244, 255, 0.18) 0%, rgba(8, 17, 31, 0.92) 34%, #07101e 100%),
     var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  font-family: var(--alpivo-font-body);
+  font-weight: var(--alpivo-body-weight);
 }
 
 *,
@@ -60,8 +141,33 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display), var(--font-sans), "Segoe UI", sans-serif;
+  font-family: var(--alpivo-font-heading);
+  font-weight: var(--alpivo-heading-weight);
   letter-spacing: 0;
+}
+
+.alpivo-ui-root {
+  background: var(--alpivo-snow-white);
+  color: var(--alpivo-deep-navy);
+  font-family: var(--alpivo-font-body);
+}
+
+.alpivo-ui-heading {
+  color: var(--alpivo-deep-navy);
+  font-family: var(--alpivo-font-heading);
+  font-weight: var(--alpivo-heading-weight);
+  letter-spacing: 0;
+}
+
+.alpivo-ui-card {
+  border: 1px solid var(--alpivo-border-subtle);
+  border-radius: var(--alpivo-radius-xl);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--alpivo-shadow-sm);
+}
+
+.alpivo-ui-card-elevated {
+  box-shadow: var(--alpivo-shadow-md);
 }
 
 .glass-card {

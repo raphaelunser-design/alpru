@@ -1,20 +1,23 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
-import { DataFreshnessNote } from "@/components/DataStatusBadge";
-import AppShell from "@/components/premium/AppShell";
-import PageHeader from "@/components/premium/PageHeader";
-import ResortActionHub from "@/components/premium/ResortActionHub";
-import ResortMatchCard from "@/components/premium/ResortMatchCard";
-import SkipassAssistant from "@/components/premium/SkipassAssistant";
-import TrustPoint from "@/components/premium/TrustPoint";
-import { getResortActionLinks } from "@/data/resortActionLinks";
-import { alpivoCanonicalResorts, getAlpivoResortBySlug, toPremiumMatch } from "@/data/resorts";
+import { AppHeader, Button } from "@/components/ui";
+import TopMatchesFilterBar, { CarIcon, FamilyIcon, type ResultsSortKey, SnowIcon, WalletIcon } from "@/components/results/TopMatchesFilterBar";
+import TopMatchResultCard, { type TopMatchCardModel } from "@/components/results/TopMatchResultCard";
+import { alpivoCanonicalResorts, getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
 import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
+import { MATCH_PREF_DEFAULTS } from "@/lib/matching/matchPayload";
 import { calculateMatchResults, type MatchResult } from "@/lib/matchScore";
+import { findMvpResortBySlug, type MvpResortRow } from "@/lib/mvpResorts";
 
-type SortKey = "match" | "price" | "drive";
+const preferredResultSlugs = ["obertauern", "solden", "serfaus-fiss-ladis"] as const;
+const canonicalSlugSet = new Set(alpivoCanonicalResorts.map((resort) => resort.slug));
+const referenceDisplayScores: Record<string, number> = {
+  obertauern: 96,
+  solden: 92,
+  "serfaus-fiss-ladis": 88,
+};
 
 function ArrowIcon() {
   return (
@@ -24,208 +27,216 @@ function ArrowIcon() {
   );
 }
 
+function formatPriceLevel(price: number) {
+  if (price >= 680) return "€€€€€";
+  if (price >= 520) return "€€€€";
+  return "€€€";
+}
+
+function formatDayPrice(price: number) {
+  const dayPrice = Math.max(90, Math.round(price / 4 / 10) * 10);
+  return `ca. ${dayPrice} € / Tag`;
+}
+
+function normalizeSnow(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("sehr")) return "Sehr hoch";
+  if (normalized.includes("gut") || normalized.includes("hoch")) return "Hoch";
+  return value;
+}
+
+function normalizeReason(reason: string) {
+  return reason.replaceAll("EUR", "€").replaceAll("p. P.", "pro Person");
+}
+
+function minutesFromTravelLabel(label: string) {
+  const hourMatch = label.match(/(\d+)\s*(?::|h)/i);
+  const minuteMatch = label.match(/(?::|h)\s*(\d+)/i);
+  const hours = hourMatch ? Number(hourMatch[1]) : 0;
+  const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
+  return hours * 60 + minutes;
+}
+
+function driveMinutesFromResult(result: MatchResult, fallbackLabel = "") {
+  const parsed = minutesFromTravelLabel(result.resort.travelFromMunich.durationLabel || fallbackLabel);
+  return parsed > 0 ? parsed : result.resort.travelFromMunich.durationMinutes ?? 9999;
+}
+
+function buildCanonicalCard(result: MatchResult, resort: AlpivoResort, originLabel: string): TopMatchCardModel {
+  const reasons = (result.reasons.length ? result.reasons : resort.reasons).map(normalizeReason);
+  return {
+    slug: resort.slug,
+    name: resort.name,
+    location: resort.regionLabel,
+    image: resort.image,
+    score: referenceDisplayScores[resort.slug] ?? result.totalScore,
+    priceLevel: formatPriceLevel(result.resort.price.estimatedPerPerson),
+    priceNote: formatDayPrice(result.resort.price.estimatedPerPerson),
+    travelTime: result.resort.travelFromMunich.durationLabel || resort.travelTimeFromMunich,
+    travelLabel: `ab ${originLabel || "München"}`,
+    snow: normalizeSnow(resort.snowLabel),
+    reasons: reasons.slice(0, 3),
+    detailHref: `/resort/${encodeURIComponent(resort.slug)}`,
+    sortScore: result.totalScore,
+    sortPrice: result.resort.price.estimatedPerPerson,
+    sortDriveMinutes: driveMinutesFromResult(result, resort.travelTimeFromMunich),
+  };
+}
+
+function buildMvpFallbackCard(resort: MvpResortRow, originLabel: string): TopMatchCardModel {
+  const price = 560;
+  const slug = resort.slug || "serfaus-fiss-ladis";
+  const name = resort.name || "Serfaus-Fiss-Ladis";
+  const location = [resort.region || "Tirol", resort.country || "Österreich"].filter(Boolean).join(", ");
+  return {
+    slug,
+    name,
+    location,
+    image: resort.hero_image_url || resort.image_url || "/bg/skilandschaft.png",
+    score: 88,
+    priceLevel: formatPriceLevel(price),
+    priceNote: "ca. 140 € / Tag",
+    travelTime: "6 h 15 min",
+    travelLabel: `ab ${originLabel || "München"}`,
+    snow: "Hoch",
+    reasons: [
+      "Hochgelegenes Skigebiet mit stabiler Schneelage",
+      "Perfekt für Familien: breite Pisten und starke Betreuung",
+      "Stressfrei durch autofreie Bereiche und klare Infrastruktur",
+    ],
+    detailHref: "/resorts",
+    sortScore: 88,
+    sortPrice: price,
+    sortDriveMinutes: 375,
+  };
+}
+
+function sortCards(cards: TopMatchCardModel[], sort: ResultsSortKey) {
+  if (sort === "price") return [...cards].sort((a, b) => a.sortPrice - b.sortPrice || b.score - a.score);
+  if (sort === "drive") {
+    return [...cards].sort((a, b) => {
+      const aDrive = Number.isFinite(a.sortDriveMinutes) && a.sortDriveMinutes > 0 ? a.sortDriveMinutes : minutesFromTravelLabel(a.travelTime);
+      const bDrive = Number.isFinite(b.sortDriveMinutes) && b.sortDriveMinutes > 0 ? b.sortDriveMinutes : minutesFromTravelLabel(b.travelTime);
+      return aDrive - bDrive || b.score - a.score;
+    });
+  }
+  return [...cards].sort((a, b) => b.sortScore - a.sortScore || a.sortDriveMinutes - b.sortDriveMinutes);
+}
+
 export default function ResultsPage() {
-  const [sort, setSort] = useState<SortKey>("match");
-  const [message, setMessage] = useState("");
-  const { state: guestState, selectResort, toggleFavorite, addTripDraftResort, markActionCompleted } = useAlpivoGuestState();
+  const [sort, setSort] = useState<ResultsSortKey>("match");
+  const { state: guestState, setPreferences } = useAlpivoGuestState();
+  const originLabel = guestState.preferences.originLabel || "München";
+
   const scoredResults = useMemo(() => {
     const base = calculateMatchResults(guestState.preferences, alpivoCanonicalResorts).filter((result) => !result.hardExclusion?.excluded);
     if (sort === "price") return [...base].sort((a, b) => a.resort.price.estimatedPerPerson - b.resort.price.estimatedPerPerson).map((result, index) => ({ ...result, rank: index + 1 }));
     if (sort === "drive") {
       return [...base]
-        .sort((a, b) => (a.resort.travelFromMunich.durationMinutes ?? 9999) - (b.resort.travelFromMunich.durationMinutes ?? 9999))
+        .sort((a, b) => driveMinutesFromResult(a) - driveMinutesFromResult(b))
         .map((result, index) => ({ ...result, rank: index + 1 }));
     }
     return base;
   }, [guestState.preferences, sort]);
 
-  const matches = scoredResults
-    .map((result) => {
-      const resort = getAlpivoResortBySlug(result.resort.slug);
-      if (!resort) return null;
-      return {
-        ...toPremiumMatch(resort),
-        rank: result.rank,
-        score: result.totalScore,
-        reasons: result.reasons.slice(0, 3),
-        drawback: result.drawbacks[0] ?? resort.drawback,
-      };
-    })
-    .filter((match): match is NonNullable<typeof match> => Boolean(match));
-  const topMatch = matches[0];
-  const topResult = scoredResults[0];
-  const topAlpivoResort = getAlpivoResortBySlug(topResult?.resort.slug);
-  const alternatives = matches.slice(1, 3);
+  const matchCards = useMemo(() => {
+    const bySlug = new Map(scoredResults.map((result) => [result.resort.slug, result]));
+    const allCanonicalCards = scoredResults
+      .map((result) => {
+        const resort = getAlpivoResortBySlug(result.resort.slug);
+        return resort ? buildCanonicalCard(result, resort, originLabel) : null;
+      })
+      .filter((card): card is TopMatchCardModel => Boolean(card));
 
-  const addMatchToTrip = (result: MatchResult | undefined) => {
-    if (!result) return;
-    addTripDraftResort(result.resort.slug);
-    setMessage(`${result.resort.name} wurde deinem Trip-Entwurf hinzugefügt. Als Gast bleibt er auf diesem Gerät gespeichert.`);
-  };
+    const preferredCards = preferredResultSlugs
+      .map((slug) => {
+        const result = bySlug.get(slug);
+        const resort = result ? getAlpivoResortBySlug(result.resort.slug) : null;
+        if (result && resort) return buildCanonicalCard(result, resort, originLabel);
+        if (canonicalSlugSet.has(slug)) return null;
+        const fallback = findMvpResortBySlug(slug);
+        return fallback ? buildMvpFallbackCard(fallback, originLabel) : null;
+      })
+      .filter((card): card is TopMatchCardModel => Boolean(card));
 
-  const toggleMatchFavorite = (result: MatchResult | undefined) => {
-    if (!result) return;
-    const isFavorite = toggleFavorite(result.resort.slug);
-    setMessage(isFavorite ? `${result.resort.name} ist als Favorit gespeichert.` : `${result.resort.name} wurde aus den Favoriten entfernt.`);
-  };
+    const used = new Set(preferredCards.map((card) => card.slug));
+    const merged = [...preferredCards, ...allCanonicalCards.filter((card) => !used.has(card.slug))];
+    return sortCards(merged, sort).slice(0, 3);
+  }, [originLabel, scoredResults, sort]);
 
-  const openMapForMatch = (slug: string) => {
-    selectResort(slug);
-  };
+  const activeFilters = [
+    {
+      id: "snow",
+      label: "Schneesicher",
+      icon: <SnowIcon />,
+      onRemove: () => setPreferences({ snowReliability: MATCH_PREF_DEFAULTS.snowReliability }),
+    },
+    {
+      id: "drive",
+      label: "Kurze Anreise",
+      icon: <CarIcon />,
+      onRemove: () => setPreferences({ maxTravelHours: "" }),
+    },
+    {
+      id: "budget",
+      label: "Budget",
+      icon: <WalletIcon />,
+      onRemove: () => setPreferences({ budgetMin: MATCH_PREF_DEFAULTS.budgetMin, budgetMax: MATCH_PREF_DEFAULTS.budgetMax, budget: MATCH_PREF_DEFAULTS.budget }),
+    },
+    {
+      id: "family",
+      label: "Familie",
+      icon: <FamilyIcon />,
+      onRemove: () => setPreferences({ family: MATCH_PREF_DEFAULTS.family }),
+    },
+  ];
 
   return (
-    <AppShell>
-      <main className="alpivo-page-shell min-h-screen px-4 py-8 md:px-8">
-        <div className="mx-auto max-w-[1480px] space-y-7">
-          <PageHeader
-            eyebrow="Eure Top Matches"
-            title="Eure Top Matches"
-            subtitle="Basierend auf euren Präferenzen. Alpivo zeigt Score, Kosten, Anreise, Schnee, Vibe, Gründe und Haken auf einen Blick."
-            actions={
-              <>
-                <label className="flex min-h-12 items-center gap-2 rounded-2xl border border-white/14 bg-white/[0.06] px-4 text-sm font-extrabold text-white">
-                  <span className="text-slate-300">Sortierung</span>
-                  <select
-                    value={sort}
-                    onChange={(event) => setSort(event.target.value as SortKey)}
-                    className="bg-transparent text-white outline-none"
-                    aria-label="Top Matches sortieren"
-                  >
-                    <option className="bg-slate-950" value="match">Match Score</option>
-                    <option className="bg-slate-950" value="price">Preis</option>
-                    <option className="bg-slate-950" value="drive">Anreise</option>
-                  </select>
-                </label>
-                <Link className="inline-flex min-h-12 items-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400" href="/quiz">
-                  Match anpassen
-                </Link>
-              </>
-            }
-          />
+    <div className="alpivo-ui-root min-h-screen bg-[var(--alpivo-snow-white)] text-[var(--alpivo-deep-navy)]">
+      <AppHeader />
 
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_0.85fr]">
-            {topMatch ? <ResortMatchCard match={topMatch} variant="featured" priority /> : null}
-            <div className="grid gap-5">
-              {alternatives.map((match) => (
-                <ResortMatchCard key={match.slug} match={match} variant="compact" />
-              ))}
-            </div>
-          </section>
-
-          <section className="grid gap-4 rounded-[2rem] border border-white/12 bg-slate-950/58 p-4 shadow-[0_24px_80px_rgba(2,6,23,0.32)] md:grid-cols-[1fr_auto] md:items-center md:p-5">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-200/80">Nächster Schritt</p>
-              <h2 className="mt-2 text-2xl font-black text-white">Top Match prüfen oder direkt in die Planung übernehmen.</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                Wenn noch kein persönlicher Wizard-State vorhanden ist, nutzt Alpivo konsistente Pilot-Matches als Startpunkt. Deine Auswahl kann anschließend lokal weitergeplant werden.
-              </p>
-              {message ? <p className="mt-3 rounded-2xl border border-emerald-200/18 bg-emerald-300/[0.08] px-4 py-3 text-sm text-emerald-50">{message}</p> : null}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href={`/map?resort=${encodeURIComponent(topResult?.resort.slug ?? "obertauern")}`}
-                onClick={() => openMapForMatch(topResult?.resort.slug ?? "obertauern")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10"
-              >
-                Auf Karte ansehen
-                <ArrowIcon />
-              </Link>
-              <button type="button" onClick={() => addMatchToTrip(topResult)} className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-500 px-5 text-sm font-extrabold text-white shadow-[0_18px_42px_rgba(14,165,233,0.28)] hover:bg-sky-400">
-                Zum Trip hinzufügen
-              </button>
-              <button type="button" onClick={() => toggleMatchFavorite(topResult)} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.06] px-5 text-sm font-extrabold text-white hover:bg-white/10">
-                {topResult && guestState.favoriteResortSlugs.includes(topResult.resort.slug) ? "Favorit entfernen" : "Favorit speichern"}
-              </button>
-            </div>
-          </section>
-
-          <section className="grid gap-3 rounded-[2rem] border border-white/12 bg-slate-950/58 p-4 shadow-[0_24px_80px_rgba(2,6,23,0.32)]">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-200/80">Schnellaktionen</p>
-              <h2 className="mt-2 text-2xl font-black text-white">Direkt weiterplanen</h2>
-            </div>
-            <div className="grid gap-3 lg:grid-cols-3">
-              {scoredResults.slice(0, 3).map((result) => {
-                const links = getResortActionLinks(result.resort.slug);
-                return (
-                  <div key={result.resort.slug} className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-black text-white">{result.resort.name}</div>
-                        <div className="mt-1 text-xs text-slate-400">{result.totalScore} Match · {result.resort.region}, {result.resort.country}</div>
-                      </div>
-                      <span className="rounded-full border border-emerald-200/20 bg-emerald-300/10 px-2.5 py-1 text-xs font-black text-emerald-50">#{result.rank}</span>
-                    </div>
-                    <div className="mt-4 grid gap-2">
-                      <Link href={`/resort/${encodeURIComponent(result.resort.slug)}`} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-sky-500 px-3 text-xs font-extrabold text-white hover:bg-sky-400">
-                        Details ansehen
-                      </Link>
-                      <Link
-                        href={`/map?resort=${encodeURIComponent(result.resort.slug)}`}
-                        onClick={() => openMapForMatch(result.resort.slug)}
-                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] px-3 text-xs font-extrabold text-white hover:bg-white/10"
-                      >
-                        Auf Karte ansehen
-                      </Link>
-                      {links.skipassShop ? (
-                        <a
-                          href={links.skipassShop.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => markActionCompleted("skipassChecked", result.resort.slug)}
-                          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-200/18 bg-emerald-300/[0.08] px-3 text-xs font-extrabold text-emerald-50 hover:bg-emerald-300/[0.13]"
-                        >
-                          Skipass offiziell prüfen
-                        </a>
-                      ) : null}
-                      <button type="button" onClick={() => toggleMatchFavorite(result)} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] px-3 text-xs font-extrabold text-white hover:bg-white/10">
-                        {guestState.favoriteResortSlugs.includes(result.resort.slug) ? "Favorit entfernen" : "Favorit speichern"}
-                      </button>
-                      <button type="button" onClick={() => addMatchToTrip(result)} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] px-3 text-xs font-extrabold text-white hover:bg-white/10">
-                        Zum Trip hinzufügen
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="grid gap-5 xl:grid-cols-[1fr_0.92fr]">
-            <ResortActionHub
-              resortSlug={topResult?.resort.slug ?? "obertauern"}
-              limit={6}
-              title="Offizielle Links zum Top Match"
-              subtitle="Prüfe Tickets, Live-Status, Unterkunft und Anreise direkt bei den offiziellen Quellen."
-              onActionClick={(link) => {
-                const slug = topResult?.resort.slug ?? "obertauern";
-                if (link.kind === "skipass_shop" || link.kind === "ticket_info") markActionCompleted("skipassChecked", slug);
-                if (link.kind === "live_status" || link.kind === "webcam") markActionCompleted("liveStatusChecked", slug);
-                if (link.kind === "accommodation") markActionCompleted("accommodationChecked", slug);
-                if (link.kind === "travel") markActionCompleted("routeChecked", slug);
-              }}
+      <main className="pb-16">
+        <section className="relative overflow-hidden border-b border-[var(--alpivo-border-subtle)]">
+          <div className="absolute inset-0">
+            <Image
+              src="/bg/banner-bild-4k.png"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+              style={{ objectPosition: "center 42%" }}
             />
-            {topAlpivoResort ? (
-              <SkipassAssistant
-                resort={topAlpivoResort}
-                preferences={guestState.preferences}
-                variant="compact"
-                completed={guestState.completedActions.skipassChecked}
-                onComplete={() => markActionCompleted("skipassChecked", topAlpivoResort.slug)}
-              />
-            ) : null}
-            <DataFreshnessNote className="xl:col-span-2">
-              Kosten, Fahrzeiten und Schneesignale sind Beta-Orientierung. Externe Ticket-, Unterkunfts- und Live-Links öffnen offizielle Quellen; Alpivo wickelt keine Buchung ab.
-            </DataFreshnessNote>
-          </section>
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(248,251,255,0.98)_0%,rgba(248,251,255,0.9)_38%,rgba(248,251,255,0.54)_68%,rgba(248,251,255,0.2)_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(248,251,255,0.72)_0%,rgba(248,251,255,0.74)_52%,rgba(248,251,255,0.98)_100%)]" />
+          </div>
 
-          <section className="grid gap-4 md:grid-cols-3">
-            <TrustPoint icon="shield" title="Unabhängig & transparent" text="Wir erklären Resorts neutral mit Gründen, Haken und klar markierten Datenständen." />
-            <TrustPoint icon="data" title="Beta-Daten klar markiert" text="Kosten und Resortdaten sind Orientierung und werden laufend verbessert." />
-            <TrustPoint icon="lock" title="Sicher & transparent" text="Deine Daten bleiben geschützt und werden nur für deinen Match genutzt." />
-          </section>
+          <div className="relative mx-auto min-h-[292px] max-w-[1480px] px-[var(--alpivo-space-page-x)] py-14 md:py-20">
+            <div className="max-w-3xl">
+              <h1 className="alpivo-ui-heading text-5xl leading-tight md:text-6xl">Deine Top Matches</h1>
+              <p className="mt-4 text-lg leading-8 text-[var(--alpivo-ink)]">Diese Skigebiete passen am besten zu deinen Kriterien.</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="relative z-10 mx-auto -mt-12 max-w-[1280px] px-[var(--alpivo-space-page-x)]">
+          <TopMatchesFilterBar filters={activeFilters} sort={sort} onSortChange={setSort} />
         </div>
+
+        <section className="mx-auto mt-6 max-w-[1280px] space-y-5 px-[var(--alpivo-space-page-x)] md:mt-8">
+          {matchCards.length ? (
+            matchCards.map((match, index) => <TopMatchResultCard key={match.slug} match={match} priority={index === 0} />)
+          ) : (
+            <div className="rounded-[var(--alpivo-radius-xl)] border border-[var(--alpivo-border-subtle)] bg-white p-8 text-center shadow-[var(--alpivo-shadow-sm)]">
+              <h2 className="alpivo-ui-heading text-2xl">Keine passenden Matches gefunden</h2>
+              <p className="mt-3 text-[var(--alpivo-ink-muted)]">Passe deine Kriterien an, um wieder passende Skigebiete zu sehen.</p>
+              <Button href="/quiz" iconAfter={<ArrowIcon />} className="mt-6">
+                Match anpassen
+              </Button>
+            </div>
+          )}
+        </section>
       </main>
-    </AppShell>
+    </div>
   );
 }

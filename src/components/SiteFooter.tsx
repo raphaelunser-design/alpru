@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlpivoLogo } from "@/components/premium/BrandLogo";
 import { brand } from "@/config/brand";
-
-const appShellRoutes = ["/results", "/resorts", "/resort", "/trips", "/checklist", "/account", "/feedback", "/quiz", "/map", "/admin"];
+import { hidesGlobalFooter } from "@/config/appChrome";
 
 export default function SiteFooter() {
   const pathname = usePathname();
-  const usesAppShell = appShellRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
-  if (usesAppShell) return null;
+  if (hidesGlobalFooter(pathname)) return null;
 
   return (
     <footer className="border-t border-white/10 bg-slate-950/80">

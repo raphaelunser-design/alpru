@@ -99,7 +99,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 async function fetchBatch(origin: Coordinate, destinations: Destination[]): Promise<RouteMetric[]> {
   const coordinates = [origin, ...destinations].map((point) => `${point.lon},${point.lat}`).join(";");
   const destinationIndexes = destinations.map((_, index) => index + 1).join(";");
-  const url = `${OSRM_BASE_URL}/table/v1/driving/${coordinates}sources=0&destinations=${destinationIndexes}&annotations=duration,distance`;
+  const url = `${OSRM_BASE_URL}/table/v1/driving/${coordinates}?sources=0&destinations=${destinationIndexes}&annotations=duration,distance`;
 
   try {
     const data = await fetchJson<OsrmTableResponse>(url);

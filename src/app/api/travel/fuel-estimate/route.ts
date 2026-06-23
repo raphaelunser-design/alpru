@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 type FuelType = "e10" | "e5" | "diesel";
-type CoordinateTuple = [number, number];
 type Coordinate = { lat: number; lon: number };
 
 type TankerkoenigStation = {

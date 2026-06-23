@@ -93,7 +93,10 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
       method: "POST",
       headers: { "content-type": "application/json" },
       signal: controller.signal,
-      body: JSON.stringify({ origin, destination }),
+      body: JSON.stringify({
+        origin: { lat: origin.lat, lon: origin.lon, label: origin.label },
+        destination: { lat: destination.lat, lon: destination.lon, label: destination.label },
+      }),
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("Route konnte nicht berechnet werden.");
@@ -111,7 +114,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
       });
 
     return () => controller.abort();
-  }, [destination.lat, destination.lon, origin.lat, origin.lon]);
+  }, [destination.label, destination.lat, destination.lon, origin.label, origin.lat, origin.lon]);
 
   useEffect(() => {
     const L = leafletRef.current;

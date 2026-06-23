@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import FeedbackButton from "@/components/FeedbackButton";
 import MobileBottomNav from "@/components/MobileBottomNav";
@@ -9,16 +9,18 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { brand } from "@/config/brand";
 
-const spaceGrotesk = Space_Grotesk({
+const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  weight: ["500", "600", "700", "800"],
 });
 
-const manrope = Manrope({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
-      <body className={`${spaceGrotesk.variable} ${manrope.variable} min-h-screen overflow-x-hidden pb-20 text-slate-100 antialiased md:pb-0`}>
+      <body className={`${manrope.variable} ${inter.variable} min-h-screen overflow-x-hidden pb-20 text-slate-100 antialiased md:pb-0`}>
         <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute inset-0 bg-[linear-gradient(180deg,#eef6ff_0%,#0d1b2e_34%,#06101e_100%)]" />
         </div>

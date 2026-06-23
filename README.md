@@ -12,14 +12,28 @@ Lokal starten
 npm install
 npm run dev
 ```
+Die aktive Arbeitswurzel ist dieser Ordner (`ski-match/`). Starte npm-, Supabase- und Vercel-Kommandos von hier aus.
+
+Von einem anderen Gerät arbeiten:
+```bash
+git clone https://github.com/raphaelunser-design/alpru.git
+cd alpru
+npm install
+npx vercel env pull .env.local
+npm run dev
+```
+Falls Port 3000 schon belegt ist:
+```bash
+npm run dev -- -p 3007
+```
 Produktionsnah lokal testen:
 ```bash
 npm run build
 npm run start -- -p 3002
 ```
-Im aktuellen Desktop-Setup läuft Alpivo typischerweise auf:
+Im aktuellen Desktop-Setup läuft Alpivo je nach belegten Ports zum Beispiel auf:
 ```text
-http://localhost:3002
+http://localhost:3007
 ```
 Gruppenplanungs-Modul
 Das Gruppenplanungs-Modul liegt unter `/trips` und bleibt vollständig im bestehenden Alpivo-Kontext: Resorts, Reisezeiträume, Preisfenster, Budgetposten und Gruppenausgaben werden in einem gemeinsamen Workspace gepflegt.
@@ -81,10 +95,12 @@ https://www.alpivo.de/?access=<ALPIVO_ACCESS_PASSWORD>
 Nach dem Öffnen setzt Alpivo ein HttpOnly-Cookie für dieses Gerät. `ALPIVO_ACCESS_TOKEN` bleibt als Legacy-Fallback erhalten.
 Cloud-Deployment
 Empfohlener Produktivbetrieb:
+Quellcode: GitHub (`raphaelunser-design/alpru`)
 Hosting: Vercel
 Datenbank und Auth: Supabase
 Hauptdomain: `www.alpivo.de`
 Redirect: `alpivo.de` → `www.alpivo.de`
+OneDrive ist nur für Rohmaterial, Referenzen und private Assets gedacht. Der produktive App-Code soll über GitHub versioniert werden, damit neue Geräte und Vercel denselben Stand bekommen.
 Wichtige Vercel Environment Variables:
 ```text
 NEXT_PUBLIC_SUPABASE_URL

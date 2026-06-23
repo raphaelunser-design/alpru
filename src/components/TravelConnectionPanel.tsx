@@ -314,11 +314,17 @@ export default function TravelConnectionPanel({
   const [fuelType, setFuelType] = useState<FuelType>("e10");
   const [consumptionLPer100Km, setConsumptionLPer100Km] = useState(7.2);
   const [fuelState, setFuelState] = useState<FuelState>({ status: "idle", data: null, error: "" });
+  const propOriginLat = origin?.lat ?? null;
+  const propOriginLon = origin?.lon ?? null;
+  const propOriginLabel = origin?.label ?? "";
+  const activeOriginLat = activeOrigin?.lat ?? null;
+  const activeOriginLon = activeOrigin?.lon ?? null;
+  const activeOriginLabel = activeOrigin?.label.trim() || null;
   const destinationLabel = useMemo(
     () => buildDestinationLabel(resortName, region, country),
     [country, region, resortName]
   );
-  const originLabel = activeOrigin ? activeOrigin.label.trim() || null : null;
+  const originLabel = activeOriginLabel;
   const activeProviders = providerConfig.filter((provider) => provider.modes.includes(travelMode) || travelMode === "car");
   const canShowRoute = Boolean(
     activeOrigin &&
@@ -341,9 +347,15 @@ export default function TravelConnectionPanel({
   const cheapestConnection = apiState.data && apiState.data.cheapest ? apiState.data.cheapest : null;
 
   useEffect(() => {
-    setActiveOrigin(origin || null);
-    setOriginQuery(origin ? origin.label : "");
-  }, [origin?.lat, origin?.lon, origin?.label]);
+    if (propOriginLat === null || propOriginLon === null) {
+      setActiveOrigin(null);
+      setOriginQuery("");
+      return;
+    }
+
+    setActiveOrigin({ lat: propOriginLat, lon: propOriginLon, label: propOriginLabel });
+    setOriginQuery(propOriginLabel);
+  }, [propOriginLabel, propOriginLat, propOriginLon]);
 
   useEffect(() => {
     const needle = originQuery.trim();
@@ -384,7 +396,7 @@ export default function TravelConnectionPanel({
   }, [originLabel, originQuery]);
 
   useEffect(() => {
-    if (!canShowRoute || !activeOrigin) {
+    if (!canShowRoute || activeOriginLat === null || activeOriginLon === null) {
       setRouteState({ status: "idle", data: null, error: "" });
       return;
     }
@@ -397,7 +409,7 @@ export default function TravelConnectionPanel({
       headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        origin: { lat: activeOrigin.lat, lon: activeOrigin.lon, label: activeOrigin.label },
+        origin: { lat: activeOriginLat, lon: activeOriginLon, label: activeOriginLabel },
         destination: { lat: destinationLat, lon: destinationLon, label: destinationLabel },
       }),
     })
@@ -415,7 +427,7 @@ export default function TravelConnectionPanel({
       });
 
     return () => controller.abort();
-  }, [activeOrigin, canShowRoute, destinationLabel, destinationLat, destinationLon]);
+  }, [activeOriginLabel, activeOriginLat, activeOriginLon, canShowRoute, destinationLabel, destinationLat, destinationLon]);
 
   const selectOrigin = (result: GeocodeResult) => {
     const next = { lat: result.lat, lon: result.lon, label: result.label };
@@ -472,10 +484,10 @@ export default function TravelConnectionPanel({
       headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        origin: activeOrigin
+        origin: activeOriginLat !== null && activeOriginLon !== null
           ? {
-              lat: activeOrigin.lat,
-              lon: activeOrigin.lon,
+              lat: activeOriginLat,
+              lon: activeOriginLon,
               label: originLabel,
             }
           : null,
@@ -504,11 +516,11 @@ export default function TravelConnectionPanel({
 
     return () => controller.abort();
   }, [
+    activeOriginLat,
+    activeOriginLon,
     destinationLabel,
     destinationLat,
     destinationLon,
-    activeOrigin ? activeOrigin.lat : null,
-    activeOrigin ? activeOrigin.lon : null,
     originLabel,
     travelMode,
     tripEndDate,

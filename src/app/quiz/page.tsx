@@ -7,14 +7,20 @@ import { DayPicker, type DateRange } from "react-day-picker";
 import { brand } from "@/config/brand";
 import GlassCard from "@/components/GlassCard";
 import AppShell from "@/components/premium/AppShell";
-import MetricChip from "@/components/premium/MetricChip";
 import PageHeader from "@/components/premium/PageHeader";
 import RangeSlider from "@/components/RangeSlider";
 import SelectControl from "@/components/SelectControl";
+import { ProfileIcon, SliderRow } from "@/components/quiz/QuizControls";
+import {
+  MobileQuizSummaryBar,
+  QuizFooterActions,
+  QuizMetricSummary,
+  QuizSidebarSummary,
+  QuizWizardProgress,
+} from "@/components/quiz/QuizWizardChrome";
 import { alpivoDayPickerClassNames, alpivoDayPickerLocale } from "@/lib/alpivoDayPicker";
 import { matchProfiles, type MatchProfile } from "@/data/matchProfiles";
 import {
-  MATCH_PREF_DEFAULTS,
   buildMatchPayload,
   buildResortQuery,
   persistLatestMatchSnapshot,
@@ -26,6 +32,17 @@ import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
 import { skiCourseNeedOptions, type SkiCourseNeed } from "@/lib/skiCourses";
 import { supabase } from "@/lib/supabase";
 import type { TripStyle } from "@/lib/resortSignals";
+import {
+  countryOptions,
+  defaultPrefs,
+  exclusionCountryOptions,
+  musicOptions,
+  parseIsoDate,
+  partyOptions,
+  signalLabel,
+  toIsoDate,
+  wizardSteps,
+} from "@/lib/quizOptions";
 import { useSiteContent } from "@/lib/useSiteContent";
 
 type Prefs = {
@@ -71,169 +88,11 @@ const FILTER_STORAGE_KEY = "alpivo_results_filters";
 
 const dateFormatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
 
-const ALPINE_COUNTRIES_DE = [
-  "all",
-  "Österreich",
-  "Schweiz",
-  "Deutschland",
-  "Frankreich",
-  "Italien",
-  "Liechtenstein",
-  "Monaco",
-  "Slowenien",
-];
-
-const countryOptions = ALPINE_COUNTRIES_DE.map((country) => ({
-  value: country,
-  label: country === "all" ? "Alle Länder" : country,
-}));
-
-const defaultPrefs: Prefs = { ...MATCH_PREF_DEFAULTS };
-
 const BUDGET_MIN = 150;
 const BUDGET_MAX = 900;
 const BUDGET_STEP = 25;
-const partyOptions: Array<{ value: PartyPreference; label: string }> = [
-  { value: "indifferent", label: "Egal, Hauptsache gutes Skigebiet" },
-  { value: "some_apres", label: "Ein bisschen Après-Ski wäre gut" },
-  { value: "party_places", label: "Wir suchen bewusst Party-Orte" },
-  { value: "festival_event", label: "Wir wollen ein Festival oder Event mitnehmen" },
-  { value: "quiet_no_events", label: "Wir wollen eher Ruhe und keine großen Events" },
-];
-
-const musicOptions: Array<{ value: MusicPreference; label: string }> = [
-  { value: "edm_electronic", label: "EDM / Electronic" },
-  { value: "techno_house", label: "Techno / House" },
-  { value: "apres_schlager", label: "Après-Ski / Schlager" },
-  { value: "pop_mainstream", label: "Pop / Mainstream" },
-  { value: "rock_indie_live", label: "Rock / Indie / Livebands" },
-  { value: "hiphop_urban", label: "Hip-Hop / Urban" },
-  { value: "any", label: "Egal" },
-];
-const exclusionCountryOptions = ["Frankreich", "Schweiz", "Österreich", "Italien", "Deutschland"];
-const wizardSteps = [
-  {
-    label: "Profil",
-    title: "Wer plant den Ski-Trip?",
-    text: "Wählt euer Profil. Alpivo übernimmt sinnvolle Startwerte und ihr könnt danach feinjustieren.",
-  },
-  {
-    label: "Prioritäten",
-    title: "Was ist euch wichtig?",
-    text: "Legt Vibe, Events und die wichtigsten Match-Signale fest.",
-  },
-  {
-    label: "Details",
-    title: "Budget, Zeitraum und harte Grenzen",
-    text: "Setzt die planbaren Rahmenbedingungen, bevor Alpivo die Liste berechnet.",
-  },
-  {
-    label: "Ergebnis",
-    title: "Feinschliff und Match starten",
-    text: "Prüft die Zusammenfassung und öffnet dann eure Empfehlungen.",
-  },
-] as const;
 
 const tripProfiles: MatchProfile[] = matchProfiles;
-
-function SliderRow(props: { label: string; hint?: string; value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-slate-200">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-white">{props.label}</div>
-          {props.hint ? <div className="mt-1 text-xs text-slate-400">{props.hint}</div> : null}
-        </div>
-        <div className="text-sm text-slate-300">{props.value}/5</div>
-      </div>
-
-      <input
-        className="mt-3 w-full"
-        type="range"
-        min={0}
-        max={5}
-        value={props.value}
-        onChange={(e) => props.onChange(Number(e.target.value))}
-      />
-
-      <div className="mt-1 flex justify-between text-[11px] text-slate-300">
-        <span>egal</span>
-        <span>wichtig</span>
-      </div>
-    </div>
-  );
-}
-
-function ProfileIcon({ profile }: { profile: TripStyle }) {
-  const common = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.8,
-  };
-
-  if (profile === "budget") {
-    return (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-        <path {...common} d="M4 8h16v10H4V8Zm3-3h10v3H7V5Zm3 8h.01M15 12h3m-3 3h3" />
-      </svg>
-    );
-  }
-
-  if (profile === "apres") {
-    return (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-        <path {...common} d="M7 5h10l-1 7a4 4 0 0 1-8 0L7 5Zm5 11v3m-4 0h8M5 5h14" />
-      </svg>
-    );
-  }
-
-  if (profile === "family") {
-    return (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-        <path {...common} d="M12 20s7-4 7-10V6l-7-3-7 3v4c0 6 7 10 7 10Zm-3-9h6m-6 3h4" />
-      </svg>
-    );
-  }
-
-  if (profile === "glacier" || profile === "offpiste") {
-    return (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-        <path {...common} d="m3 19 7-13 3.2 5.8L16 8l5 11H3Zm7-13 1.6 6 2.5-.2" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-      <path {...common} d="M12 3v18m6-15H9.5a3 3 0 0 0 0 6H14a3 3 0 0 1 0 6H6m11-8 3 3-3 3" />
-    </svg>
-  );
-}
-
-function signalLabel(value: number) {
-  if (value >= 5) return "sehr hoch";
-  if (value >= 4) return "hoch";
-  if (value >= 2) return "mittel";
-  return "optional";
-}
-
-function parseIsoDate(value: string | null) {
-  if (!value) return undefined;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return undefined;
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date;
-}
-
-function toIsoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export default function QuizPage() {
   const router = useRouter();
@@ -685,43 +544,16 @@ export default function QuizPage() {
             }
           />
 
-        <section className="grid gap-4 lg:grid-cols-4">
-          <MetricChip icon="vibe" value={activeProfileLabel} label="Profil" variant="glass" />
-          <MetricChip icon="cost" value={`€ ${prefs.budgetMin} - € ${prefs.budgetMax}`} label="Budget p. P." variant="glass" />
-          <MetricChip icon="time" value={rangeSummary} label={rangeDays ? `${rangeDays} Tage` : "Zeitraum"} variant="glass" />
-          <MetricChip icon="data" value={`${topPriorities.length}`} label="Top-Prioritäten gewählt" variant="glass" />
-        </section>
+        <QuizMetricSummary
+          activeProfileLabel={activeProfileLabel}
+          budgetMin={prefs.budgetMin}
+          budgetMax={prefs.budgetMax}
+          rangeDays={rangeDays}
+          rangeSummary={rangeSummary}
+          priorityCount={topPriorities.length}
+        />
 
-        <div className="grid grid-cols-2 gap-2 rounded-[1.35rem] border border-white/18 bg-white p-2 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.12)] sm:grid-cols-4">
-          {wizardSteps.map((step, index) => {
-            const active = index === activeStep;
-            const completed = index < activeStep;
-            return (
-              <button
-                key={step.label}
-                type="button"
-                className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition ${
-                  active
-                    ? "bg-sky-50 text-sky-800"
-                    : completed
-                      ? "bg-emerald-50 text-emerald-800"
-                      : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-                }`}
-                onClick={() => setActiveStep(index)}
-                aria-current={active ? "step" : undefined}
-              >
-                <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
-                    active ? "bg-sky-600 text-white" : completed ? "bg-emerald-500 text-white" : "bg-white text-slate-500"
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className="truncate text-sm font-extrabold">{step.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <QuizWizardProgress activeStep={activeStep} onStepChange={setActiveStep} />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
@@ -1333,132 +1165,41 @@ export default function QuizPage() {
           )}
         </GlassCard>
 
-        <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-white">{currentWizardStep.title}</div>
-            <div className="mt-1 text-xs text-slate-400">
-              {currentWizardStep.text}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {activeStep > 0 ? (
-              <button
-                className="rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
-                type="button"
-                onClick={goToPreviousStep}
-              >
-                Zurück
-              </button>
-            ) : null}
-            <button
-              className="button-lift rounded-lg bg-sky-200 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white disabled:cursor-wait disabled:opacity-70"
-              disabled={isFinalStep && submitting}
-              type="button"
-              onClick={primaryStepAction}
-            >
-              {isFinalStep ? (submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen") : "Weiter"}
-            </button>
-          </div>
-          {submitError ? (
-            <div className="text-sm leading-6 text-amber-100 md:max-w-sm">{submitError}</div>
-          ) : null}
-        </GlassCard>
+        <QuizFooterActions
+          activeStep={activeStep}
+          currentWizardStep={currentWizardStep}
+          isFinalStep={isFinalStep}
+          submitting={submitting}
+          submitError={submitError}
+          onPrevious={goToPreviousStep}
+          onPrimaryAction={primaryStepAction}
+        />
           </div>
 
-          <aside className="hidden xl:block">
-            <div className="sticky top-28 space-y-4">
-              <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.13)]">
-                <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-sky-700">Eure Auswahl (Live)</p>
-                <h2 className="mt-2 text-xl font-extrabold text-slate-950">{activeProfileLabel}</h2>
-                <div className="mt-4 grid gap-2 text-sm text-slate-600">
-                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span>Zeitraum</span>
-                    <span className="text-right font-extrabold text-slate-950">{rangeSummary}</span>
-                  </div>
-                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span>Abfahrt</span>
-                    <span className="font-extrabold text-slate-950">München</span>
-                  </div>
-                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span>Budget</span>
-                    <span className="font-extrabold text-slate-950">€ {prefs.budgetMin} – € {prefs.budgetMax}</span>
-                  </div>
-                  <div className="flex justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span>Gruppe</span>
-                    <span className="font-extrabold text-slate-950">{prefs.peopleCount} Personen</span>
-                  </div>
-                  <div className="flex justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span>Skikurs</span>
-                    <span className="text-right font-extrabold text-slate-950">
-                      {skiCourseNeedOptions.find((option) => option.value === prefs.skiCourseNeed)?.label ?? "Nein"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span className="font-semibold text-slate-500">Prioritäten Top 3</span>
-                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs font-bold text-slate-900">
-                      {topPriorities.map((priority) => (
-                        <li key={priority}>{priority}</li>
-                      ))}
-                    </ol>
-                  </div>
-                </div>
-                <button
-                  className="button-lift mt-4 w-full rounded-xl bg-sky-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-70"
-                  disabled={isFinalStep && submitting}
-                  onClick={primaryStepAction}
-                  type="button"
-                >
-                  {isFinalStep ? (submitting ? "Match wird berechnet..." : "Ergebnisse anzeigen") : "Weiter"}
-                </button>
-                {submitError ? <div className="mt-3 text-sm leading-6 text-amber-100">{submitError}</div> : null}
-              </div>
-            </div>
-          </aside>
+          <QuizSidebarSummary
+            activeProfileLabel={activeProfileLabel}
+            isFinalStep={isFinalStep}
+            prefs={prefs}
+            rangeSummary={rangeSummary}
+            submitting={submitting}
+            submitError={submitError}
+            topPriorities={topPriorities}
+            onPrimaryAction={primaryStepAction}
+          />
         </div>
 
-        <div className="sticky bottom-24 z-30 rounded-2xl border border-sky-200/25 bg-slate-950/90 p-3 shadow-[0_18px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl md:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-white">{activeProfileLabel}</div>
-              <div className="mt-0.5 truncate text-xs text-slate-400">
-                {prefs.peopleCount} Personen · {prefs.budgetMin}-{prefs.budgetMax} EUR · {rangeSummary}
-              </div>
-            </div>
-            <button
-              className="min-h-11 shrink-0 rounded-xl border border-white/15 px-3 text-xs font-semibold text-white hover:bg-white/10"
-              type="button"
-              onClick={() => setMobileSummaryOpen((current) => !current)}
-              aria-expanded={mobileSummaryOpen}
-            >
-              {mobileSummaryOpen ? "Weniger" : "Details"}
-            </button>
-            <button
-              className="min-h-11 shrink-0 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950 disabled:opacity-70"
-              disabled={isFinalStep && submitting}
-              onClick={primaryStepAction}
-              type="button"
-            >
-              {isFinalStep ? (submitting ? "..." : "Match") : "Weiter"}
-            </button>
-          </div>
-          {mobileSummaryOpen ? (
-            <div className="mt-3 grid gap-2 border-t border-white/10 pt-3 text-xs text-slate-300">
-              <div className="flex justify-between gap-3">
-                <span>Profil</span>
-                <span className="text-right font-semibold text-white">{activeProfileLabel}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Budget</span>
-                <span className="text-right font-semibold text-white">€ {prefs.budgetMin} – € {prefs.budgetMax}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Prioritäten</span>
-                <span className="text-right font-semibold text-white">{topPriorities.join(", ")}</span>
-              </div>
-            </div>
-          ) : null}
-          {submitError ? <div className="mt-2 text-xs leading-5 text-amber-100">{submitError}</div> : null}
-        </div>
+        <MobileQuizSummaryBar
+          activeProfileLabel={activeProfileLabel}
+          isFinalStep={isFinalStep}
+          mobileSummaryOpen={mobileSummaryOpen}
+          prefs={prefs}
+          rangeSummary={rangeSummary}
+          submitting={submitting}
+          submitError={submitError}
+          topPriorities={topPriorities}
+          onPrimaryAction={primaryStepAction}
+          onToggle={() => setMobileSummaryOpen((current) => !current)}
+        />
         </div>
       </main>
     </AppShell>

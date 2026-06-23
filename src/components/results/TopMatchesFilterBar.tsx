@@ -5,7 +5,7 @@ import { Card, FilterPill } from "@/components/ui";
 
 export type ResultsSortKey = "match" | "price" | "drive";
 
-type ActiveFilter = {
+export type ActiveFilter = {
   id: string;
   label: string;
   icon: ReactNode;

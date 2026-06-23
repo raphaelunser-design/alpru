@@ -1,15 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppHeader, Button } from "@/components/ui";
-import TopMatchesFilterBar, { CarIcon, FamilyIcon, type ResultsSortKey, SnowIcon, WalletIcon } from "@/components/results/TopMatchesFilterBar";
+import TopMatchesFilterBar, { CarIcon, FamilyIcon, type ActiveFilter, type ResultsSortKey, SnowIcon, WalletIcon } from "@/components/results/TopMatchesFilterBar";
 import TopMatchResultCard, { type TopMatchCardModel } from "@/components/results/TopMatchResultCard";
 import { alpivoCanonicalResorts, getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
 import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
-import { MATCH_PREF_DEFAULTS } from "@/lib/matching/matchPayload";
+import { getLatestMatchSnapshot, MATCH_PREF_DEFAULTS, type MatchResultSnapshot } from "@/lib/matching/matchPayload";
 import { calculateMatchResults, type MatchResult } from "@/lib/matchScore";
 import { findMvpResortBySlug, type MvpResortRow } from "@/lib/mvpResorts";
+import type { ResortDecision } from "@/lib/resortSignals";
 
 const preferredResultSlugs = ["obertauern", "solden", "serfaus-fiss-ladis"] as const;
 const canonicalSlugSet = new Set(alpivoCanonicalResorts.map((resort) => resort.slug));
@@ -38,11 +39,40 @@ function formatDayPrice(price: number) {
   return `ca. ${dayPrice} € / Tag`;
 }
 
+function formatEuroRange(min: number | null | undefined, max: number | null | undefined) {
+  const safeMin = typeof min === "number" && Number.isFinite(min) ? Math.round(min) : null;
+  const safeMax = typeof max === "number" && Number.isFinite(max) ? Math.round(max) : null;
+  if (safeMin !== null && safeMax !== null && safeMax > safeMin) return `ca. ${safeMin}-${safeMax} € p. P.`;
+  if (safeMin !== null) return `ca. ${safeMin} € p. P.`;
+  if (safeMax !== null) return `bis ${safeMax} € p. P.`;
+  return "Kosten offen";
+}
+
 function normalizeSnow(value: string) {
   const normalized = value.toLowerCase();
   if (normalized.includes("sehr")) return "Sehr hoch";
   if (normalized.includes("gut") || normalized.includes("hoch")) return "Hoch";
   return value;
+}
+
+function snowLabelFromScore(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "Offen";
+  if (value >= 0.76) return "Sehr hoch";
+  if (value >= 0.6) return "Hoch";
+  if (value >= 0.44) return "Mittel";
+  return "Niedrig";
+}
+
+function tripStyleLabel(value: string | undefined) {
+  if (value === "budget") return "Budget-Profil";
+  if (value === "apres") return "Après-Profil";
+  if (value === "family") return "Familien-Profil";
+  if (value === "sport") return "Sport-Profil";
+  if (value === "premium") return "Premium-Profil";
+  if (value === "quiet") return "Ruhiges Profil";
+  if (value === "glacier") return "Gletscher-Profil";
+  if (value === "offpiste") return "Off-Piste-Profil";
+  return "Individuelles Profil";
 }
 
 function normalizeReason(reason: string) {
@@ -80,6 +110,28 @@ function buildCanonicalCard(result: MatchResult, resort: AlpivoResort, originLab
     sortScore: result.totalScore,
     sortPrice: result.resort.price.estimatedPerPerson,
     sortDriveMinutes: driveMinutesFromResult(result, resort.travelTimeFromMunich),
+  };
+}
+
+function buildDecisionCard(result: ResortDecision, originLabel: string): TopMatchCardModel {
+  const location = [result.region, result.country].filter(Boolean).join(", ");
+  const price = result.cost?.totalMin ?? result.cost?.dayTripMin ?? 0;
+  return {
+    slug: result.slug,
+    name: result.name,
+    location: location || result.country,
+    image: result.imageUrl || "/bg/skilandschaft.png",
+    score: Math.max(0, Math.min(100, Math.round(result.matchPct))),
+    priceLevel: formatPriceLevel(price),
+    priceNote: formatEuroRange(result.cost?.totalMin, result.cost?.totalMax),
+    travelTime: result.cost?.travelSource === "fallback" ? "geschätzt" : "Live",
+    travelLabel: originLabel ? `ab ${originLabel}` : "Anreise",
+    snow: snowLabelFromScore(result.snowReliability),
+    reasons: (result.reasons?.length ? result.reasons : ["Guter Fit für deine Match-Kriterien."]).map(normalizeReason).slice(0, 3),
+    detailHref: `/resort/${encodeURIComponent(result.slug)}`,
+    sortScore: result.matchPct,
+    sortPrice: price,
+    sortDriveMinutes: 9999,
   };
 }
 
@@ -125,8 +177,13 @@ function sortCards(cards: TopMatchCardModel[], sort: ResultsSortKey) {
 
 export default function ResultsPage() {
   const [sort, setSort] = useState<ResultsSortKey>("match");
+  const [matchSnapshot, setMatchSnapshot] = useState<MatchResultSnapshot | null>(null);
   const { state: guestState, setPreferences } = useAlpivoGuestState();
   const originLabel = guestState.preferences.originLabel || "München";
+
+  useEffect(() => {
+    setMatchSnapshot(getLatestMatchSnapshot());
+  }, []);
 
   const scoredResults = useMemo(() => {
     const base = calculateMatchResults(guestState.preferences, alpivoCanonicalResorts).filter((result) => !result.hardExclusion?.excluded);
@@ -139,7 +196,14 @@ export default function ResultsPage() {
     return base;
   }, [guestState.preferences, sort]);
 
-  const matchCards = useMemo(() => {
+  const apiMatchCards = useMemo(() => {
+    const results = matchSnapshot?.results ?? [];
+    return results
+      .filter((result) => !(result.exclusionReasons?.length > 0))
+      .map((result) => buildDecisionCard(result, originLabel));
+  }, [matchSnapshot, originLabel]);
+
+  const fallbackMatchCards = useMemo(() => {
     const bySlug = new Map(scoredResults.map((result) => [result.resort.slug, result]));
     const allCanonicalCards = scoredResults
       .map((result) => {
@@ -164,32 +228,61 @@ export default function ResultsPage() {
     return sortCards(merged, sort).slice(0, 3);
   }, [originLabel, scoredResults, sort]);
 
-  const activeFilters = [
-    {
-      id: "snow",
-      label: "Schneesicher",
-      icon: <SnowIcon />,
-      onRemove: () => setPreferences({ snowReliability: MATCH_PREF_DEFAULTS.snowReliability }),
-    },
-    {
-      id: "drive",
-      label: "Kurze Anreise",
-      icon: <CarIcon />,
-      onRemove: () => setPreferences({ maxTravelHours: "" }),
-    },
-    {
-      id: "budget",
-      label: "Budget",
-      icon: <WalletIcon />,
-      onRemove: () => setPreferences({ budgetMin: MATCH_PREF_DEFAULTS.budgetMin, budgetMax: MATCH_PREF_DEFAULTS.budgetMax, budget: MATCH_PREF_DEFAULTS.budget }),
-    },
-    {
-      id: "family",
-      label: "Familie",
-      icon: <FamilyIcon />,
-      onRemove: () => setPreferences({ family: MATCH_PREF_DEFAULTS.family }),
-    },
-  ];
+  const matchCards = useMemo(() => {
+    if (apiMatchCards.length) return sortCards(apiMatchCards, sort).slice(0, 3);
+    return fallbackMatchCards;
+  }, [apiMatchCards, fallbackMatchCards, sort]);
+
+  const activeFilters = useMemo(() => {
+    const filters: ActiveFilter[] = [];
+    if (guestState.preferences.snowReliability >= 4) {
+      filters.push({
+        id: "snow",
+        label: "Schneesicher",
+        icon: <SnowIcon />,
+        onRemove: () => setPreferences({ snowReliability: MATCH_PREF_DEFAULTS.snowReliability }),
+      });
+    }
+    if (guestState.preferences.maxTravelHours) {
+      filters.push({
+        id: "drive",
+        label: "Kurze Anreise",
+        icon: <CarIcon />,
+        onRemove: () => setPreferences({ maxTravelHours: "" }),
+      });
+    }
+    if (guestState.preferences.budgetMin !== MATCH_PREF_DEFAULTS.budgetMin || guestState.preferences.budgetMax !== MATCH_PREF_DEFAULTS.budgetMax) {
+      filters.push({
+        id: "budget",
+        label: "Budget",
+        icon: <WalletIcon />,
+        onRemove: () => setPreferences({ budgetMin: MATCH_PREF_DEFAULTS.budgetMin, budgetMax: MATCH_PREF_DEFAULTS.budgetMax, budget: MATCH_PREF_DEFAULTS.budget }),
+      });
+    }
+    if (guestState.preferences.family >= 4 || guestState.preferences.tripStyle === "family") {
+      filters.push({
+        id: "family",
+        label: "Familie",
+        icon: <FamilyIcon />,
+        onRemove: () => setPreferences({ family: MATCH_PREF_DEFAULTS.family, tripStyle: MATCH_PREF_DEFAULTS.tripStyle }),
+      });
+    }
+    if (!filters.length) {
+      filters.push({
+        id: "profile",
+        label: tripStyleLabel(guestState.preferences.tripStyle),
+        icon: <SnowIcon />,
+      });
+    }
+    return filters;
+  }, [guestState.preferences, setPreferences]);
+
+  const resultStatus = useMemo(() => {
+    if (matchSnapshot?.error) return `Match-API fehlgeschlagen: ${matchSnapshot.error.message}. Alpivo zeigt lokale Fallback-Matches.`;
+    if (apiMatchCards.length && matchSnapshot?.meta?.usingFallback) return "Match aus API-Fallback-Daten. Live-Daten waren leer oder nicht erreichbar.";
+    if (apiMatchCards.length) return `Match aus dem letzten Quizlauf. Quelle: ${matchSnapshot?.meta?.source ?? "API"}.`;
+    return "Kein gespeicherter Quizlauf gefunden. Alpivo zeigt ein lokales Standardprofil.";
+  }, [apiMatchCards.length, matchSnapshot]);
 
   return (
     <div className="alpivo-ui-root min-h-screen bg-[var(--alpivo-snow-white)] text-[var(--alpivo-deep-navy)]">
@@ -224,6 +317,10 @@ export default function ResultsPage() {
         </div>
 
         <section className="mx-auto mt-6 max-w-[1280px] space-y-5 px-[var(--alpivo-space-page-x)] md:mt-8">
+          <div className="rounded-[var(--alpivo-radius-lg)] border border-[var(--alpivo-border-subtle)] bg-white px-4 py-3 text-sm leading-6 text-[var(--alpivo-ink-muted)] shadow-[var(--alpivo-shadow-sm)]">
+            {resultStatus}
+          </div>
+
           {matchCards.length ? (
             matchCards.map((match, index) => <TopMatchResultCard key={match.slug} match={match} priority={index === 0} />)
           ) : (

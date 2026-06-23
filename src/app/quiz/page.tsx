@@ -17,7 +17,7 @@ import {
   MATCH_PREF_DEFAULTS,
   buildMatchPayload,
   buildResortQuery,
-  setLatestMatchSnapshot,
+  persistLatestMatchSnapshot,
   type MatchResultError,
   type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
@@ -68,7 +68,6 @@ type Prefilters = {
 
 const STORAGE_KEY = "alpivo_quiz_prefs";
 const FILTER_STORAGE_KEY = "alpivo_results_filters";
-const RESULTS_STORAGE_KEY = "alpivo_results";
 
 const dateFormatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
 
@@ -472,7 +471,7 @@ export default function QuizPage() {
         prefs: payload,
         filters: mergedFilters,
       };
-      setLatestMatchSnapshot({ results, excluded, meta: resultMeta });
+      persistLatestMatchSnapshot({ results, excluded, meta: resultMeta });
 
       if (process.env.NODE_ENV !== "production" && results.length === 0) {
         console.warn("[alpivo-match] match returned zero visible resorts", {
@@ -482,16 +481,6 @@ export default function QuizPage() {
           source: data.source,
           supabaseError: data.error ?? data.fallbackReason ?? null,
         });
-      }
-
-      try {
-        sessionStorage.setItem("ski_results", JSON.stringify(results));
-        localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
-        localStorage.setItem("alpivo_excluded_results", JSON.stringify(excluded));
-        localStorage.setItem("alpivo_results_meta", JSON.stringify(resultMeta));
-        localStorage.removeItem("alpivo_results_error");
-      } catch {
-        // In-memory snapshot above protects the mobile flow when Web Storage is blocked.
       }
 
       if (userId) {
@@ -560,15 +549,10 @@ export default function QuizPage() {
         prefs: payload,
         filters: mergedFilters,
       };
-      setLatestMatchSnapshot({ results: [], excluded: [], error: matchError });
+      persistLatestMatchSnapshot({ results: [], excluded: [], error: matchError });
       setSubmitError("Der Match konnte gerade nicht berechnet werden. Die Ergebnisseite zeigt Details und einen neuen Versuch.");
       if (process.env.NODE_ENV !== "production") {
         console.error("[alpivo-match] client submit failed", { params: payload, filters: mergedFilters, error: message, status });
-      }
-      try {
-        localStorage.setItem("alpivo_results_error", JSON.stringify(matchError));
-      } catch {
-        // ignore unavailable storage
       }
       router.push("/results");
     } finally {

@@ -83,6 +83,12 @@ export type MatchResultSnapshot = {
   error?: MatchResultError;
 };
 
+export const MATCH_RESULTS_STORAGE_KEY = "alpivo_results";
+export const MATCH_RESULTS_SESSION_KEY = "ski_results";
+export const MATCH_EXCLUDED_RESULTS_STORAGE_KEY = "alpivo_excluded_results";
+export const MATCH_RESULTS_META_STORAGE_KEY = "alpivo_results_meta";
+export const MATCH_RESULTS_ERROR_STORAGE_KEY = "alpivo_results_error";
+
 export const MATCH_PREF_DEFAULTS: MatchPayload = {
   tripStyle: "apres",
   tripStartDate: "2027-01-20",
@@ -172,6 +178,42 @@ const profileFilters = ["all", "snow", "value", "comfort", "sport", "vibe", "fes
 const resultSortKeys = ["match", "price_low", "price_high", "drive_time", "snow", "value", "festival", "summer", "offpiste"];
 
 let latestMatchSnapshot: MatchResultSnapshot | null = null;
+
+function canUseClientStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function readClientJson<T>(storage: Storage, key: string): T | null {
+  try {
+    const raw = storage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeClientJson(storage: Storage, key: string, value: unknown) {
+  storage.setItem(key, JSON.stringify(value));
+}
+
+function readStoredMatchSnapshot(): MatchResultSnapshot | null {
+  if (!canUseClientStorage()) return null;
+
+  const storedResults =
+    readClientJson<ResortDecision[]>(window.localStorage, MATCH_RESULTS_STORAGE_KEY) ??
+    (typeof window.sessionStorage !== "undefined" ? readClientJson<ResortDecision[]>(window.sessionStorage, MATCH_RESULTS_SESSION_KEY) : null);
+  const storedExcluded = readClientJson<ResortDecision[]>(window.localStorage, MATCH_EXCLUDED_RESULTS_STORAGE_KEY);
+  const meta = readClientJson<MatchResultMeta>(window.localStorage, MATCH_RESULTS_META_STORAGE_KEY) ?? undefined;
+  const error = readClientJson<MatchResultError>(window.localStorage, MATCH_RESULTS_ERROR_STORAGE_KEY) ?? undefined;
+
+  if (!Array.isArray(storedResults) && !Array.isArray(storedExcluded) && !meta && !error) return null;
+  return {
+    results: Array.isArray(storedResults) ? storedResults : [],
+    excluded: Array.isArray(storedExcluded) ? storedExcluded : [],
+    meta,
+    error,
+  };
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -338,6 +380,27 @@ export function setLatestMatchSnapshot(snapshot: MatchResultSnapshot | null) {
   latestMatchSnapshot = snapshot;
 }
 
+export function persistLatestMatchSnapshot(snapshot: MatchResultSnapshot) {
+  setLatestMatchSnapshot(snapshot);
+  if (!canUseClientStorage()) return;
+
+  try {
+    writeClientJson(window.localStorage, MATCH_RESULTS_STORAGE_KEY, snapshot.results);
+    writeClientJson(window.localStorage, MATCH_EXCLUDED_RESULTS_STORAGE_KEY, snapshot.excluded);
+    if (typeof window.sessionStorage !== "undefined") {
+      writeClientJson(window.sessionStorage, MATCH_RESULTS_SESSION_KEY, snapshot.results);
+    }
+
+    if (snapshot.meta) writeClientJson(window.localStorage, MATCH_RESULTS_META_STORAGE_KEY, snapshot.meta);
+    else window.localStorage.removeItem(MATCH_RESULTS_META_STORAGE_KEY);
+
+    if (snapshot.error) writeClientJson(window.localStorage, MATCH_RESULTS_ERROR_STORAGE_KEY, snapshot.error);
+    else window.localStorage.removeItem(MATCH_RESULTS_ERROR_STORAGE_KEY);
+  } catch {
+    // Keep the in-memory snapshot for the current client navigation when persistent storage is blocked.
+  }
+}
+
 export function getLatestMatchSnapshot() {
-  return latestMatchSnapshot;
+  return latestMatchSnapshot ?? readStoredMatchSnapshot();
 }

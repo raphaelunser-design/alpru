@@ -14,6 +14,7 @@ export type ActiveFilter = {
 
 type TopMatchesFilterBarProps = {
   filters: ActiveFilter[];
+  refreshing: boolean;
   sort: ResultsSortKey;
   onSortChange: (sort: ResultsSortKey) => void;
 };
@@ -58,7 +59,7 @@ function ChevronIcon() {
   );
 }
 
-export default function TopMatchesFilterBar({ filters, sort, onSortChange }: TopMatchesFilterBarProps) {
+export default function TopMatchesFilterBar({ filters, refreshing, sort, onSortChange }: TopMatchesFilterBarProps) {
   return (
     <Card className="p-3 shadow-[var(--alpivo-shadow-md)] md:p-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(270px,360px)] lg:items-center">
@@ -67,6 +68,7 @@ export default function TopMatchesFilterBar({ filters, sort, onSortChange }: Top
             <FilterPill
               key={filter.id}
               active
+              disabled={refreshing}
               icon={filter.icon}
               removable={Boolean(filter.onRemove)}
               onClick={filter.onRemove}

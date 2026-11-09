@@ -25,8 +25,8 @@ import {
   buildResortQuery,
   persistLatestMatchSnapshot,
   type MatchResultError,
-  type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
+import { requestMatch } from "@/lib/matching/requestMatch";
 import { readGuestState, setGuestPreferences } from "@/lib/guestState";
 import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
 import { skiCourseNeedOptions, type SkiCourseNeed } from "@/lib/skiCourses";
@@ -94,6 +94,39 @@ const BUDGET_STEP = 25;
 
 const tripProfiles: MatchProfile[] = matchProfiles;
 
+function applyLandingSearch(savedPreferences: unknown) {
+  const params = new URLSearchParams(window.location.search);
+  const saved = buildMatchPayload(savedPreferences);
+  const group = params.get("group")?.trim().toLowerCase() ?? "";
+  const profileId = /famil|kind/.test(group) ? "family" : /freund|crew/.test(group) ? "apres" : /paar/.test(group) ? "quiet" : null;
+  const profile = tripProfiles.find((item) => item.id === profileId);
+  const next = buildMatchPayload({ ...saved, ...profile?.prefs, tripStyle: profile?.id ?? saved.tripStyle });
+
+  const amounts = params.get("budget")?.replace(/\.(?=\d{3}\b)/g, "").match(/\d+(?:,\d+)?/g);
+  if (amounts?.length && amounts.every((amount) => Number.isFinite(Number(amount.replace(",", "."))))) {
+    const [first, last = first] = amounts.map((amount) => Number(amount.replace(",", ".")));
+    next.budgetMin = Math.min(first, last);
+    next.budgetMax = Math.max(first, last);
+    next.budget = next.budgetMax;
+  }
+
+  const days = Number(params.get("duration")?.match(/\d+/)?.[0]);
+  const start = parseIsoDate(next.tripStartDate ?? defaultPrefs.tripStartDate);
+  if (start && days >= 1 && days <= 30) {
+    const end = new Date(start);
+    end.setDate(start.getDate() + days - 1);
+    next.tripStartDate = toIsoDate(start);
+    next.tripEndDate = toIsoDate(end);
+  }
+
+  const priorities = params.get("priorities")?.toLowerCase() ?? "";
+  if (priorities.includes("schnee")) next.snowReliability = 5;
+  if (/vibe|party|après/.test(priorities)) next.apres = 5;
+  if (/ruhe|ruhig/.test(priorities)) next.emptySlopes = 5;
+  if (/preis|budget/.test(priorities)) next.valueForMoney = 5;
+  return buildMatchPayload(next);
+}
+
 export default function QuizPage() {
   const router = useRouter();
   const { value: heroContent } = useSiteContent("quiz", {
@@ -114,6 +147,7 @@ export default function QuizPage() {
     minPisteKm: "",
     maxDriveHours: "",
   });
+  const [originLabel, setOriginLabel] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
@@ -127,7 +161,9 @@ export default function QuizPage() {
 
   useEffect(() => {
     const guestState = readGuestState();
-    const guestPrefs = buildMatchPayload(guestState.preferences);
+    const origin = new URLSearchParams(window.location.search).get("origin")?.trim().slice(0, 120);
+    setOriginLabel(origin || guestState.preferences.originLabel);
+    const guestPrefs = applyLandingSearch(guestState.preferences);
     setPrefs(guestPrefs);
     setPrefilters((current) => ({
       ...current,
@@ -180,7 +216,7 @@ export default function QuizPage() {
       }
       if (!saved?.preferences) return;
 
-      const nextPrefs: Prefs = buildMatchPayload(saved.preferences);
+      const nextPrefs = applyLandingSearch(saved.preferences);
       setPrefs(nextPrefs);
       const from = parseIsoDate(nextPrefs.tripStartDate);
       const to = parseIsoDate(nextPrefs.tripEndDate);
@@ -255,6 +291,7 @@ export default function QuizPage() {
   }, [prefilters, hydrated]);
 
   async function onSubmit() {
+    if (!hydrated || submitting) return;
     setSubmitting(true);
     setSubmitError("");
 
@@ -280,7 +317,7 @@ export default function QuizPage() {
     const payload = buildMatchPayload(prefs);
     setGuestPreferences({
       ...payload,
-      originLabel: "München",
+      originLabel,
       priorities: topPriorities,
       maxTravelHours: prefilters.maxDriveHours,
       minPisteKm: prefilters.minPisteKm,
@@ -305,42 +342,9 @@ export default function QuizPage() {
         // Some mobile/private browsers can reject storage writes; in-memory handoff below keeps client navigation working.
       }
 
-      const res = await fetch("/api/match", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        const message = typeof data?.error === "string" ? data.error : "Fehler beim Matching";
-        throw Object.assign(new Error(message), { status: res.status });
-      }
-
-      const results = Array.isArray(data.results) ? data.results : [];
-      const excluded = Array.isArray(data.excluded) ? data.excluded : [];
-      const resultMeta: MatchResultMeta = {
-        createdAt: new Date().toISOString(),
-        source: data.source ?? "unknown",
-        usingFallback: Boolean(data.usingFallback),
-        total: data.total ?? results.length,
-        loaded: data.loaded ?? results.length,
-        resultCount: results.length,
-        excludedCount: excluded.length,
-        prefs: payload,
-        filters: mergedFilters,
-      };
-      persistLatestMatchSnapshot({ results, excluded, meta: resultMeta });
-
-      if (process.env.NODE_ENV !== "production" && results.length === 0) {
-        console.warn("[alpivo-match] match returned zero visible resorts", {
-          params: payload,
-          filters: mergedFilters,
-          excludedCount: excluded.length,
-          source: data.source,
-          supabaseError: data.error ?? data.fallbackReason ?? null,
-        });
-      }
+      const snapshot = await requestMatch(payload, mergedFilters, originLabel);
+      const { results, excluded, meta: resultMeta } = snapshot;
+      persistLatestMatchSnapshot(snapshot);
 
       if (userId) {
         const compactResults = (results as Array<{

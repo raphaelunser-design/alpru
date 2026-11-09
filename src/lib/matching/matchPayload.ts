@@ -58,6 +58,7 @@ export type ResortQuery = {
 
 export type MatchResultMeta = {
   createdAt: string;
+  originLabel?: string;
   source: string;
   usingFallback: boolean;
   total: number;

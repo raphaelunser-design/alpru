@@ -1,15 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader, Button } from "@/components/ui";
 import TopMatchesFilterBar, { CarIcon, FamilyIcon, type ActiveFilter, type ResultsSortKey, SnowIcon, WalletIcon } from "@/components/results/TopMatchesFilterBar";
 import TopMatchResultCard, { type TopMatchCardModel } from "@/components/results/TopMatchResultCard";
 import { alpivoCanonicalResorts, getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
 import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
-import { getLatestMatchSnapshot, MATCH_PREF_DEFAULTS, type MatchResultSnapshot } from "@/lib/matching/matchPayload";
+import { buildMatchPayload, buildResortQuery, getLatestMatchSnapshot, MATCH_PREF_DEFAULTS, persistLatestMatchSnapshot, type MatchResultSnapshot } from "@/lib/matching/matchPayload";
 import { calculateMatchResults, type MatchResult } from "@/lib/matchScore";
 import { findMvpResortBySlug, type MvpResortRow } from "@/lib/mvpResorts";
+import { presentMatch } from "@/lib/matching/matchPresentation";
+import { requestMatch } from "@/lib/matching/requestMatch";
+import type { TripPreferences } from "@/types/alpivo";
 import type { ResortDecision } from "@/lib/resortSignals";
 
 const preferredResultSlugs = ["obertauern", "solden", "serfaus-fiss-ladis"] as const;
@@ -39,28 +42,11 @@ function formatDayPrice(price: number) {
   return `ca. ${dayPrice} € / Tag`;
 }
 
-function formatEuroRange(min: number | null | undefined, max: number | null | undefined) {
-  const safeMin = typeof min === "number" && Number.isFinite(min) ? Math.round(min) : null;
-  const safeMax = typeof max === "number" && Number.isFinite(max) ? Math.round(max) : null;
-  if (safeMin !== null && safeMax !== null && safeMax > safeMin) return `ca. ${safeMin}-${safeMax} € p. P.`;
-  if (safeMin !== null) return `ca. ${safeMin} € p. P.`;
-  if (safeMax !== null) return `bis ${safeMax} € p. P.`;
-  return "Kosten offen";
-}
-
 function normalizeSnow(value: string) {
   const normalized = value.toLowerCase();
   if (normalized.includes("sehr")) return "Sehr hoch";
   if (normalized.includes("gut") || normalized.includes("hoch")) return "Hoch";
   return value;
-}
-
-function snowLabelFromScore(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "Offen";
-  if (value >= 0.76) return "Sehr hoch";
-  if (value >= 0.6) return "Hoch";
-  if (value >= 0.44) return "Mittel";
-  return "Niedrig";
 }
 
 function tripStyleLabel(value: string | undefined) {
@@ -113,22 +99,18 @@ function buildCanonicalCard(result: MatchResult, resort: AlpivoResort, originLab
   };
 }
 
-function buildDecisionCard(result: ResortDecision, originLabel: string): TopMatchCardModel {
+function buildDecisionCard(result: ResortDecision, originLabel: string, matchId?: string): TopMatchCardModel {
   const location = [result.region, result.country].filter(Boolean).join(", ");
   const price = result.cost?.totalMin ?? result.cost?.dayTripMin ?? 0;
+  const match = presentMatch(result, originLabel);
   return {
+    ...match,
     slug: result.slug,
     name: result.name,
     location: location || result.country,
     image: result.imageUrl || "/bg/skilandschaft.png",
-    score: Math.max(0, Math.min(100, Math.round(result.matchPct))),
     priceLevel: formatPriceLevel(price),
-    priceNote: formatEuroRange(result.cost?.totalMin, result.cost?.totalMax),
-    travelTime: result.cost?.travelSource === "fallback" ? "geschätzt" : "Live",
-    travelLabel: originLabel ? `ab ${originLabel}` : "Anreise",
-    snow: snowLabelFromScore(result.snowReliability),
-    reasons: (result.reasons?.length ? result.reasons : ["Guter Fit für deine Match-Kriterien."]).map(normalizeReason).slice(0, 3),
-    detailHref: `/resort/${encodeURIComponent(result.slug)}`,
+    detailHref: `/resort/${encodeURIComponent(result.slug)}${matchId ? `?match=${encodeURIComponent(matchId)}` : ""}`,
     sortScore: result.matchPct,
     sortPrice: price,
     sortDriveMinutes: 9999,
@@ -179,10 +161,49 @@ export default function ResultsPage() {
   const [sort, setSort] = useState<ResultsSortKey>("match");
   const [matchSnapshot, setMatchSnapshot] = useState<MatchResultSnapshot | null>(null);
   const { state: guestState, setPreferences } = useAlpivoGuestState();
-  const originLabel = guestState.preferences.originLabel || "München";
+  const pendingMatch = useRef<AbortController | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
+  const originLabel = matchSnapshot?.meta?.originLabel || matchSnapshot?.meta?.filters.originLabel || guestState.preferences.originLabel;
+
+  async function refreshMatch(changes: Partial<TripPreferences>) {
+    if (pendingMatch.current) return;
+
+    const current = matchSnapshot?.meta;
+    const prefs = buildMatchPayload({ ...guestState.preferences, ...current?.prefs, ...changes });
+    const filters = buildResortQuery({
+      ...current?.filters,
+      minPisteKm: current?.filters.minPisteKm ?? guestState.preferences.minPisteKm,
+      maxDriveHours: changes.maxTravelHours ?? current?.filters.maxDriveHours ?? guestState.preferences.maxTravelHours,
+      budgetMin: prefs.budgetMin,
+      budgetMax: prefs.budgetMax,
+    });
+
+    const controller = new AbortController();
+    pendingMatch.current = controller;
+    setRefreshing(true);
+    setRefreshError("");
+    try {
+      const snapshot = await requestMatch(prefs, filters, originLabel, controller.signal);
+      if (controller.signal.aborted) return;
+      setPreferences({ ...prefs, ...changes, originLabel });
+      persistLatestMatchSnapshot(snapshot);
+      setMatchSnapshot(snapshot);
+    } catch {
+      if (!controller.signal.aborted) {
+        setRefreshError("Die Empfehlungen konnten nicht aktualisiert werden. Bitte versuche es erneut.");
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        pendingMatch.current = null;
+        setRefreshing(false);
+      }
+    }
+  }
 
   useEffect(() => {
     setMatchSnapshot(getLatestMatchSnapshot());
+    return () => pendingMatch.current?.abort();
   }, []);
 
   const scoredResults = useMemo(() => {
@@ -200,7 +221,7 @@ export default function ResultsPage() {
     const results = matchSnapshot?.results ?? [];
     return results
       .filter((result) => !(result.exclusionReasons?.length > 0))
-      .map((result) => buildDecisionCard(result, originLabel));
+      .map((result) => buildDecisionCard(result, originLabel, matchSnapshot?.meta?.createdAt));
   }, [matchSnapshot, originLabel]);
 
   const fallbackMatchCards = useMemo(() => {
@@ -229,60 +250,62 @@ export default function ResultsPage() {
   }, [originLabel, scoredResults, sort]);
 
   const matchCards = useMemo(() => {
-    if (apiMatchCards.length) return sortCards(apiMatchCards, sort).slice(0, 3);
+    if (matchSnapshot && !matchSnapshot.error) return sortCards(apiMatchCards, sort).slice(0, 3);
     return fallbackMatchCards;
-  }, [apiMatchCards, fallbackMatchCards, sort]);
+  }, [apiMatchCards, fallbackMatchCards, matchSnapshot, sort]);
 
-  const activeFilters = useMemo(() => {
+  const activePreferences = matchSnapshot?.meta?.prefs ?? guestState.preferences;
+  const activeMaxDriveHours = matchSnapshot?.meta?.filters.maxDriveHours ?? guestState.preferences.maxTravelHours;
+  const activeFilters = (() => {
     const filters: ActiveFilter[] = [];
-    if (guestState.preferences.snowReliability >= 4) {
+    if (activePreferences.snowReliability >= 4) {
       filters.push({
         id: "snow",
         label: "Schneesicher",
         icon: <SnowIcon />,
-        onRemove: () => setPreferences({ snowReliability: MATCH_PREF_DEFAULTS.snowReliability }),
+        onRemove: () => void refreshMatch({ snowReliability: 3 }),
       });
     }
-    if (guestState.preferences.maxTravelHours) {
+    if (activeMaxDriveHours) {
       filters.push({
         id: "drive",
         label: "Kurze Anreise",
         icon: <CarIcon />,
-        onRemove: () => setPreferences({ maxTravelHours: "" }),
+        onRemove: () => void refreshMatch({ maxTravelHours: "" }),
       });
     }
-    if (guestState.preferences.budgetMin !== MATCH_PREF_DEFAULTS.budgetMin || guestState.preferences.budgetMax !== MATCH_PREF_DEFAULTS.budgetMax) {
+    if (activePreferences.budgetMin !== MATCH_PREF_DEFAULTS.budgetMin || activePreferences.budgetMax !== MATCH_PREF_DEFAULTS.budgetMax) {
       filters.push({
         id: "budget",
         label: "Budget",
         icon: <WalletIcon />,
-        onRemove: () => setPreferences({ budgetMin: MATCH_PREF_DEFAULTS.budgetMin, budgetMax: MATCH_PREF_DEFAULTS.budgetMax, budget: MATCH_PREF_DEFAULTS.budget }),
+        onRemove: () => void refreshMatch({ budgetMin: MATCH_PREF_DEFAULTS.budgetMin, budgetMax: MATCH_PREF_DEFAULTS.budgetMax, budget: MATCH_PREF_DEFAULTS.budget }),
       });
     }
-    if (guestState.preferences.family >= 4 || guestState.preferences.tripStyle === "family") {
+    if (activePreferences.family >= 4 || activePreferences.tripStyle === "family") {
       filters.push({
         id: "family",
         label: "Familie",
         icon: <FamilyIcon />,
-        onRemove: () => setPreferences({ family: MATCH_PREF_DEFAULTS.family, tripStyle: MATCH_PREF_DEFAULTS.tripStyle }),
+        onRemove: () => void refreshMatch({ family: MATCH_PREF_DEFAULTS.family, tripStyle: MATCH_PREF_DEFAULTS.tripStyle }),
       });
     }
     if (!filters.length) {
       filters.push({
         id: "profile",
-        label: tripStyleLabel(guestState.preferences.tripStyle),
+        label: tripStyleLabel(activePreferences.tripStyle),
         icon: <SnowIcon />,
       });
     }
     return filters;
-  }, [guestState.preferences, setPreferences]);
+  })();
 
   const resultStatus = useMemo(() => {
-    if (matchSnapshot?.error) return `Match-API fehlgeschlagen: ${matchSnapshot.error.message}. Alpivo zeigt lokale Fallback-Matches.`;
-    if (apiMatchCards.length && matchSnapshot?.meta?.usingFallback) return "Match aus API-Fallback-Daten. Live-Daten waren leer oder nicht erreichbar.";
-    if (apiMatchCards.length) return `Match aus dem letzten Quizlauf. Quelle: ${matchSnapshot?.meta?.source ?? "API"}.`;
-    return "Kein gespeicherter Quizlauf gefunden. Alpivo zeigt ein lokales Standardprofil.";
-  }, [apiMatchCards.length, matchSnapshot]);
+    if (matchSnapshot?.error) return "Deine Empfehlungen konnten nicht geladen werden. Hier sind einige Beispiele.";
+    if (matchSnapshot?.meta?.usingFallback) return "Deine Empfehlungen basieren auf lokal verfügbaren Resortdaten.";
+    if (matchSnapshot) return "Deine Empfehlungen basieren auf deiner aktuellen Auswahl.";
+    return "Beispiele zur Orientierung. Starte das Quiz für persönliche Empfehlungen.";
+  }, [matchSnapshot]);
 
   return (
     <div className="alpivo-ui-root min-h-screen bg-[var(--alpivo-snow-white)] text-[var(--alpivo-deep-navy)]">
@@ -313,12 +336,13 @@ export default function ResultsPage() {
         </section>
 
         <div className="relative z-10 mx-auto -mt-12 max-w-[1280px] px-[var(--alpivo-space-page-x)]">
-          <TopMatchesFilterBar filters={activeFilters} sort={sort} onSortChange={setSort} />
+          <TopMatchesFilterBar filters={activeFilters} refreshing={refreshing} sort={sort} onSortChange={setSort} />
         </div>
 
         <section className="mx-auto mt-6 max-w-[1280px] space-y-5 px-[var(--alpivo-space-page-x)] md:mt-8">
           <div className="rounded-[var(--alpivo-radius-lg)] border border-[var(--alpivo-border-subtle)] bg-white px-4 py-3 text-sm leading-6 text-[var(--alpivo-ink-muted)] shadow-[var(--alpivo-shadow-sm)]">
-            {resultStatus}
+            <span role="status">{refreshing ? "Empfehlungen werden neu berechnet …" : resultStatus}</span>
+            {refreshError && <p role="alert">{refreshError}</p>}
           </div>
 
           {matchCards.length ? (

@@ -5,8 +5,7 @@ import {
   type ResortDecision,
 } from "@/lib/resortSignals";
 import { buildMatchPayload } from "@/lib/matching/matchPayload";
-import { loadAllResortRows } from "@/lib/resortRepository";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { loadPublicResorts } from "@/lib/publicResortCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +16,7 @@ export async function POST(req: Request) {
     const prefs = buildMatchPayload(rawPrefs);
     const budgetCap = resolveBudgetCap(prefs);
 
-    const source = await loadAllResortRows(supabaseAdmin, { orderBy: "name" });
+    const source = await loadPublicResorts();
     const sourceResorts = source.resorts;
 
     const allScored: ResortDecision[] = sourceResorts.map((resort) =>

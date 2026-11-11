@@ -36,6 +36,16 @@ export const resortActionLinks: Record<string, ResortActionLinks> = {
     accommodationSearch: official("Unterkunft offiziell suchen", "https://www.soelden.com/en/search-book/accommodations", "accommodation", "Sölden Tourismus"),
     travelInfo: official("Anreise planen", "https://www.soelden.com/en/region-villages/getting-here", "travel", "Sölden Tourismus"),
   },
+  "serfaus-fiss-ladis": {
+    officialInfo: official("Offizielle Resort-Infos", "https://www.serfaus-fiss-ladis.at/de/winterurlaub/skigebiet-und-winteraktivitaeten", "official", "Serfaus-Fiss-Ladis Tourismus"),
+    ticketInfo: official("Skipasspreise prüfen", "https://www.serfaus-fiss-ladis.at/de/winterurlaub/skipasspreise", "ticket_info", "Serfaus-Fiss-Ladis Tourismus"),
+    accommodationSearch: official("Unterkunft suchen", "https://www.serfaus-fiss-ladis.at/de/buchen-und-mehr/unterkunft-buchen", "accommodation", "Serfaus-Fiss-Ladis Tourismus"),
+  },
+  "alta-badia": {
+    officialInfo: official("Offizielle Resort-Infos", "https://www.altabadia.org/de/alta-badia-skipass/alta-badia-skigebiet-preise", "official", "Alta Badia Tourismus"),
+    ticketInfo: official("Skipasspreis berechnen", "https://www.altabadia.org/de/alta-badia-skipass/alta-badia-skigebiet-preise/skipasspreis-rechner", "ticket_info", "Alta Badia Tourismus"),
+    accommodationSearch: official("Unterkunft suchen", "https://www.altabadia.org/de/unterkuenfte-alta-badia/hotels-ferienwohnungen-appartements/alle-unterkuenfte", "accommodation", "Alta Badia Tourismus"),
+  },
   "zell-am-see": {
     officialInfo: official("Offizielle Resort-Infos", "https://www.zellamsee-kaprun.com/", "official", "Zell am See-Kaprun Tourismus"),
     skipassShop: official("Skipass offiziell kaufen", "https://www.zellamsee-kaprun.com/de/buchen/skipaesse", "skipass_shop", "Zell am See-Kaprun Tourismus", "Externe offizielle Ticketseite. Alpivo wickelt keinen Kauf ab."),

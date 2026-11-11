@@ -1,3 +1,4 @@
+import { getResortFacts } from "@/data/resortFacts";
 import Link from "next/link";
 import { Card, MatchScoreRing, ResortImage, SectionContainer } from "@/components/ui";
 import { getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
@@ -71,7 +72,7 @@ function buildFeaturedResorts(): FeaturedResort[] {
       image: serfaus?.hero_image_url || serfaus?.image_url || "/bg/resorts.jpg",
       score: 88,
       snow: "Hoch",
-      lifts: formatLifts(serfaus?.lifts_count_total ?? 68),
+      lifts: formatLifts(getResortFacts("serfaus-fiss-ladis")?.lifts),
       drive: "6 h 15 min",
     },
   ];
@@ -111,6 +112,7 @@ export default function FeaturedResortCards() {
             <Link href={`/resort/${encodeURIComponent(resort.slug)}`} className="block focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[rgba(47,107,255,0.5)]">
               <div className="relative">
                 <ResortImage
+                  showMissingPhoto
                   src={resort.image}
                   alt={`${resort.name} Winterpanorama`}
                   priority={index === 0}

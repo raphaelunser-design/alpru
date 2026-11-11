@@ -71,6 +71,7 @@ export default function TopMatchResultCard({ match, priority = false }: { match:
       <div className="grid lg:grid-cols-[minmax(280px,0.42fr)_minmax(0,1fr)_190px]">
         <Link href={match.detailHref} className="order-2 block lg:order-none focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgba(47,107,255,0.5)]" aria-label={`${match.name} Details ansehen`}>
           <ResortImage
+            showMissingPhoto
             src={match.image}
             alt={`${match.name} Winterpanorama`}
             priority={priority}

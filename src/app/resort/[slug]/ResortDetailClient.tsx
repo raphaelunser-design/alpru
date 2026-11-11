@@ -1,5 +1,6 @@
 "use client";
 
+import { getResortFacts } from "@/data/resortFacts";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -242,8 +243,9 @@ function getCanonicalView(resort: AlpivoResort): ResortView {
 
 function getCatalogView(resort: ResortSignalRow): ResortView {
   const slug = resort.slug || resort.id;
-  const pisteKm = resort.piste_km_total ?? resort.piste_km;
-  const lifts = resort.lifts_count_total;
+  const facts = getResortFacts(slug);
+  const pisteKm = facts?.pisteKm ?? resort.piste_km_total ?? resort.piste_km;
+  const lifts = facts?.lifts ?? resort.lifts_count_total;
   const styles = findMvpResortBySlug(slug)?.resort_style ?? [];
   const snowStrength = styles.includes("snow") || styles.includes("glacier") ? "Hoch" : "Prüfen";
   const regionLabel = [resort.region, resort.country].filter(Boolean).join(", ") || resort.country;
@@ -301,8 +303,8 @@ function getCatalogView(resort: ResortSignalRow): ResortView {
     ],
     overviewFacts: [
       { label: "Region", value: regionLabel },
-      { label: "Pisten", value: pisteKm ? `${pisteKm} km` : "Daten fehlen" },
-      { label: "Lifte", value: lifts ? `${lifts} Anlagen` : "Daten fehlen" },
+      { label: "Pisten", value: pisteKm ? `${pisteKm} km` : "Daten fehlen", detail: facts?.pisteNote },
+      { label: "Lifte", value: lifts ? `${lifts} Anlagen` : "Daten fehlen", detail: facts?.liftNote },
       {
         label: "Höhe",
         value:
@@ -439,7 +441,8 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
   const catalogRow = detail ?? findMvpResortBySlug(resort.slug);
   const skipassUrl = actionLinks.skipassShop?.url ?? actionLinks.ticketInfo?.url ?? catalogRow?.skipass_url;
   const accommodationLink = actionLinks.accommodationSearch;
-  const officialUrl = actionLinks.officialInfo?.url ?? catalogRow?.official_url ?? "/resorts";
+  const officialUrl = actionLinks.officialInfo?.url ?? catalogRow?.official_url;
+  const officialFacts = getResortFacts(resort.slug);
 
   const keyFacts = match
     ? [
@@ -462,7 +465,7 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
         <section className="relative isolate min-h-[380px] overflow-hidden bg-[var(--alpivo-deep-navy)] sm:min-h-[560px] lg:min-h-[590px]">
           <Image
             src={resort.image}
-            alt={`${resort.name} Winterpanorama`}
+            alt={resort.image === fallbackImage ? "" : `${resort.name} Winterpanorama`}
             fill
             priority
             unoptimized={resort.image.startsWith("http")}
@@ -539,20 +542,27 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
           <Card as="aside" className="p-6 md:p-7">
             <h2 className="text-2xl font-semibold leading-tight">Nächste Schritte</h2>
             <div className="mt-6 space-y-3">
-              <ActionRow
-                description="Preise & Optionen ansehen"
-                href={skipassUrl ?? officialUrl}
-                icon={<CalendarIcon />}
-                onClick={() => markActionCompleted("skipassChecked", resort.slug)}
-                title="Skipass prüfen"
-              />
-              <ActionRow
-                description={`Die besten Unterkünfte in ${resort.name}`}
-                href={accommodationLink?.url ?? officialUrl}
-                icon={<BedIcon />}
-                onClick={() => markActionCompleted("accommodationChecked", resort.slug)}
-                title="Unterkünfte ansehen"
-              />
+              {skipassUrl && (
+                <ActionRow
+                  description="Preise und Optionen beim Anbieter ansehen"
+                  href={skipassUrl}
+                  icon={<CalendarIcon />}
+                  onClick={() => markActionCompleted("skipassChecked", resort.slug)}
+                  title="Skipass prüfen"
+                />
+              )}
+              {accommodationLink && (
+                <ActionRow
+                  description={`Unterkünfte in ${resort.name} beim Anbieter suchen`}
+                  href={accommodationLink.url}
+                  icon={<BedIcon />}
+                  onClick={() => markActionCompleted("accommodationChecked", resort.slug)}
+                  title="Unterkünfte ansehen"
+                />
+              )}
+              {officialUrl && (!skipassUrl || !accommodationLink) && (
+                <ActionRow description="Aktuelle Informationen auf der Website des Skigebiets" href={officialUrl} icon={<MountainIcon />} title="Offizielle Website" />
+              )}
               <ActionRow description="Resort auf deine Merkliste setzen" icon={<HeartIcon />} onClick={handleTripSave} title="Trip speichern" />
             </div>
             {message ? (
@@ -568,6 +578,11 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
             <p>{resort.description}</p>
             <div className="mt-4">
               <FactList facts={resort.overviewFacts.slice(0, 4)} />
+              {officialFacts && (
+                <a href={officialFacts.source} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block font-semibold underline">
+                  Angaben des Skigebiets
+                </a>
+              )}
             </div>
           </AccordionRow>
 
@@ -575,6 +590,7 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
             <p>
               {resort.name} bietet {resort.pisteKm} Pisten und {resort.lifts}. Die Höhenlage liegt bei {resort.altitude}.
             </p>
+            {officialFacts?.pisteNote && <p className="mt-2">{officialFacts.pisteNote}</p>}
             <div className="mt-4 space-y-3">
               {resort.slopeDifficulty.map((slope) => (
                 <div key={slope.label}>

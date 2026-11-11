@@ -1,5 +1,6 @@
 "use client";
 
+import { getResortFacts } from "@/data/resortFacts";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader, Button, Card, FilterPill, MatchScoreRing, ResortImage, SectionContainer } from "@/components/ui";
@@ -133,8 +134,9 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
       <Link href={`/resort/${encodeURIComponent(resort.slug)}`} className="block focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgba(47,107,255,0.5)]">
         <div className="relative">
           <ResortImage
+            showMissingPhoto
             src={cardImage(resort)}
-            alt={`${resort.name} Winterpanorama`}
+            alt={resort.imageAlt ?? ""}
             priority={priority}
             aspectClassName="aspect-[1.65/1]"
             containerClassName="rounded-b-none rounded-t-[var(--alpivo-radius-xl)]"
@@ -158,7 +160,7 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
               <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">p. P.</span>
             </div>
             <div className="px-3">
-              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPistes(resort.pisteKm)}</span>
+              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPistes(getResortFacts(resort.slug)?.pisteKm ?? resort.pisteKm)}</span>
               <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">Pisten</span>
             </div>
             <div className="pl-3">

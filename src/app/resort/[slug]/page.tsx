@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import { loadResortDetailRow } from "@/lib/resortRepository";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { loadPublicResortDetail } from "@/lib/publicResortCatalog";
 import { getAlpivoResortBySlug } from "@/data/resorts";
 import ResortDetailClient from "./ResortDetailClient";
 
@@ -12,7 +11,7 @@ type ResortPageProps = {
 
 const loadDetail = cache(async (slug: string) => {
   if (getAlpivoResortBySlug(slug)) return null;
-  return (await loadResortDetailRow(supabaseAdmin, slug)).resort;
+  return (await loadPublicResortDetail(slug)).resort;
 });
 
 export async function generateMetadata({ params }: ResortPageProps): Promise<Metadata> {

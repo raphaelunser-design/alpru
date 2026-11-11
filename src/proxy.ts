@@ -57,6 +57,12 @@ export async function proxy(request: NextRequest) {
   if (isPublicAsset(pathname)) return NextResponse.next();
   if (isAuthRedirect(pathname, searchParams)) return nextWithSupabaseSession(request);
 
+  // This review deployment uses Vercel Deployment Protection for access.
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/match-flow-consistency") {
+    if (pathname === "/private-access") return NextResponse.redirect(new URL("/", request.url));
+    return nextWithSupabaseSession(request);
+  }
+
   const accessMode = await getProxyAccessMode();
   const requiredToken = getAccessPassword();
   if (accessMode === "public") return nextWithSupabaseSession(request);

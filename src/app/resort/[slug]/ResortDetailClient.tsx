@@ -459,7 +459,7 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
       <AppHeader navItems={navItems} />
 
       <main className="pb-20">
-        <section className="relative isolate min-h-[520px] overflow-hidden bg-[var(--alpivo-deep-navy)] sm:min-h-[560px] lg:min-h-[590px]">
+        <section className="relative isolate min-h-[380px] overflow-hidden bg-[var(--alpivo-deep-navy)] sm:min-h-[560px] lg:min-h-[590px]">
           <Image
             src={resort.image}
             alt={`${resort.name} Winterpanorama`}
@@ -473,30 +473,30 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,27,58,0.72)_0%,rgba(7,27,58,0.3)_42%,rgba(7,27,58,0.04)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 h-48 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.92)_100%)]" />
 
-          <div className="relative z-10 mx-auto flex min-h-[520px] w-full max-w-[1480px] flex-col justify-end px-[var(--alpivo-space-page-x)] pb-24 pt-16 sm:min-h-[560px] lg:min-h-[590px] lg:pb-28">
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="relative z-10 mx-auto flex min-h-[380px] w-full max-w-[1480px] flex-col justify-end px-[var(--alpivo-space-page-x)] pb-16 pt-8 sm:pb-24 sm:pt-16 sm:min-h-[560px] lg:min-h-[590px] lg:pb-28">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-8 lg:items-end">
               <div className="max-w-4xl text-white">
-                <h1 className="text-5xl font-semibold leading-none sm:text-6xl lg:text-7xl">{resort.name}</h1>
+                <h1 className="text-3xl font-semibold leading-tight sm:text-6xl lg:text-7xl">{resort.name}</h1>
                 <p className="mt-4 flex items-center gap-2 text-lg font-medium text-white/94">
                   <MapPinIcon />
                   <span>{resort.regionLabel}</span>
                 </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <IconStat icon={<SnowIcon />} label="Schneesicherheit" value={match?.snow ?? resort.snowStrength} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" tone="blue" />
-                  <IconStat icon={<LiftIcon />} label="Liftanlagen" value={resort.lifts} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" />
-                  <IconStat icon={<CarIcon />} label={match?.travelLabel ?? "Beispiel ab München"} value={match?.travelTime ?? resort.travelTimeLabel} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" />
+                <div className="mt-4 flex flex-wrap gap-2 sm:mt-8 sm:gap-3">
+                  <IconStat icon={<SnowIcon />} label="Schneesicherheit" value={match?.snow ?? resort.snowStrength} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" tone="blue" />
+                  <IconStat icon={<LiftIcon />} label="Liftanlagen" value={resort.lifts} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" />
+                  <IconStat icon={<CarIcon />} label={match?.travelLabel ?? "Beispiel ab München"} value={match?.travelTime ?? resort.travelTimeLabel} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" />
                 </div>
               </div>
               {match && (
                 <div className="flex justify-start lg:justify-end">
-                  <MatchScoreRing value={match.score} size="lg" className="shadow-[0_22px_70px_rgba(7,27,58,0.24)]" />
+                  <MatchScoreRing value={match.score} size="md" className="shadow-[0_22px_70px_rgba(7,27,58,0.24)]" />
                 </div>
               )}
             </div>
           </div>
         </section>
 
-        <section className="relative z-20 mx-auto -mt-14 w-full max-w-[1240px] px-[var(--alpivo-space-page-x)]">
+        <section className="relative z-20 mx-auto -mt-8 sm:-mt-14 w-full max-w-[1240px] px-[var(--alpivo-space-page-x)]">
           <Card className="grid gap-0 overflow-hidden rounded-[var(--alpivo-radius-xl)] p-0 shadow-[var(--alpivo-shadow-lg)] md:grid-cols-2 lg:grid-cols-4">
             {keyFacts.map((fact, index) => (
               <div key={fact.label} className={`p-5 md:p-6 ${index > 0 ? "border-t border-[var(--alpivo-border-subtle)] md:border-l md:border-t-0" : ""}`}>

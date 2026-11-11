@@ -6,13 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
 import { brand } from "@/config/brand";
 import GlassCard from "@/components/GlassCard";
-import AppShell from "@/components/premium/AppShell";
-import PageHeader from "@/components/premium/PageHeader";
+import { AppHeader } from "@/components/ui";
 import RangeSlider from "@/components/RangeSlider";
 import SelectControl from "@/components/SelectControl";
 import { ProfileIcon, SliderRow } from "@/components/quiz/QuizControls";
 import {
-  MobileQuizSummaryBar,
   QuizFooterActions,
   QuizMetricSummary,
   QuizSidebarSummary,
@@ -151,7 +149,6 @@ export default function QuizPage() {
   const [hydrated, setHydrated] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
-  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
   const [calendarMonths, setCalendarMonths] = useState(1);
   const [dnaStatus, setDnaStatus] = useState<"idle" | "loading" | "saved" | "local" | "error">("idle");
   const [dnaMessage, setDnaMessage] = useState("");
@@ -530,32 +527,28 @@ export default function QuizPage() {
   const primaryStepAction = isFinalStep ? onSubmit : goToNextStep;
 
   return (
-    <AppShell>
-      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
-        <div className="mx-auto grid w-full max-w-[1480px] gap-6 pb-32 md:pb-10">
-          <PageHeader
-            eyebrow="Alpivo Match Wizard"
-            title={heroContent.title}
-            subtitle={heroContent.subtitle}
-            actions={
-              <button
-                type="button"
-                className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
-                onClick={() => setMobileSummaryOpen((current) => !current)}
-              >
-                Auswahl anzeigen
-              </button>
-            }
-          />
+    <div className="alpivo-ui-root min-h-screen">
+      <AppHeader ctaLabel={null} />
+      <main className="alpivo-page-shell min-h-screen px-4 py-4 text-white md:px-8 md:py-8">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-4 pb-28 md:gap-6 md:pb-10">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">{heroContent.title}</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-200 md:text-base">{heroContent.subtitle}</p>
+          </div>
 
-        <QuizMetricSummary
-          activeProfileLabel={activeProfileLabel}
-          budgetMin={prefs.budgetMin}
-          budgetMax={prefs.budgetMax}
-          rangeDays={rangeDays}
-          rangeSummary={rangeSummary}
-          priorityCount={topPriorities.length}
-        />
+          <details className="rounded-xl border border-white/15 bg-slate-950/30 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold text-white">Deine Auswahl</summary>
+            <div className="mt-3">
+              <QuizMetricSummary
+                activeProfileLabel={activeProfileLabel}
+                budgetMin={prefs.budgetMin}
+                budgetMax={prefs.budgetMax}
+                rangeDays={rangeDays}
+                rangeSummary={rangeSummary}
+                priorityCount={topPriorities.length}
+              />
+            </div>
+          </details>
 
         <QuizWizardProgress activeStep={activeStep} onStepChange={setActiveStep} />
 
@@ -1192,20 +1185,8 @@ export default function QuizPage() {
           />
         </div>
 
-        <MobileQuizSummaryBar
-          activeProfileLabel={activeProfileLabel}
-          isFinalStep={isFinalStep}
-          mobileSummaryOpen={mobileSummaryOpen}
-          prefs={prefs}
-          rangeSummary={rangeSummary}
-          submitting={submitting}
-          submitError={submitError}
-          topPriorities={topPriorities}
-          onPrimaryAction={primaryStepAction}
-          onToggle={() => setMobileSummaryOpen((current) => !current)}
-        />
         </div>
       </main>
-    </AppShell>
+    </div>
   );
 }

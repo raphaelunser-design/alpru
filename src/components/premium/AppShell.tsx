@@ -103,13 +103,6 @@ export default function AppShell({ children, className = "" }: AppShellProps) {
               Feedback geben
             </Link>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/54 p-3">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-sky-200 text-sm font-black text-slate-950">RU</span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-bold text-white">Raphael U.</span>
-              <span className="block text-xs text-slate-400">Kostenloser Plan</span>
-            </span>
-          </div>
         </div>
       </aside>
 

@@ -38,13 +38,13 @@ function SearchIcon() {
 export default function LandingSearchBar() {
   return (
     <Card className="p-3 shadow-[var(--alpivo-shadow-lg)] md:p-4">
-      <form action="/quiz" className="grid gap-3 lg:grid-cols-[repeat(5,minmax(0,1fr))_76px] lg:items-stretch">
+      <form action="/quiz" className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[repeat(5,minmax(0,1fr))_76px] lg:items-stretch">
         {fields.map((field) => (
           <label
             key={field.name}
-            className="flex min-h-[74px] items-center gap-3 rounded-[var(--alpivo-radius-md)] border border-[var(--alpivo-border-subtle)] bg-white px-4 transition focus-within:border-[rgba(47,107,255,0.5)] focus-within:ring-4 focus-within:ring-[rgba(47,107,255,0.1)]"
+            className="flex min-h-14 items-center gap-2 lg:min-h-[74px] lg:gap-3 rounded-[var(--alpivo-radius-md)] border border-[var(--alpivo-border-subtle)] bg-white px-2 transition sm:px-4 focus-within:border-[rgba(47,107,255,0.5)] focus-within:ring-4 focus-within:ring-[rgba(47,107,255,0.1)]"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--alpivo-radius-sm)] text-[var(--alpivo-deep-navy)]" aria-hidden="true">
+            <span className="hidden h-8 w-8 shrink-0 sm:grid place-items-center rounded-[var(--alpivo-radius-sm)] text-[var(--alpivo-deep-navy)]" aria-hidden="true">
               <FieldIcon name={field.icon} />
             </span>
             <span className="min-w-0 flex-1">
@@ -59,8 +59,9 @@ export default function LandingSearchBar() {
           </label>
         ))}
 
-        <Button type="submit" className="min-h-[74px] px-4" aria-label="Match suchen">
+        <Button type="submit" className="min-h-14 gap-2 px-2 lg:min-h-[74px]" aria-label="Match suchen">
           <SearchIcon />
+          <span className="lg:sr-only">Match suchen</span>
         </Button>
       </form>
     </Card>

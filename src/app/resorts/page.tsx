@@ -329,7 +329,7 @@ export default function ResortsPage() {
                   <span className="mt-1 block text-sm text-[var(--alpivo-ink-muted)]">aktuelle Treffer</span>
                 </div>
                 <div>
-                  <span className="block text-3xl font-semibold text-[var(--alpivo-deep-navy)]">{usingFallback ? "Fallback" : "Live"}</span>
+                  <span className="block text-3xl font-semibold text-[var(--alpivo-deep-navy)]">{usingFallback ? "Beispiele" : "Katalog"}</span>
                   <span className="mt-1 block text-sm text-[var(--alpivo-ink-muted)]">Datenmodus</span>
                 </div>
               </div>
@@ -379,7 +379,7 @@ export default function ResortsPage() {
               <span className="font-semibold text-[var(--alpivo-deep-navy)]">
                 {loading ? "Resortdaten werden geladen" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
               </span>
-              {!loading && usingFallback ? <span> · Fallback-Daten</span> : null}
+              {!loading && usingFallback ? <span> · Beispielgebiete</span> : null}
               {!loading && query.trim() ? <span> · Suche: {query.trim()}</span> : null}
             </div>
             <span>{!loading && filtered.length > 0 ? `Zeige ${number.format(visibleResorts.length)} von ${number.format(filtered.length)}` : ""}</span>
@@ -387,7 +387,7 @@ export default function ResortsPage() {
 
           {error ? (
             <div className="rounded-[var(--alpivo-radius-lg)] border border-amber-300/35 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-              Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Beta-Pilotdaten. Technischer Hinweis: {error}
+              Der vollständige Katalog ist gerade nicht verfügbar. Du siehst eine Auswahl an Beispielgebieten.
             </div>
           ) : null}
 

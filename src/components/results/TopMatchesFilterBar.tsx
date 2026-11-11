@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Card, FilterPill } from "@/components/ui";
 
-export type ResultsSortKey = "match" | "price" | "drive";
+export type ResultsSortKey = "match" | "price";
 
 export type ActiveFilter = {
   id: string;
@@ -80,7 +80,7 @@ export default function TopMatchesFilterBar({ filters, refreshing, sort, onSortC
           ))}
         </div>
 
-        <label className="relative flex min-h-[58px] items-center gap-4 border-t border-[var(--alpivo-border-subtle)] pt-3 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
+        <label className="relative flex min-h-11 items-center gap-4 border-t border-[var(--alpivo-border-subtle)] pt-3 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-semibold text-[var(--alpivo-ink-muted)]">Sortieren nach</span>
             <select
@@ -91,7 +91,6 @@ export default function TopMatchesFilterBar({ filters, refreshing, sort, onSortC
             >
               <option value="match">Beste Übereinstimmung</option>
               <option value="price">Budget</option>
-              <option value="drive">Kurze Anreise</option>
             </select>
           </span>
           <ChevronIcon />

@@ -9,7 +9,6 @@ export type TopMatchCardModel = {
   location: string;
   image: string;
   score: number;
-  priceLevel: string;
   priceNote: string;
   travelTime: string;
   travelLabel: string;
@@ -18,7 +17,13 @@ export type TopMatchCardModel = {
   detailHref: string;
   sortScore: number;
   sortPrice: number;
-  sortDriveMinutes: number;
+  budgetFit?: "within" | "partial" | "over";
+};
+
+const budgetFitText = {
+  within: { label: "Im Budget", className: "bg-emerald-50 text-emerald-800" },
+  partial: { label: "Je nach Kosten im Budget", className: "bg-amber-50 text-amber-900" },
+  over: { label: "Über deinem Budget", className: "bg-red-50 text-red-800" },
 };
 
 function LocationIcon() {
@@ -60,24 +65,25 @@ function StatItem({ icon, value, label }: { icon: ReactNode; value: string; labe
 }
 
 export default function TopMatchResultCard({ match, priority = false }: { match: TopMatchCardModel; priority?: boolean }) {
+  const budgetFit = match.budgetFit && budgetFitText[match.budgetFit];
   return (
     <Card as="article" interactive className="overflow-hidden p-0">
       <div className="grid lg:grid-cols-[minmax(280px,0.42fr)_minmax(0,1fr)_190px]">
-        <Link href={match.detailHref} className="block focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgba(47,107,255,0.5)]" aria-label={`${match.name} Details ansehen`}>
+        <Link href={match.detailHref} className="order-2 block lg:order-none focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgba(47,107,255,0.5)]" aria-label={`${match.name} Details ansehen`}>
           <ResortImage
             src={match.image}
             alt={`${match.name} Winterpanorama`}
             priority={priority}
-            aspectClassName="aspect-[1.72/1] lg:aspect-auto lg:h-full lg:min-h-[236px]"
-            containerClassName="rounded-b-none rounded-t-[var(--alpivo-radius-xl)] lg:rounded-l-[var(--alpivo-radius-xl)] lg:rounded-r-none"
+            aspectClassName="aspect-[3/1] lg:aspect-auto lg:h-full lg:min-h-[236px]"
+            containerClassName="rounded-none lg:rounded-l-[var(--alpivo-radius-xl)]"
             sizes="(min-width: 1024px) 36vw, 94vw"
           />
         </Link>
 
-        <div className="px-5 py-5 md:px-7">
+        <div className="order-1 min-w-0 px-4 py-4 md:px-7 lg:order-none">
           <div className="flex items-start justify-between gap-4 lg:block">
             <div>
-              <h2 className="alpivo-ui-heading text-3xl leading-tight md:text-4xl">{match.name}</h2>
+              <h2 className="alpivo-ui-heading text-2xl leading-tight md:text-4xl">{match.name}</h2>
               <p className="mt-2 flex items-center gap-2 text-sm text-[var(--alpivo-ink-muted)]">
                 <LocationIcon />
                 <span>{match.location}</span>
@@ -88,13 +94,18 @@ export default function TopMatchResultCard({ match, priority = false }: { match:
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 border-b border-[var(--alpivo-border-subtle)] pb-5 md:grid-cols-3">
-            <StatItem icon={<WalletIcon />} value={match.priceLevel} label={match.priceNote} />
+          <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:gap-3">
+            <StatItem icon={<WalletIcon />} value={match.priceNote} label="Geschätzte Reisekosten" />
             <StatItem icon={<CarIcon />} value={match.travelTime} label={match.travelLabel} />
             <StatItem icon={<SnowIcon />} value={match.snow} label="Schneesicherheit" />
           </div>
 
-          <ul className="mt-5 space-y-2">
+          {budgetFit && (
+            <p className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold ${budgetFit.className}`}>
+              {budgetFit.label}
+            </p>
+          )}
+          <ul className="mt-4 hidden space-y-2 lg:block">
             {match.reasons.slice(0, 3).map((reason) => (
               <li key={reason} className="flex items-start gap-3 text-sm leading-6 text-[var(--alpivo-ink-muted)]">
                 <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[rgba(47,107,255,0.12)] text-[var(--alpivo-alpine-blue)]">
@@ -106,7 +117,7 @@ export default function TopMatchResultCard({ match, priority = false }: { match:
           </ul>
         </div>
 
-        <div className="flex flex-col justify-between gap-5 border-t border-[var(--alpivo-border-subtle)] px-5 py-5 lg:items-center lg:border-l lg:border-t-0 lg:px-6">
+        <div className="order-3 flex flex-col justify-between gap-5 border-t lg:order-none border-[var(--alpivo-border-subtle)] px-5 py-5 lg:items-center lg:border-l lg:border-t-0 lg:px-6">
           <div className="hidden lg:block">
             <MatchScoreRing value={match.score} size="md" />
           </div>

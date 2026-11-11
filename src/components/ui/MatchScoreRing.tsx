@@ -10,8 +10,8 @@ type MatchScoreRingProps = {
 };
 
 const sizeConfig = {
-  sm: { box: "h-20 w-20", radius: 32, stroke: 7, text: "text-2xl" },
-  md: { box: "h-28 w-28", radius: 44, stroke: 8, text: "text-4xl" },
+  sm: { box: "h-20 w-20", radius: 55, stroke: 7, text: "text-xl" },
+  md: { box: "h-28 w-28", radius: 55, stroke: 8, text: "text-3xl" },
   lg: { box: "h-36 w-36", radius: 58, stroke: 9, text: "text-5xl" },
 };
 

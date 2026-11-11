@@ -755,7 +755,7 @@ export default function QuizPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Details</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Harte Grenzen setzen</h2>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs text-slate-400">Land</label>
               <SelectControl
@@ -767,25 +767,15 @@ export default function QuizPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400">Min. Pisten-km</label>
+              <label htmlFor="min-piste-km" className="text-xs text-slate-400">Mindestens Pistenkilometer</label>
               <input
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white"
+                id="min-piste-km"
                 type="number"
+                min="0"
                 placeholder="z. B. 40"
                 value={prefilters.minPisteKm}
                 onChange={(e) => setPrefilters({ ...prefilters, minPisteKm: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400">Max. Fahrzeit (h)</label>
-              <input
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white"
-                type="number"
-                step="0.25"
-                min="0"
-                placeholder="z. B. 3.5"
-                value={prefilters.maxDriveHours}
-                onChange={(e) => setPrefilters({ ...prefilters, maxDriveHours: e.target.value })}
               />
             </div>
           </div>

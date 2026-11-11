@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader, Button, Card, FilterPill, MatchScoreRing, ResortImage, SectionContainer } from "@/components/ui";
 import { deriveResortDecision, type MatchPreferences, type ResortDecision, type ResortSignalRow } from "@/lib/resortSignals";
+import { formatTripCost } from "@/lib/matching/matchPresentation";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
 
@@ -83,11 +84,6 @@ function LocationIcon() {
   );
 }
 
-function formatPrice(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "Preis offen";
-  return `ab ${number.format(Math.round(value))} €`;
-}
-
 function formatPistes(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "Pisten offen";
   return `${number.format(Math.round(value))} km`;
@@ -143,7 +139,7 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
             sizes="(min-width: 1280px) 31vw, (min-width: 768px) 46vw, 94vw"
           />
           <div className="absolute right-5 top-5">
-            <MatchScoreRing value={resort.matchPct} size="sm" />
+            <MatchScoreRing value={resort.matchPct} label="Basiswert" size="sm" />
           </div>
         </div>
 
@@ -156,8 +152,8 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
 
           <div className="mt-5 grid grid-cols-3 divide-x divide-[var(--alpivo-border-subtle)] border-y border-[var(--alpivo-border-subtle)] py-4">
             <div className="pr-3">
-              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPrice(resort.cost.totalMin)}</span>
-              <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">p. P.</span>
+              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatTripCost(resort.cost.totalMin, resort.cost.totalMax)}</span>
+              <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">1 Skitag, geschätzt</span>
             </div>
             <div className="px-3">
               <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPistes(getResortFacts(resort.slug)?.pisteKm ?? resort.pisteKm)}</span>

@@ -226,6 +226,13 @@ export default function ResultsPage() {
   const activePreferences = matchSnapshot?.meta?.prefs ?? guestState.preferences;
   const activeFilters = (() => {
     const filters: ActiveFilter[] = [];
+    const query = matchSnapshot?.meta?.filters;
+    if (query?.countryFilter && query.countryFilter !== "all") {
+      filters.push({ id: "country", label: query.countryFilter, icon: null });
+    }
+    if (Number(query?.minPisteKm) > 0) {
+      filters.push({ id: "pistes", label: `Mind. ${query?.minPisteKm} km Pisten`, icon: null });
+    }
     if (activePreferences.snowReliability >= 4) {
       filters.push({
         id: "snow",

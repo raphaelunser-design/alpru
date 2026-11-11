@@ -10,7 +10,7 @@ export async function requestMatch(
     method: "POST",
     signal,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(prefs),
+    body: JSON.stringify({ ...prefs, filters: { countryFilter: filters.countryFilter, minPisteKm: filters.minPisteKm } }),
   });
 
   const data = await response.json().catch(() => null);

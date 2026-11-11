@@ -1170,7 +1170,7 @@ export function deriveResortDecision(
   const cost = estimateResortCost(prefs, resort);
   const budgetClass = deriveBudgetClass(resort, cost);
   const legacyScored = scoreResort(prefs, resort, cost);
-  const alpivoScore = calculateAlpivoMatchScore(toAlpivoResortInput(resort), toAlpivoUserPreferences(prefs));
+  const alpivoScore = calculateAlpivoMatchScore(toAlpivoResortInput(resort), toAlpivoUserPreferences(prefs), cost);
   const pisteKm = pickPisteKm(resort);
   const summerGlacierScore = deriveSummerGlacierScore(resort);
   const infrastructureProfile = deriveInfrastructureProfile(resort);

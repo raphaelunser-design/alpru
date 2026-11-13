@@ -1,8 +1,9 @@
 {
-  "crons": [
+  "framework": null,
+  "rewrites": [
     {
-      "path": "/api/admin/sync-resorts",
-      "schedule": "0 3 * * *"
+      "source": "/ski-data",
+      "destination": "https://alpivo.de/ski-geo/obertauern.geojson"
     }
   ]
 }

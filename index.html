@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Obertauern · Alpivo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+<header><strong>ALPIVO</strong><span>3D-Pistenkarte</span></header>
+<main>
+  <div id="map" aria-label="Interaktive 3D-Karte von Obertauern"></div>
+  <section class="panel" aria-label="Kartenansicht">
+    <h1>Obertauern</h1>
+    <div class="controls">
+      <button id="reset">Gebiet zeigen</button>
+      <button id="winter" aria-pressed="true">Winterstil</button>
+      <button id="lifts" aria-pressed="true">Lifte</button>
+    </div>
+    <div class="legend"><span class="blue">Leicht</span><span class="red">Mittel</span><span class="black">Schwer</span></div>
+    <p id="status" role="status">Karte und Pisten werden geladen …</p>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="map.js"></script>
+</html>

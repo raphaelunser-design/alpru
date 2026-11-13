@@ -20,7 +20,7 @@ type AppHeaderProps = {
 
 const defaultNavItems: AppHeaderNavItem[] = [
   { href: "/resorts", label: "Resorts" },
-  { href: "/map", label: "3D Karte" },
+  { href: "/map", label: "Karte" },
   { href: "/#so-funktionierts", label: "So funktioniert's" },
 ];
 

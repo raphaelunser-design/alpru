@@ -19,7 +19,7 @@ const fallbackImage = "/bg/skilandschaft.png";
 
 const navItems = [
   { href: "/resorts", label: "Resorts", active: true },
-  { href: "/map", label: "3D Karte" },
+  { href: "/map", label: "Karte" },
   { href: "/#so-funktionierts", label: "So funktioniert's" },
 ];
 
@@ -402,7 +402,7 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
 }) {
   const resort = useMemo(() => getResortView(slug, detail), [slug, detail]);
   const actionLinks = useMemo(() => getResortActionLinks(resort?.slug), [resort?.slug]);
-  const { state: guestState, addTripDraftResort, markActionCompleted, selectResort } = useAlpivoGuestState();
+  const { state: guestState, addTripDraftResort, markActionCompleted } = useAlpivoGuestState();
   const [message, setMessage] = useState("");
   const [snapshot, setSnapshot] = useState<MatchResultSnapshot | null>(null);
   useEffect(() => {
@@ -453,7 +453,11 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
     : resort.keyFacts;
 
   const handleTripSave = () => {
-    addTripDraftResort(resort.slug);
+    const preferences = matchingResult && matchMeta ? {
+      ...matchMeta.prefs,
+      originLabel: matchMeta.originLabel || matchMeta.filters.originLabel || guestState.preferences.originLabel,
+    } : undefined;
+    addTripDraftResort(resort.slug, preferences, resort.name);
     setMessage(`${resort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt.`);
   };
 
@@ -567,7 +571,7 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
             </div>
             {message ? (
               <p className="mt-4 rounded-[var(--alpivo-radius-md)] border border-[rgba(47,107,255,0.18)] bg-[rgba(47,107,255,0.06)] px-4 py-3 text-sm text-[var(--alpivo-deep-navy)]">
-                {message}
+                {message} <Link href="/trips#trip-entwurf" className="font-semibold underline">Trip-Entwurf öffnen</Link>
               </p>
             ) : null}
           </Card>
@@ -631,18 +635,9 @@ export default function ResortDetailClient({ slug, detail, matchId }: {
                 </div>
               ))}
             </div>
-            {!match && <div className="mt-4">
-              <Button
-                href={`/map?resort=${encodeURIComponent(resort.slug)}`}
-                onClick={() => {
-                  selectResort(resort.slug);
-                  markActionCompleted("routeChecked", resort.slug);
-                }}
-                variant="secondary"
-              >
-                Auf Karte ansehen
-              </Button>
-            </div>}
+            <div className="mt-4">
+              <Button href={`/map?resort=${encodeURIComponent(resort.slug)}`} variant="secondary">Anreise auf der Karte planen</Button>
+            </div>
           </AccordionRow>
 
           <AccordionRow title="Beste Reisezeit" icon={<CalendarIcon />}>

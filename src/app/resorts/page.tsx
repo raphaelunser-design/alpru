@@ -294,7 +294,7 @@ export default function ResortsPage() {
       <AppHeader
         navItems={[
           { href: "/resorts", label: "Resorts", active: true },
-          { href: "/map", label: "3D Karte" },
+          { href: "/map", label: "Karte" },
           { href: "/results", label: "Top Matches" },
         ]}
       />

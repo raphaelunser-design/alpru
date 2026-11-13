@@ -190,6 +190,7 @@ export type TripDraft = {
   title: string;
   primaryResortSlug?: string;
   resortSlugs: string[];
+  resortNames?: Record<string, string>;
   originLabel: string;
   dateLabel: string;
   budgetLabel: string;

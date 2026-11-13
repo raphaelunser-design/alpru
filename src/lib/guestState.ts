@@ -90,12 +90,11 @@ function normalizePreferences(value: unknown): TripPreferences {
 }
 
 function buildDateLabel(preferences: TripPreferences) {
-  if (!preferences.tripStartDate || !preferences.tripEndDate) return "20. - 24. Januar 2027";
-  const from = new Date(preferences.tripStartDate);
-  const to = new Date(preferences.tripEndDate);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "20. - 24. Januar 2027";
-  const monthFormatter = new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" });
-  return `${from.getDate()}. - ${to.getDate()}. ${monthFormatter.format(to)}`;
+  const from = preferences.tripStartDate ? new Date(`${preferences.tripStartDate}T12:00:00`) : null;
+  const to = preferences.tripEndDate ? new Date(`${preferences.tripEndDate}T12:00:00`) : null;
+  if (!from || !to || !Number.isFinite(+from) || !Number.isFinite(+to)) return "Zeitraum offen";
+  const formatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
+  return formatter.formatRange(from, to);
 }
 
 function buildBudgetLabel(preferences: TripPreferences) {
@@ -110,6 +109,10 @@ function normalizeTripDraft(value: Partial<TripDraft> | undefined, preferences: 
     title: typeof value?.title === "string" && value.title ? value.title : `Ski-Trip mit ${resortSlugs.length} Option${resortSlugs.length === 1 ? "" : "en"}`,
     primaryResortSlug: typeof value?.primaryResortSlug === "string" ? value.primaryResortSlug : resortSlugs[0],
     resortSlugs,
+    resortNames: Object.fromEntries(resortSlugs.flatMap((slug) => {
+      const name = value?.resortNames?.[slug];
+      return typeof name === "string" && name.trim() ? [[slug, name]] : [];
+    })),
     originLabel: typeof value?.originLabel === "string" && value.originLabel ? value.originLabel : preferences.originLabel,
     dateLabel: typeof value?.dateLabel === "string" && value.dateLabel ? value.dateLabel : buildDateLabel(preferences),
     budgetLabel: typeof value?.budgetLabel === "string" && value.budgetLabel ? value.budgetLabel : buildBudgetLabel(preferences),
@@ -296,18 +299,26 @@ export function toggleGuestFavoriteSlug(slug: string) {
   return isFavorite;
 }
 
-export function addGuestTripDraftResort(slug: string) {
+export function addGuestTripDraftResort(slug: string, preferences?: Partial<TripPreferences>, resortName?: string) {
   return updateGuestState((state) => {
     const currentDraft = normalizeTripDraft(state.tripDraft, state.preferences);
     const resortSlugs = Array.from(new Set([...(currentDraft?.resortSlugs ?? []), slug]));
+    const context = preferences ? normalizePreferences({ ...state.preferences, ...preferences }) : state.preferences;
     const tripDraft = normalizeTripDraft(
       {
         ...currentDraft,
         resortSlugs,
+        resortNames: { ...currentDraft?.resortNames, ...(resortName ? { [slug]: resortName } : {}) },
+        ...(preferences ? {
+          originLabel: context.originLabel,
+          dateLabel: buildDateLabel(context),
+          budgetLabel: buildBudgetLabel(context),
+          groupSize: context.peopleCount,
+        } : {}),
         primaryResortSlug: currentDraft?.primaryResortSlug ?? slug,
         updatedAt: nowIso(),
       },
-      state.preferences
+      context
     );
 
     return appendActivity(

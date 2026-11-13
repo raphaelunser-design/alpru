@@ -41,8 +41,8 @@ export function useAlpivoGuestState() {
     return isFavorite;
   }, []);
 
-  const addTripDraftResort = useCallback((slug: string) => {
-    const next = addGuestTripDraftResort(slug);
+  const addTripDraftResort = useCallback((slug: string, preferences?: Partial<TripPreferences>, resortName?: string) => {
+    const next = addGuestTripDraftResort(slug, preferences, resortName);
     setState(next);
     return next.tripDraft;
   }, []);

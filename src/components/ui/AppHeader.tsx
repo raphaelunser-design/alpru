@@ -14,13 +14,13 @@ type AppHeaderProps = {
   actions?: ReactNode;
   className?: string;
   ctaHref?: string;
-  ctaLabel?: string;
+  ctaLabel?: string | null;
   navItems?: AppHeaderNavItem[];
 };
 
 const defaultNavItems: AppHeaderNavItem[] = [
   { href: "/resorts", label: "Resorts" },
-  { href: "/map", label: "3D Karte" },
+  { href: "/map", label: "Karte" },
   { href: "/#so-funktionierts", label: "So funktioniert's" },
 ];
 
@@ -33,7 +33,7 @@ export default function AppHeader({
 }: AppHeaderProps) {
   return (
     <header className={`sticky top-0 z-50 border-b border-[var(--alpivo-border-subtle)] bg-white/92 backdrop-blur-xl ${className}`}>
-      <div className="mx-auto flex min-h-20 w-full max-w-[1480px] items-center gap-4 px-[var(--alpivo-space-page-x)]">
+      <div className="mx-auto flex min-h-16 w-full md:min-h-20 max-w-[1480px] items-center gap-4 px-[var(--alpivo-space-page-x)]">
         <Link
           href="/"
           aria-label="Alpivo Startseite"
@@ -57,9 +57,7 @@ export default function AppHeader({
         </nav>
         <div className="ml-auto flex items-center gap-3 md:ml-3">
           {actions}
-          <Button href={ctaHref} size="md" variant="primary">
-            {ctaLabel}
-          </Button>
+          {ctaLabel && <Button href={ctaHref} size="md" variant="primary">{ctaLabel}</Button>}
         </div>
       </div>
       <nav

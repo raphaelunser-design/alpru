@@ -4,6 +4,8 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
+  --font-display: "Manrope Variable";
+  --font-sans: "Inter Variable";
   --background: #08111f;
   --foreground: #eef6ff;
   --alpivo-deep-navy: #071b3a;

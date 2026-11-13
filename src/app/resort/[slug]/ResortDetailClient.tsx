@@ -1,26 +1,25 @@
 "use client";
 
+import { getResortFacts } from "@/data/resortFacts";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AccordionRow, AppHeader, Button, Card, IconStat, MatchScoreRing } from "@/components/ui";
 import { getResortActionLinks } from "@/data/resortActionLinks";
 import { getAlpivoResortBySlug, type AlpivoResort } from "@/data/resorts";
-import { findMvpResortBySlug, type MvpResortRow } from "@/lib/mvpResorts";
+import { findMvpResortBySlug } from "@/lib/mvpResorts";
+import { getLatestMatchSnapshot, type MatchResultSnapshot } from "@/lib/matching/matchPayload";
+import { presentMatch } from "@/lib/matching/matchPresentation";
+import type { ResortDetailRow } from "@/lib/resortRepository";
+import type { ResortSignalRow } from "@/lib/resortSignals";
 import { useAlpivoGuestState } from "@/hooks/useAlpivoGuestState";
 
 const fallbackImage = "/bg/skilandschaft.png";
 
-const displayScores: Record<string, number> = {
-  obertauern: 96,
-  solden: 92,
-  "serfaus-fiss-ladis": 88,
-};
-
 const navItems = [
   { href: "/resorts", label: "Resorts", active: true },
-  { href: "/map", label: "3D Karte" },
+  { href: "/map", label: "Karte" },
   { href: "/#so-funktionierts", label: "So funktioniert's" },
 ];
 
@@ -28,8 +27,6 @@ type ResortView = {
   slug: string;
   name: string;
   regionLabel: string;
-  score: number;
-  priceLabel: string;
   travelTimeLabel: string;
   snowLabel: string;
   snowStrength: string;
@@ -184,18 +181,6 @@ function normalizeSnowLabel(label: string) {
   return label || "Prüfen";
 }
 
-function priceRangeFromSinglePrice(value: number | null | undefined) {
-  if (!value) return "Preis prüfen";
-  const lower = Math.max(350, Math.round((value * 9) / 10 / 25) * 25);
-  const upper = Math.round((value * 1.2) / 25) * 25;
-  return `${lower.toLocaleString("de-DE")}–${upper.toLocaleString("de-DE")} €`;
-}
-
-function formatScore(value: number | null | undefined, fallback = 82) {
-  if (typeof value !== "number") return fallback;
-  return Math.max(0, Math.min(100, Math.round(value * 100)));
-}
-
 function getCanonicalView(resort: AlpivoResort): ResortView {
   const snowStrength = normalizeSnowLabel(resort.snowLabel);
   const snowFactor = resort.detail.factorScores.find((factor) => factor.label.toLowerCase().includes("schnee"));
@@ -206,8 +191,6 @@ function getCanonicalView(resort: AlpivoResort): ResortView {
     slug: resort.slug,
     name: resort.name,
     regionLabel: resort.regionLabel,
-    score: displayScores[resort.slug] ?? resort.score,
-    priceLabel: `€€ · ${resort.priceLabel} p. P.`,
     travelTimeLabel: resort.travelTimeFromMunich,
     snowLabel: resort.snowLabel,
     snowStrength,
@@ -244,8 +227,7 @@ function getCanonicalView(resort: AlpivoResort): ResortView {
     ],
     keyFacts: [
       { label: "Anreise ab München", value: resort.travelTimeFromMunich, icon: <CarIcon /> },
-      { label: "Preisniveau", value: `€€ · ${resort.priceLabel} p. P.`, icon: <WalletIcon /> },
-      { label: "Schneegarantie", value: snowStrength, icon: <SnowIcon /> },
+      { label: "Schneesicherheit", value: snowStrength, icon: <SnowIcon /> },
       { label: "Vibe", value: resort.vibeLabel, icon: <StarIcon /> },
     ],
     overviewFacts: resort.detail.facts,
@@ -259,12 +241,13 @@ function getCanonicalView(resort: AlpivoResort): ResortView {
   };
 }
 
-function getMvpView(resort: MvpResortRow): ResortView {
+function getCatalogView(resort: ResortSignalRow): ResortView {
   const slug = resort.slug || resort.id;
-  const pisteKm = resort.piste_km_total ?? resort.piste_km;
-  const lifts = resort.lifts_count_total;
-  const snowStrength = resort.resort_style.includes("snow") || resort.resort_style.includes("glacier") ? "Hoch" : "Prüfen";
-  const priceRange = priceRangeFromSinglePrice(resort.skipass_price_from ? resort.skipass_price_from * 7 : null);
+  const facts = getResortFacts(slug);
+  const pisteKm = facts?.pisteKm ?? resort.piste_km_total ?? resort.piste_km;
+  const lifts = facts?.lifts ?? resort.lifts_count_total;
+  const styles = findMvpResortBySlug(slug)?.resort_style ?? [];
+  const snowStrength = styles.includes("snow") || styles.includes("glacier") ? "Hoch" : "Prüfen";
   const regionLabel = [resort.region, resort.country].filter(Boolean).join(", ") || resort.country;
   const easyKm = resort.piste_km_easy ?? 0;
   const redKm = resort.piste_km_intermediate ?? 0;
@@ -275,61 +258,53 @@ function getMvpView(resort: MvpResortRow): ResortView {
     slug,
     name: resort.name,
     regionLabel,
-    score: displayScores[slug] ?? Math.round((formatScore(resort.infra_score, 80) + formatScore(resort.beginner_score, 75) + formatScore(resort.apres_score, 70)) / 3),
-    priceLabel: `€€ · ${priceRange}`,
     travelTimeLabel: "Anreise prüfen",
     snowLabel: snowStrength,
     snowStrength,
-    vibeLabel: resort.resort_style.includes("family") ? "familienfreundlich" : resort.resort_style.includes("sport") ? "sportlich" : "ausgewogen",
+    vibeLabel: styles.includes("family") ? "familienfreundlich" : styles.includes("sport") ? "sportlich" : "ausgewogen",
     pisteKm: pisteKm ? `${pisteKm} km` : "Pisten prüfen",
     altitude:
       resort.elevation_min_m && resort.elevation_max_m
         ? `${resort.elevation_min_m.toLocaleString("de-DE")} - ${resort.elevation_max_m.toLocaleString("de-DE")} m`
         : "Höhe prüfen",
     lifts: lifts ? `${lifts} Anlagen` : "Lifte prüfen",
-    seasonLabel: resort.resort_style.includes("glacier") ? "November bis April" : "Dezember bis April",
-    description: `${resort.name} ist als Alpivo-MVP-Resort hinterlegt. Das Profil nutzt vorhandene Skigebiets-Signale und markiert fehlende Detaildaten transparent.`,
+    seasonLabel: styles.includes("glacier") ? "November bis April" : "Dezember bis April",
+    description: `Skigebietsprofil für ${resort.name}.`,
     image: resort.hero_image_url || resort.image_url || fallbackImage,
-    tags: resort.resort_style.slice(0, 3).map((style) => style[0].toUpperCase() + style.slice(1)),
+    tags: styles.slice(0, 3).map((style) => style[0].toUpperCase() + style.slice(1)),
     reasons: [
       pisteKm ? `${pisteKm} km Pisten als starke Vergleichsbasis` : "Pistenprofil als Vergleichsbasis vorhanden",
       lifts ? `${lifts} Liftanlagen für Infrastruktur-Fit` : "Infrastruktur-Signal vorhanden",
-      resort.resort_style.includes("family") ? "Sehr guter Familien-Fit" : "Passender Vibe für die gewählte Reiseart",
+      styles.includes("family") ? "Sehr guter Familien-Fit" : "Passender Vibe für die gewählte Reiseart",
     ],
     whyItFits: [
       {
         title: snowStrength === "Hoch" ? "Gute Schneesicherheit" : "Schneelage bewusst prüfen",
-        text: resort.resort_style.includes("snow") || resort.resort_style.includes("glacier")
-          ? "Das Resort ist in den MVP-Daten als schneeorientiert markiert."
+        text: styles.includes("snow") || styles.includes("glacier")
+          ? "Höhenlage und Gelände begünstigen die Schneesicherheit."
           : "Für dieses Resort fehlen noch detaillierte Schneesignale.",
         icon: <SnowIcon />,
       },
       {
         title: "Abwechslungsreiche Abfahrten",
-        text: pisteKm ? `${pisteKm} km Pisten liefern eine solide Vergleichsbasis.` : "Pistendetails werden im MVP-Datensatz noch ergänzt.",
+        text: pisteKm ? `${pisteKm} km Pisten liefern eine solide Vergleichsbasis.` : "Weitere Pistendetails liegen noch nicht vor.",
         icon: <SkiIcon />,
       },
       {
-        title: "Infrastruktur-Fit",
-        text: lifts ? `${lifts} Liftanlagen sind als Infrastruktur-Signal vorhanden.` : "Liftanzahl wird im Detaildatensatz noch ergänzt.",
+        title: "Liftanlagen",
+        text: lifts ? `${lifts} Anlagen sind für dieses Skigebiet erfasst.` : "Liftanzahl wird im Detaildatensatz noch ergänzt.",
         icon: <LiftIcon />,
-      },
-      {
-        title: "Vibe-Signal vorhanden",
-        text: `Alpivo ordnet den Stil aktuell als ${resort.resort_style.join(", ")} ein.`,
-        icon: <HeartIcon />,
       },
     ],
     keyFacts: [
       { label: "Anreise ab München", value: "prüfen", icon: <CarIcon /> },
-      { label: "Preisniveau", value: `€€ · ${priceRange}`, icon: <WalletIcon /> },
-      { label: "Schneegarantie", value: snowStrength, icon: <SnowIcon /> },
-      { label: "Vibe", value: resort.resort_style.slice(0, 2).join(", ") || "ausgewogen", icon: <StarIcon /> },
+      { label: "Schneesicherheit", value: snowStrength, icon: <SnowIcon /> },
+      { label: "Vibe", value: styles.slice(0, 2).join(", ") || "ausgewogen", icon: <StarIcon /> },
     ],
     overviewFacts: [
-      { label: "Region", value: regionLabel, detail: "Aus dem Alpivo-MVP-Datensatz." },
-      { label: "Pisten", value: pisteKm ? `${pisteKm} km` : "Daten fehlen", detail: "Pistenkilometer aus dem MVP-Signal." },
-      { label: "Lifte", value: lifts ? `${lifts} Anlagen` : "Daten fehlen", detail: "Liftanzahl aus dem MVP-Signal." },
+      { label: "Region", value: regionLabel },
+      { label: "Pisten", value: pisteKm ? `${pisteKm} km` : "Daten fehlen", detail: facts?.pisteNote },
+      { label: "Lifte", value: lifts ? `${lifts} Anlagen` : "Daten fehlen", detail: facts?.liftNote },
       {
         label: "Höhe",
         value:
@@ -353,18 +328,16 @@ function getMvpView(resort: MvpResortRow): ResortView {
     ],
     bestSeasonNote: "Beste Reisezeit wird aus dem vollständigen Detaildatensatz noch ergänzt. Live-Schnee, Liftstatus und Saisonfenster vor Buchung prüfen.",
     dataGaps: [
-      "MVP-Resort: Detaildaten sind noch nicht so vollständig wie bei den Pilotprofilen Obertauern, Sölden, Zell am See und Saalbach.",
-      "Anreisezeit ab München, Unterkunftsdaten und Preisrange sind kontrollierte Fallbacks.",
       "Live-Schnee, Liftstatus und offizielle Preise müssen vor Buchung geprüft werden.",
     ],
   };
 }
 
-function getResortView(slug: string | null | undefined) {
+function getResortView(slug: string, detail: ResortDetailRow | null) {
   const canonical = getAlpivoResortBySlug(slug);
   if (canonical) return getCanonicalView(canonical);
-  const fallback = slug ? findMvpResortBySlug(slug) : null;
-  return fallback ? getMvpView(fallback) : null;
+  const row = detail ?? findMvpResortBySlug(slug);
+  return row ? getCatalogView(row) : null;
 }
 
 function ActionRow({ description, href, icon, onClick, title }: ActionRowProps) {
@@ -422,11 +395,27 @@ function FactList({ facts }: { facts: ResortView["overviewFacts"] }) {
   );
 }
 
-export default function ResortDetailClient({ slug }: { slug: string }) {
-  const resort = useMemo(() => getResortView(slug), [slug]);
+export default function ResortDetailClient({ slug, detail, matchId }: {
+  slug: string;
+  detail: ResortDetailRow | null;
+  matchId?: string;
+}) {
+  const resort = useMemo(() => getResortView(slug, detail), [slug, detail]);
   const actionLinks = useMemo(() => getResortActionLinks(resort?.slug), [resort?.slug]);
-  const { addTripDraftResort, markActionCompleted, selectResort } = useAlpivoGuestState();
+  const { state: guestState, addTripDraftResort, markActionCompleted } = useAlpivoGuestState();
   const [message, setMessage] = useState("");
+  const [snapshot, setSnapshot] = useState<MatchResultSnapshot | null>(null);
+  useEffect(() => {
+    setSnapshot(matchId ? getLatestMatchSnapshot() : null);
+  }, [matchId]);
+
+  const matchMeta = snapshot?.meta;
+  const matchingResult = matchId && matchMeta?.createdAt === matchId
+    ? snapshot?.results.find((result) => result.slug === slug && !result.exclusionReasons?.length)
+    : null;
+  const match = matchingResult && matchMeta
+    ? presentMatch(matchingResult, matchMeta.originLabel || matchMeta.filters.originLabel || guestState.preferences.originLabel)
+    : null;
 
   if (!resort) {
     return (
@@ -449,17 +438,26 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
     );
   }
 
-  const skipassLink = actionLinks.skipassShop ?? actionLinks.ticketInfo ?? (resort.slug && findMvpResortBySlug(resort.slug)?.skipass_url
-    ? {
-        label: "Skipass prüfen",
-        url: findMvpResortBySlug(resort.slug)?.skipass_url ?? "",
-      }
-    : null);
+  const catalogRow = detail ?? findMvpResortBySlug(resort.slug);
+  const skipassUrl = actionLinks.skipassShop?.url ?? actionLinks.ticketInfo?.url ?? catalogRow?.skipass_url;
   const accommodationLink = actionLinks.accommodationSearch;
-  const officialUrl = actionLinks.officialInfo?.url ?? findMvpResortBySlug(resort.slug)?.official_url ?? "/resorts";
+  const officialUrl = actionLinks.officialInfo?.url ?? catalogRow?.official_url;
+  const officialFacts = getResortFacts(resort.slug);
+
+  const keyFacts = match
+    ? [
+        { label: "Geschätzte Reisekosten", value: match.priceNote, icon: <WalletIcon /> },
+        { label: "Schneesicherheit", value: match.snow, icon: <SnowIcon /> },
+        ...resort.keyFacts.filter((fact) => !fact.label.startsWith("Anreise") && fact.label !== "Schneesicherheit"),
+      ]
+    : resort.keyFacts;
 
   const handleTripSave = () => {
-    addTripDraftResort(resort.slug);
+    const preferences = matchingResult && matchMeta ? {
+      ...matchMeta.prefs,
+      originLabel: matchMeta.originLabel || matchMeta.filters.originLabel || guestState.preferences.originLabel,
+    } : undefined;
+    addTripDraftResort(resort.slug, preferences, resort.name);
     setMessage(`${resort.name} wurde deinem lokalen Trip-Entwurf hinzugefügt.`);
   };
 
@@ -468,12 +466,13 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
       <AppHeader navItems={navItems} />
 
       <main className="pb-20">
-        <section className="relative isolate min-h-[520px] overflow-hidden bg-[var(--alpivo-deep-navy)] sm:min-h-[560px] lg:min-h-[590px]">
+        <section className="relative isolate min-h-[380px] overflow-hidden bg-[var(--alpivo-deep-navy)] sm:min-h-[560px] lg:min-h-[590px]">
           <Image
             src={resort.image}
-            alt={`${resort.name} Winterpanorama`}
+            alt={resort.image === fallbackImage ? "" : `${resort.name} Winterpanorama`}
             fill
             priority
+            unoptimized={resort.image.startsWith("http")}
             sizes="100vw"
             className="object-cover"
             style={{ objectPosition: "center 48%" }}
@@ -481,30 +480,32 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,27,58,0.72)_0%,rgba(7,27,58,0.3)_42%,rgba(7,27,58,0.04)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 h-48 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.92)_100%)]" />
 
-          <div className="relative z-10 mx-auto flex min-h-[520px] w-full max-w-[1480px] flex-col justify-end px-[var(--alpivo-space-page-x)] pb-24 pt-16 sm:min-h-[560px] lg:min-h-[590px] lg:pb-28">
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="relative z-10 mx-auto flex min-h-[380px] w-full max-w-[1480px] flex-col justify-end px-[var(--alpivo-space-page-x)] pb-16 pt-8 sm:pb-24 sm:pt-16 sm:min-h-[560px] lg:min-h-[590px] lg:pb-28">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-8 lg:items-end">
               <div className="max-w-4xl text-white">
-                <h1 className="text-5xl font-semibold leading-none sm:text-6xl lg:text-7xl">{resort.name}</h1>
+                <h1 className="text-3xl font-semibold leading-tight sm:text-6xl lg:text-7xl">{resort.name}</h1>
                 <p className="mt-4 flex items-center gap-2 text-lg font-medium text-white/94">
                   <MapPinIcon />
                   <span>{resort.regionLabel}</span>
                 </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <IconStat icon={<SnowIcon />} label="Schneesicher" value={resort.snowStrength} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" tone="blue" />
-                  <IconStat icon={<LiftIcon />} label="Liftanlagen" value={resort.lifts} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" />
-                  <IconStat icon={<CarIcon />} label="ab München" value={resort.travelTimeLabel} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] sm:w-auto" />
+                <div className="mt-4 flex flex-wrap gap-2 sm:mt-8 sm:gap-3">
+                  <IconStat icon={<SnowIcon />} label="Schneesicherheit" value={match?.snow ?? resort.snowStrength} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" tone="blue" />
+                  <IconStat icon={<LiftIcon />} label="Liftanlagen" value={resort.lifts} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" />
+                  <IconStat icon={<CarIcon />} label={match?.travelLabel ?? "Beispiel ab München"} value={match?.travelTime ?? resort.travelTimeLabel} className="w-full max-w-[260px] bg-white/94 shadow-[var(--alpivo-shadow-md)] max-sm:min-h-0 max-sm:gap-2 max-sm:py-1.5 max-sm:[&>span:first-child]:h-7 max-sm:[&>span:first-child]:w-7 sm:w-auto" />
                 </div>
               </div>
-              <div className="flex justify-start lg:justify-end">
-                <MatchScoreRing value={resort.score} size="lg" className="shadow-[0_22px_70px_rgba(7,27,58,0.24)]" />
-              </div>
+              {match && (
+                <div className="flex justify-start lg:justify-end">
+                  <MatchScoreRing value={match.score} size="md" className="shadow-[0_22px_70px_rgba(7,27,58,0.24)]" />
+                </div>
+              )}
             </div>
           </div>
         </section>
 
-        <section className="relative z-20 mx-auto -mt-14 w-full max-w-[1240px] px-[var(--alpivo-space-page-x)]">
+        <section className="relative z-20 mx-auto -mt-8 sm:-mt-14 w-full max-w-[1240px] px-[var(--alpivo-space-page-x)]">
           <Card className="grid gap-0 overflow-hidden rounded-[var(--alpivo-radius-xl)] p-0 shadow-[var(--alpivo-shadow-lg)] md:grid-cols-2 lg:grid-cols-4">
-            {resort.keyFacts.map((fact, index) => (
+            {keyFacts.map((fact, index) => (
               <div key={fact.label} className={`p-5 md:p-6 ${index > 0 ? "border-t border-[var(--alpivo-border-subtle)] md:border-l md:border-t-0" : ""}`}>
                 <div className="flex items-center gap-4">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--alpivo-radius-md)] bg-[rgba(47,107,255,0.08)] text-[var(--alpivo-deep-navy)]" aria-hidden="true">
@@ -522,9 +523,13 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
 
         <section className="mx-auto mt-8 grid w-full max-w-[1240px] gap-6 px-[var(--alpivo-space-page-x)] lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.86fr)]">
           <Card as="section" className="p-6 md:p-7">
-            <h2 className="text-2xl font-semibold leading-tight">Warum es passt</h2>
+            <h2 className="text-2xl font-semibold leading-tight">{match ? "Warum es zu deiner Reise passt" : "Das Skigebiet im Überblick"}</h2>
             <div className="mt-6 space-y-5">
-              {resort.whyItFits.map((reason) => (
+              {match?.reasons.length ? (
+                <ul className="space-y-3 text-sm leading-6 text-[var(--alpivo-ink-muted)]">
+                  {match.reasons.map((reason, index) => <li key={index}>{reason}</li>)}
+                </ul>
+              ) : resort.whyItFits.map((reason) => (
                 <div key={reason.title} className="flex gap-4">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[rgba(47,107,255,0.08)] text-[var(--alpivo-alpine-blue)]" aria-hidden="true">
                     {reason.icon}
@@ -541,25 +546,32 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
           <Card as="aside" className="p-6 md:p-7">
             <h2 className="text-2xl font-semibold leading-tight">Nächste Schritte</h2>
             <div className="mt-6 space-y-3">
-              <ActionRow
-                description="Preise & Optionen ansehen"
-                href={skipassLink?.url ?? officialUrl}
-                icon={<CalendarIcon />}
-                onClick={() => markActionCompleted("skipassChecked", resort.slug)}
-                title="Skipass prüfen"
-              />
-              <ActionRow
-                description={`Die besten Unterkünfte in ${resort.name}`}
-                href={accommodationLink?.url ?? officialUrl}
-                icon={<BedIcon />}
-                onClick={() => markActionCompleted("accommodationChecked", resort.slug)}
-                title="Unterkünfte ansehen"
-              />
+              {skipassUrl && (
+                <ActionRow
+                  description="Preise und Optionen beim Anbieter ansehen"
+                  href={skipassUrl}
+                  icon={<CalendarIcon />}
+                  onClick={() => markActionCompleted("skipassChecked", resort.slug)}
+                  title="Skipass prüfen"
+                />
+              )}
+              {accommodationLink && (
+                <ActionRow
+                  description={`Unterkünfte in ${resort.name} beim Anbieter suchen`}
+                  href={accommodationLink.url}
+                  icon={<BedIcon />}
+                  onClick={() => markActionCompleted("accommodationChecked", resort.slug)}
+                  title="Unterkünfte ansehen"
+                />
+              )}
+              {officialUrl && (!skipassUrl || !accommodationLink) && (
+                <ActionRow description="Aktuelle Informationen auf der Website des Skigebiets" href={officialUrl} icon={<MountainIcon />} title="Offizielle Website" />
+              )}
               <ActionRow description="Resort auf deine Merkliste setzen" icon={<HeartIcon />} onClick={handleTripSave} title="Trip speichern" />
             </div>
             {message ? (
               <p className="mt-4 rounded-[var(--alpivo-radius-md)] border border-[rgba(47,107,255,0.18)] bg-[rgba(47,107,255,0.06)] px-4 py-3 text-sm text-[var(--alpivo-deep-navy)]">
-                {message}
+                {message} <Link href="/trips#trip-entwurf" className="font-semibold underline">Trip-Entwurf öffnen</Link>
               </p>
             ) : null}
           </Card>
@@ -570,6 +582,11 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
             <p>{resort.description}</p>
             <div className="mt-4">
               <FactList facts={resort.overviewFacts.slice(0, 4)} />
+              {officialFacts && (
+                <a href={officialFacts.source} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block font-semibold underline">
+                  Angaben des Skigebiets
+                </a>
+              )}
             </div>
           </AccordionRow>
 
@@ -577,6 +594,7 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
             <p>
               {resort.name} bietet {resort.pisteKm} Pisten und {resort.lifts}. Die Höhenlage liegt bei {resort.altitude}.
             </p>
+            {officialFacts?.pisteNote && <p className="mt-2">{officialFacts.pisteNote}</p>}
             <div className="mt-4 space-y-3">
               {resort.slopeDifficulty.map((slope) => (
                 <div key={slope.label}>
@@ -606,7 +624,9 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
 
           <AccordionRow title="Anreise" icon={<CarIcon />}>
             <div className="grid gap-3 md:grid-cols-2">
-              {resort.travelOptions.map((option) => (
+              {match ? (
+                <p>Für deine Anreise {match.travelLabel} liegt noch keine berechnete Route vor.</p>
+              ) : resort.travelOptions.map((option) => (
                 <div key={`${option.mode}-${option.duration}`} className="rounded-[var(--alpivo-radius-md)] border border-[var(--alpivo-border-subtle)] bg-white p-4">
                   <p className="text-sm font-medium text-[var(--alpivo-ink-muted)]">{option.mode}</p>
                   <p className="mt-1 text-lg font-semibold text-[var(--alpivo-deep-navy)]">{option.duration}</p>
@@ -616,16 +636,7 @@ export default function ResortDetailClient({ slug }: { slug: string }) {
               ))}
             </div>
             <div className="mt-4">
-              <Button
-                href={`/map?resort=${encodeURIComponent(resort.slug)}`}
-                onClick={() => {
-                  selectResort(resort.slug);
-                  markActionCompleted("routeChecked", resort.slug);
-                }}
-                variant="secondary"
-              >
-                Auf Karte ansehen
-              </Button>
+              <Button href={`/map?resort=${encodeURIComponent(resort.slug)}`} variant="secondary">Anreise auf der Karte planen</Button>
             </div>
           </AccordionRow>
 

@@ -19,7 +19,7 @@ export default function HomeHero() {
 
       <main>
         <section className="relative overflow-hidden">
-          <div className="relative min-h-[490px] overflow-hidden md:min-h-[540px] lg:min-h-[585px]">
+          <div className="relative min-h-[350px] overflow-hidden md:min-h-[540px] lg:min-h-[585px]">
             <Image
               src="/bg/banner-bild-4k.png"
               alt="Panorama eines verschneiten Skigebiets mit Gondeln"
@@ -32,15 +32,15 @@ export default function HomeHero() {
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(248,251,255,0.94)_0%,rgba(248,251,255,0.8)_32%,rgba(248,251,255,0.28)_64%,rgba(248,251,255,0.04)_100%)]" />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(248,251,255,0.24)_0%,rgba(248,251,255,0.12)_56%,rgba(248,251,255,0.88)_100%)]" />
 
-            <div className="relative z-10 mx-auto flex min-h-[490px] w-full max-w-[1480px] items-center px-[var(--alpivo-space-page-x)] pb-24 pt-12 md:min-h-[540px] lg:min-h-[585px] lg:pb-32">
+            <div className="relative z-10 mx-auto flex min-h-[350px] w-full max-w-[1480px] items-center px-[var(--alpivo-space-page-x)] pb-14 pt-7 md:pb-24 md:pt-12 md:min-h-[540px] lg:min-h-[585px] lg:pb-32">
               <div className="max-w-[720px]">
-                <h1 className="alpivo-ui-heading max-w-[12ch] text-5xl leading-[1.02] md:text-6xl lg:text-7xl">
+                <h1 className="alpivo-ui-heading max-w-[17ch] text-[clamp(2rem,9vw,3rem)] md:max-w-[14ch] leading-[1.02] md:text-6xl lg:text-7xl">
                   Finde den Ski-Trip, der wirklich zu dir passt.
                 </h1>
-                <p className="mt-6 max-w-[620px] text-lg leading-8 text-[var(--alpivo-ink)] md:text-xl">
+                <p className="mt-4 max-w-[620px] text-base leading-6 md:mt-6 md:text-lg md:leading-8 text-[var(--alpivo-ink)] md:text-xl">
                   Vergleiche Skigebiete nach Budget, Anreise, Schnee und Vibe - und finde dein perfektes Match.
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="mt-5 flex flex-wrap items-center gap-2 md:mt-8 md:gap-3">
                   <Button href="/quiz" size="lg" iconAfter={<ArrowIcon />}>
                     Match starten
                   </Button>
@@ -52,7 +52,7 @@ export default function HomeHero() {
             </div>
           </div>
 
-          <div className="relative z-20 mx-auto -mt-20 w-full max-w-[1480px] px-[var(--alpivo-space-page-x)] lg:-mt-16">
+          <div className="relative z-20 mx-auto -mt-8 md:-mt-20 w-full max-w-[1480px] px-[var(--alpivo-space-page-x)] lg:-mt-16">
             <LandingSearchBar />
           </div>
         </section>

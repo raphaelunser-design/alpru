@@ -6,13 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
 import { brand } from "@/config/brand";
 import GlassCard from "@/components/GlassCard";
-import AppShell from "@/components/premium/AppShell";
-import PageHeader from "@/components/premium/PageHeader";
+import { AppHeader } from "@/components/ui";
 import RangeSlider from "@/components/RangeSlider";
 import SelectControl from "@/components/SelectControl";
 import { ProfileIcon, SliderRow } from "@/components/quiz/QuizControls";
 import {
-  MobileQuizSummaryBar,
   QuizFooterActions,
   QuizMetricSummary,
   QuizSidebarSummary,
@@ -25,8 +23,8 @@ import {
   buildResortQuery,
   persistLatestMatchSnapshot,
   type MatchResultError,
-  type MatchResultMeta,
 } from "@/lib/matching/matchPayload";
+import { requestMatch } from "@/lib/matching/requestMatch";
 import { readGuestState, setGuestPreferences } from "@/lib/guestState";
 import type { MusicPreference, PartyPreference } from "@/lib/resortEvents";
 import { skiCourseNeedOptions, type SkiCourseNeed } from "@/lib/skiCourses";
@@ -94,6 +92,39 @@ const BUDGET_STEP = 25;
 
 const tripProfiles: MatchProfile[] = matchProfiles;
 
+function applyLandingSearch(savedPreferences: unknown) {
+  const params = new URLSearchParams(window.location.search);
+  const saved = buildMatchPayload(savedPreferences);
+  const group = params.get("group")?.trim().toLowerCase() ?? "";
+  const profileId = /famil|kind/.test(group) ? "family" : /freund|crew/.test(group) ? "apres" : /paar/.test(group) ? "quiet" : null;
+  const profile = tripProfiles.find((item) => item.id === profileId);
+  const next = buildMatchPayload({ ...saved, ...profile?.prefs, tripStyle: profile?.id ?? saved.tripStyle });
+
+  const amounts = params.get("budget")?.replace(/\.(?=\d{3}\b)/g, "").match(/\d+(?:,\d+)?/g);
+  if (amounts?.length && amounts.every((amount) => Number.isFinite(Number(amount.replace(",", "."))))) {
+    const [first, last = first] = amounts.map((amount) => Number(amount.replace(",", ".")));
+    next.budgetMin = Math.min(first, last);
+    next.budgetMax = Math.max(first, last);
+    next.budget = next.budgetMax;
+  }
+
+  const days = Number(params.get("duration")?.match(/\d+/)?.[0]);
+  const start = parseIsoDate(next.tripStartDate ?? defaultPrefs.tripStartDate);
+  if (start && days >= 1 && days <= 30) {
+    const end = new Date(start);
+    end.setDate(start.getDate() + days - 1);
+    next.tripStartDate = toIsoDate(start);
+    next.tripEndDate = toIsoDate(end);
+  }
+
+  const priorities = params.get("priorities")?.toLowerCase() ?? "";
+  if (priorities.includes("schnee")) next.snowReliability = 5;
+  if (/vibe|party|après/.test(priorities)) next.apres = 5;
+  if (/ruhe|ruhig/.test(priorities)) next.emptySlopes = 5;
+  if (/preis|budget/.test(priorities)) next.valueForMoney = 5;
+  return buildMatchPayload(next);
+}
+
 export default function QuizPage() {
   const router = useRouter();
   const { value: heroContent } = useSiteContent("quiz", {
@@ -114,10 +145,10 @@ export default function QuizPage() {
     minPisteKm: "",
     maxDriveHours: "",
   });
+  const [originLabel, setOriginLabel] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
-  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
   const [calendarMonths, setCalendarMonths] = useState(1);
   const [dnaStatus, setDnaStatus] = useState<"idle" | "loading" | "saved" | "local" | "error">("idle");
   const [dnaMessage, setDnaMessage] = useState("");
@@ -127,7 +158,9 @@ export default function QuizPage() {
 
   useEffect(() => {
     const guestState = readGuestState();
-    const guestPrefs = buildMatchPayload(guestState.preferences);
+    const origin = new URLSearchParams(window.location.search).get("origin")?.trim().slice(0, 120);
+    setOriginLabel(origin || guestState.preferences.originLabel);
+    const guestPrefs = applyLandingSearch(guestState.preferences);
     setPrefs(guestPrefs);
     setPrefilters((current) => ({
       ...current,
@@ -180,7 +213,7 @@ export default function QuizPage() {
       }
       if (!saved?.preferences) return;
 
-      const nextPrefs: Prefs = buildMatchPayload(saved.preferences);
+      const nextPrefs = applyLandingSearch(saved.preferences);
       setPrefs(nextPrefs);
       const from = parseIsoDate(nextPrefs.tripStartDate);
       const to = parseIsoDate(nextPrefs.tripEndDate);
@@ -255,6 +288,7 @@ export default function QuizPage() {
   }, [prefilters, hydrated]);
 
   async function onSubmit() {
+    if (!hydrated || submitting) return;
     setSubmitting(true);
     setSubmitError("");
 
@@ -280,7 +314,7 @@ export default function QuizPage() {
     const payload = buildMatchPayload(prefs);
     setGuestPreferences({
       ...payload,
-      originLabel: "München",
+      originLabel,
       priorities: topPriorities,
       maxTravelHours: prefilters.maxDriveHours,
       minPisteKm: prefilters.minPisteKm,
@@ -305,42 +339,9 @@ export default function QuizPage() {
         // Some mobile/private browsers can reject storage writes; in-memory handoff below keeps client navigation working.
       }
 
-      const res = await fetch("/api/match", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        const message = typeof data?.error === "string" ? data.error : "Fehler beim Matching";
-        throw Object.assign(new Error(message), { status: res.status });
-      }
-
-      const results = Array.isArray(data.results) ? data.results : [];
-      const excluded = Array.isArray(data.excluded) ? data.excluded : [];
-      const resultMeta: MatchResultMeta = {
-        createdAt: new Date().toISOString(),
-        source: data.source ?? "unknown",
-        usingFallback: Boolean(data.usingFallback),
-        total: data.total ?? results.length,
-        loaded: data.loaded ?? results.length,
-        resultCount: results.length,
-        excludedCount: excluded.length,
-        prefs: payload,
-        filters: mergedFilters,
-      };
-      persistLatestMatchSnapshot({ results, excluded, meta: resultMeta });
-
-      if (process.env.NODE_ENV !== "production" && results.length === 0) {
-        console.warn("[alpivo-match] match returned zero visible resorts", {
-          params: payload,
-          filters: mergedFilters,
-          excludedCount: excluded.length,
-          source: data.source,
-          supabaseError: data.error ?? data.fallbackReason ?? null,
-        });
-      }
+      const snapshot = await requestMatch(payload, mergedFilters, originLabel);
+      const { results, excluded, meta: resultMeta } = snapshot;
+      persistLatestMatchSnapshot(snapshot);
 
       if (userId) {
         const compactResults = (results as Array<{
@@ -526,32 +527,28 @@ export default function QuizPage() {
   const primaryStepAction = isFinalStep ? onSubmit : goToNextStep;
 
   return (
-    <AppShell>
-      <main className="alpivo-page-shell min-h-screen px-4 py-7 md:px-8 md:py-10">
-        <div className="mx-auto grid w-full max-w-[1480px] gap-6 pb-32 md:pb-10">
-          <PageHeader
-            eyebrow="Alpivo Match Wizard"
-            title={heroContent.title}
-            subtitle={heroContent.subtitle}
-            actions={
-              <button
-                type="button"
-                className="button-lift inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/14 bg-white/[0.065] px-5 text-sm font-extrabold text-white hover:bg-white/10"
-                onClick={() => setMobileSummaryOpen((current) => !current)}
-              >
-                Auswahl anzeigen
-              </button>
-            }
-          />
+    <div className="alpivo-ui-root min-h-screen">
+      <AppHeader ctaLabel={null} />
+      <main className="alpivo-page-shell min-h-screen px-4 py-4 text-white md:px-8 md:py-8">
+        <div className="mx-auto grid w-full max-w-[1480px] gap-4 pb-28 md:gap-6 md:pb-10">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">{heroContent.title}</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-200 md:text-base">{heroContent.subtitle}</p>
+          </div>
 
-        <QuizMetricSummary
-          activeProfileLabel={activeProfileLabel}
-          budgetMin={prefs.budgetMin}
-          budgetMax={prefs.budgetMax}
-          rangeDays={rangeDays}
-          rangeSummary={rangeSummary}
-          priorityCount={topPriorities.length}
-        />
+          <details className="rounded-xl border border-white/15 bg-slate-950/30 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold text-white">Deine Auswahl</summary>
+            <div className="mt-3">
+              <QuizMetricSummary
+                activeProfileLabel={activeProfileLabel}
+                budgetMin={prefs.budgetMin}
+                budgetMax={prefs.budgetMax}
+                rangeDays={rangeDays}
+                rangeSummary={rangeSummary}
+                priorityCount={topPriorities.length}
+              />
+            </div>
+          </details>
 
         <QuizWizardProgress activeStep={activeStep} onStepChange={setActiveStep} />
 
@@ -758,7 +755,7 @@ export default function QuizPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Details</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Harte Grenzen setzen</h2>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs text-slate-400">Land</label>
               <SelectControl
@@ -770,25 +767,15 @@ export default function QuizPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400">Min. Pisten-km</label>
+              <label htmlFor="min-piste-km" className="text-xs text-slate-400">Mindestens Pistenkilometer</label>
               <input
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white"
+                id="min-piste-km"
                 type="number"
+                min="0"
                 placeholder="z. B. 40"
                 value={prefilters.minPisteKm}
                 onChange={(e) => setPrefilters({ ...prefilters, minPisteKm: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400">Max. Fahrzeit (h)</label>
-              <input
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white"
-                type="number"
-                step="0.25"
-                min="0"
-                placeholder="z. B. 3.5"
-                value={prefilters.maxDriveHours}
-                onChange={(e) => setPrefilters({ ...prefilters, maxDriveHours: e.target.value })}
               />
             </div>
           </div>
@@ -1188,20 +1175,8 @@ export default function QuizPage() {
           />
         </div>
 
-        <MobileQuizSummaryBar
-          activeProfileLabel={activeProfileLabel}
-          isFinalStep={isFinalStep}
-          mobileSummaryOpen={mobileSummaryOpen}
-          prefs={prefs}
-          rangeSummary={rangeSummary}
-          submitting={submitting}
-          submitError={submitError}
-          topPriorities={topPriorities}
-          onPrimaryAction={primaryStepAction}
-          onToggle={() => setMobileSummaryOpen((current) => !current)}
-        />
         </div>
       </main>
-    </AppShell>
+    </div>
   );
 }

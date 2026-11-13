@@ -1,16 +1,23 @@
 import type { Metadata } from "next";
-import { findMvpResortBySlug } from "@/lib/mvpResorts";
+import { cache } from "react";
+import { loadPublicResortDetail } from "@/lib/publicResortCatalog";
 import { getAlpivoResortBySlug } from "@/data/resorts";
 import ResortDetailClient from "./ResortDetailClient";
 
 type ResortPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ match?: string | string[] }>;
 };
+
+const loadDetail = cache(async (slug: string) => {
+  if (getAlpivoResortBySlug(slug)) return null;
+  return (await loadPublicResortDetail(slug)).resort;
+});
 
 export async function generateMetadata({ params }: ResortPageProps): Promise<Metadata> {
   const { slug } = await params;
   const resort = getAlpivoResortBySlug(slug);
-  const fallback = resort ? null : findMvpResortBySlug(slug);
+  const fallback = await loadDetail(slug);
   const name = resort?.name ?? fallback?.name;
   const region = resort?.regionLabel ?? [fallback?.region, fallback?.country].filter(Boolean).join(", ");
   const description =
@@ -45,7 +52,7 @@ export async function generateMetadata({ params }: ResortPageProps): Promise<Met
   };
 }
 
-export default async function ResortDetailPage({ params }: ResortPageProps) {
-  const { slug } = await params;
-  return <ResortDetailClient slug={slug} />;
+export default async function ResortDetailPage({ params, searchParams }: ResortPageProps) {
+  const [{ slug }, { match }] = await Promise.all([params, searchParams]);
+  return <ResortDetailClient slug={slug} detail={await loadDetail(slug)} matchId={typeof match === "string" ? match : undefined} />;
 }

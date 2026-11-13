@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Card, FilterPill } from "@/components/ui";
 
-export type ResultsSortKey = "match" | "price" | "drive";
+export type ResultsSortKey = "match" | "price";
 
 export type ActiveFilter = {
   id: string;
@@ -14,6 +14,7 @@ export type ActiveFilter = {
 
 type TopMatchesFilterBarProps = {
   filters: ActiveFilter[];
+  refreshing: boolean;
   sort: ResultsSortKey;
   onSortChange: (sort: ResultsSortKey) => void;
 };
@@ -58,7 +59,7 @@ function ChevronIcon() {
   );
 }
 
-export default function TopMatchesFilterBar({ filters, sort, onSortChange }: TopMatchesFilterBarProps) {
+export default function TopMatchesFilterBar({ filters, refreshing, sort, onSortChange }: TopMatchesFilterBarProps) {
   return (
     <Card className="p-3 shadow-[var(--alpivo-shadow-md)] md:p-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(270px,360px)] lg:items-center">
@@ -67,6 +68,7 @@ export default function TopMatchesFilterBar({ filters, sort, onSortChange }: Top
             <FilterPill
               key={filter.id}
               active
+              disabled={refreshing}
               icon={filter.icon}
               removable={Boolean(filter.onRemove)}
               onClick={filter.onRemove}
@@ -78,7 +80,7 @@ export default function TopMatchesFilterBar({ filters, sort, onSortChange }: Top
           ))}
         </div>
 
-        <label className="relative flex min-h-[58px] items-center gap-4 border-t border-[var(--alpivo-border-subtle)] pt-3 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
+        <label className="relative flex min-h-11 items-center gap-4 border-t border-[var(--alpivo-border-subtle)] pt-3 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-semibold text-[var(--alpivo-ink-muted)]">Sortieren nach</span>
             <select
@@ -89,7 +91,6 @@ export default function TopMatchesFilterBar({ filters, sort, onSortChange }: Top
             >
               <option value="match">Beste Übereinstimmung</option>
               <option value="price">Budget</option>
-              <option value="drive">Kurze Anreise</option>
             </select>
           </span>
           <ChevronIcon />

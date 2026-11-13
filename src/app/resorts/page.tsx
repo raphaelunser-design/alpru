@@ -1,9 +1,11 @@
 "use client";
 
+import { getResortFacts } from "@/data/resortFacts";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader, Button, Card, FilterPill, MatchScoreRing, ResortImage, SectionContainer } from "@/components/ui";
 import { deriveResortDecision, type MatchPreferences, type ResortDecision, type ResortSignalRow } from "@/lib/resortSignals";
+import { formatTripCost } from "@/lib/matching/matchPresentation";
 import { getMvpResorts } from "@/lib/mvpResorts";
 import type { ResortLoadResult } from "@/lib/resortRepository";
 
@@ -82,11 +84,6 @@ function LocationIcon() {
   );
 }
 
-function formatPrice(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "Preis offen";
-  return `ab ${number.format(Math.round(value))} €`;
-}
-
 function formatPistes(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "Pisten offen";
   return `${number.format(Math.round(value))} km`;
@@ -133,15 +130,16 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
       <Link href={`/resort/${encodeURIComponent(resort.slug)}`} className="block focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgba(47,107,255,0.5)]">
         <div className="relative">
           <ResortImage
+            showMissingPhoto
             src={cardImage(resort)}
-            alt={`${resort.name} Winterpanorama`}
+            alt={resort.imageAlt ?? ""}
             priority={priority}
             aspectClassName="aspect-[1.65/1]"
             containerClassName="rounded-b-none rounded-t-[var(--alpivo-radius-xl)]"
             sizes="(min-width: 1280px) 31vw, (min-width: 768px) 46vw, 94vw"
           />
           <div className="absolute right-5 top-5">
-            <MatchScoreRing value={resort.matchPct} size="sm" />
+            <MatchScoreRing value={resort.matchPct} label="Basiswert" size="sm" />
           </div>
         </div>
 
@@ -154,11 +152,11 @@ function ResortDiscoveryCard({ resort, priority = false }: { resort: ResortDecis
 
           <div className="mt-5 grid grid-cols-3 divide-x divide-[var(--alpivo-border-subtle)] border-y border-[var(--alpivo-border-subtle)] py-4">
             <div className="pr-3">
-              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPrice(resort.cost.totalMin)}</span>
-              <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">p. P.</span>
+              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatTripCost(resort.cost.totalMin, resort.cost.totalMax)}</span>
+              <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">1 Skitag, geschätzt</span>
             </div>
             <div className="px-3">
-              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPistes(resort.pisteKm)}</span>
+              <span className="block text-sm font-semibold text-[var(--alpivo-deep-navy)]">{formatPistes(getResortFacts(resort.slug)?.pisteKm ?? resort.pisteKm)}</span>
               <span className="mt-1 block text-xs text-[var(--alpivo-ink-muted)]">Pisten</span>
             </div>
             <div className="pl-3">
@@ -296,7 +294,7 @@ export default function ResortsPage() {
       <AppHeader
         navItems={[
           { href: "/resorts", label: "Resorts", active: true },
-          { href: "/map", label: "3D Karte" },
+          { href: "/map", label: "Karte" },
           { href: "/results", label: "Top Matches" },
         ]}
       />
@@ -329,7 +327,7 @@ export default function ResortsPage() {
                   <span className="mt-1 block text-sm text-[var(--alpivo-ink-muted)]">aktuelle Treffer</span>
                 </div>
                 <div>
-                  <span className="block text-3xl font-semibold text-[var(--alpivo-deep-navy)]">{usingFallback ? "Fallback" : "Live"}</span>
+                  <span className="block text-3xl font-semibold text-[var(--alpivo-deep-navy)]">{usingFallback ? "Beispiele" : "Katalog"}</span>
                   <span className="mt-1 block text-sm text-[var(--alpivo-ink-muted)]">Datenmodus</span>
                 </div>
               </div>
@@ -379,7 +377,7 @@ export default function ResortsPage() {
               <span className="font-semibold text-[var(--alpivo-deep-navy)]">
                 {loading ? "Resortdaten werden geladen" : `${number.format(filtered.length)} von ${totalLabel} Resorts`}
               </span>
-              {!loading && usingFallback ? <span> · Fallback-Daten</span> : null}
+              {!loading && usingFallback ? <span> · Beispielgebiete</span> : null}
               {!loading && query.trim() ? <span> · Suche: {query.trim()}</span> : null}
             </div>
             <span>{!loading && filtered.length > 0 ? `Zeige ${number.format(visibleResorts.length)} von ${number.format(filtered.length)}` : ""}</span>
@@ -387,7 +385,7 @@ export default function ResortsPage() {
 
           {error ? (
             <div className="rounded-[var(--alpivo-radius-lg)] border border-amber-300/35 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-              Live-Daten konnten nicht zuverlässig geladen werden. Alpivo zeigt deshalb kuratierte Beta-Pilotdaten. Technischer Hinweis: {error}
+              Der vollständige Katalog ist gerade nicht verfügbar. Du siehst eine Auswahl an Beispielgebieten.
             </div>
           ) : null}
 

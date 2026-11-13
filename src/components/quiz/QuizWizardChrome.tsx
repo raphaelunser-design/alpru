@@ -100,12 +100,12 @@ export function QuizFooterActions({
   onPrevious: () => void;
 }) {
   return (
-    <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-      <div>
+    <GlassCard className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[60] flex flex-col gap-2 p-3 md:static md:flex-row md:items-center md:justify-between md:gap-4 md:p-5">
+      <div className="hidden md:block">
         <div className="text-sm font-semibold text-white">{currentWizardStep.title}</div>
         <div className="mt-1 text-xs text-slate-400">{currentWizardStep.text}</div>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-row flex-wrap justify-end gap-2">
         {activeStep > 0 ? (
           <button
             className="rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
@@ -195,72 +195,5 @@ export function QuizSidebarSummary({
         </div>
       </div>
     </aside>
-  );
-}
-
-export function MobileQuizSummaryBar({
-  activeProfileLabel,
-  isFinalStep,
-  mobileSummaryOpen,
-  prefs,
-  rangeSummary,
-  submitting,
-  submitError,
-  topPriorities,
-  onPrimaryAction,
-  onToggle,
-}: ActionProps & {
-  activeProfileLabel: string;
-  mobileSummaryOpen: boolean;
-  prefs: Pick<SummaryPrefs, "budgetMin" | "budgetMax" | "peopleCount">;
-  rangeSummary: string;
-  submitError: string;
-  topPriorities: string[];
-  onToggle: () => void;
-}) {
-  return (
-    <div className="sticky bottom-24 z-30 rounded-2xl border border-sky-200/25 bg-slate-950/90 p-3 shadow-[0_18px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl md:hidden">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-white">{activeProfileLabel}</div>
-          <div className="mt-0.5 truncate text-xs text-slate-400">
-            {prefs.peopleCount} Personen · {prefs.budgetMin}-{prefs.budgetMax} EUR · {rangeSummary}
-          </div>
-        </div>
-        <button
-          className="min-h-11 shrink-0 rounded-xl border border-white/15 px-3 text-xs font-semibold text-white hover:bg-white/10"
-          type="button"
-          onClick={onToggle}
-          aria-expanded={mobileSummaryOpen}
-        >
-          {mobileSummaryOpen ? "Weniger" : "Details"}
-        </button>
-        <button
-          className="min-h-11 shrink-0 rounded-xl bg-sky-200 px-4 text-sm font-semibold text-slate-950 disabled:opacity-70"
-          disabled={isFinalStep && submitting}
-          onClick={onPrimaryAction}
-          type="button"
-        >
-          {isFinalStep ? (submitting ? "..." : "Match") : "Weiter"}
-        </button>
-      </div>
-      {mobileSummaryOpen ? (
-        <div className="mt-3 grid gap-2 border-t border-white/10 pt-3 text-xs text-slate-300">
-          <div className="flex justify-between gap-3">
-            <span>Profil</span>
-            <span className="text-right font-semibold text-white">{activeProfileLabel}</span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span>Budget</span>
-            <span className="text-right font-semibold text-white">€ {prefs.budgetMin} - € {prefs.budgetMax}</span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span>Prioritäten</span>
-            <span className="text-right font-semibold text-white">{topPriorities.join(", ")}</span>
-          </div>
-        </div>
-      ) : null}
-      {submitError ? <div className="mt-2 text-xs leading-5 text-amber-100">{submitError}</div> : null}
-    </div>
   );
 }

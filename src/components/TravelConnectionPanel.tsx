@@ -19,6 +19,7 @@ type TravelConnectionPanelProps = {
   destinationLat: number | null;
   destinationLon: number | null;
   origin: TravelOrigin;
+  initialOriginQuery?: string;
   travelMode: TravelMode;
   tripStartDate: string | null;
   tripEndDate: string | null;
@@ -295,6 +296,7 @@ export default function TravelConnectionPanel({
   destinationLat,
   destinationLon,
   origin,
+  initialOriginQuery = "",
   travelMode = "car",
   tripStartDate,
   tripEndDate,
@@ -306,7 +308,7 @@ export default function TravelConnectionPanel({
   const [showRoute, setShowRoute] = useState(false);
   const [apiState, setApiState] = useState<ApiState>({ status: "idle", data: null, error: "" });
   const [activeOrigin, setActiveOrigin] = useState<TravelOrigin>(origin || null);
-  const [originQuery, setOriginQuery] = useState(origin ? origin.label : "");
+  const [originQuery, setOriginQuery] = useState(origin?.label ?? initialOriginQuery);
   const [originResults, setOriginResults] = useState<GeocodeResult[]>([]);
   const [originLoading, setOriginLoading] = useState(false);
   const [originError, setOriginError] = useState("");
@@ -349,13 +351,13 @@ export default function TravelConnectionPanel({
   useEffect(() => {
     if (propOriginLat === null || propOriginLon === null) {
       setActiveOrigin(null);
-      setOriginQuery("");
+      setOriginQuery(initialOriginQuery);
       return;
     }
 
     setActiveOrigin({ lat: propOriginLat, lon: propOriginLon, label: propOriginLabel });
     setOriginQuery(propOriginLabel);
-  }, [propOriginLabel, propOriginLat, propOriginLon]);
+  }, [propOriginLabel, propOriginLat, propOriginLon, initialOriginQuery]);
 
   useEffect(() => {
     const needle = originQuery.trim();
@@ -590,6 +592,7 @@ export default function TravelConnectionPanel({
               <div className="relative mt-2">
                 <input
                   className="w-full rounded-lg border border-white/10 bg-slate-950/45 px-3 py-2 pr-24 text-sm text-white placeholder:text-slate-500"
+                  aria-label="Startort"
                   placeholder="Startort eingeben"
                   value={originQuery}
                   onChange={(event) => {

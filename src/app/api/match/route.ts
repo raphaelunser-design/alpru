@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import {
   deriveResortDecision,
   resolveBudgetCap,
+  pickPisteKm,
   type ResortDecision,
 } from "@/lib/resortSignals";
-import { buildMatchPayload } from "@/lib/matching/matchPayload";
-import { loadAllResortRows } from "@/lib/resortRepository";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getResortFacts } from "@/data/resortFacts";
+import { buildMatchPayload, buildResortQuery } from "@/lib/matching/matchPayload";
+import { loadPublicResorts } from "@/lib/publicResortCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,13 +17,24 @@ export async function POST(req: Request) {
     const rawPrefs = await req.json().catch(() => ({}));
     const prefs = buildMatchPayload(rawPrefs);
     const budgetCap = resolveBudgetCap(prefs);
+    const filters = buildResortQuery(rawPrefs?.filters);
+    const minPisteKm = Number(filters.minPisteKm);
 
-    const source = await loadAllResortRows(supabaseAdmin, { orderBy: "name" });
+    const source = await loadPublicResorts();
     const sourceResorts = source.resorts;
 
-    const allScored: ResortDecision[] = sourceResorts.map((resort) =>
-      deriveResortDecision(resort, prefs, budgetCap)
-    );
+    const allScored: ResortDecision[] = sourceResorts.map((resort) => {
+      const decision = deriveResortDecision(resort, prefs, budgetCap);
+      const countries = resort.country.split("/").map((country) => country.trim());
+      if (filters.countryFilter !== "all" && !countries.includes(filters.countryFilter)) {
+        decision.exclusionReasons.push(`Außerhalb von ${filters.countryFilter}`);
+      }
+      const pisteKm = getResortFacts(decision.slug)?.pisteKm ?? pickPisteKm(resort);
+      if (minPisteKm > 0 && (pisteKm == null || pisteKm < minPisteKm)) {
+        decision.exclusionReasons.push(`Keine bestätigten ${minPisteKm} Pistenkilometer`);
+      }
+      return decision;
+    });
     const scored = allScored.filter((resort) => resort.exclusionReasons.length === 0);
     const excluded = allScored.filter((resort) => resort.exclusionReasons.length > 0);
 

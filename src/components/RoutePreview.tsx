@@ -64,8 +64,8 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
         scrollWheelZoom: false,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors, OSRM",
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, OSRM',
         maxZoom: 18,
       }).addTo(map);
 
@@ -87,6 +87,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setRoute(null);
     setError("");
 
     fetch("/api/route", {
@@ -120,9 +121,9 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
     const L = leafletRef.current;
     const map = mapRef.current;
     const layer = layerRef.current;
-    if (!L || !map || !layer || !route || !route.coordinates.length) return;
-
+    if (!L || !map || !layer) return;
     layer.clearLayers();
+    if (!route?.coordinates.length) return;
     const fallbackCoordinates: Array<[number, number]> = [
       [origin.lat, origin.lon],
       [destination.lat, destination.lon],
@@ -134,10 +135,15 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
       color: "#38bdf8",
       weight: 5,
       opacity: 0.92,
+      dashArray: route.source === "fallback" ? "6 8" : undefined,
       lineCap: "round",
       lineJoin: "round",
     }).addTo(layer);
 
+    const startLabel = document.createElement("span");
+    startLabel.textContent = origin.label || "Start";
+    const destinationLabel = document.createElement("span");
+    destinationLabel.textContent = resortName;
     L.circleMarker([origin.lat, origin.lon], {
       radius: 6,
       color: "#e0f2fe",
@@ -145,7 +151,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
       fillColor: "#0f172a",
       fillOpacity: 1,
     })
-      .bindPopup(origin.label || "Start")
+      .bindPopup(startLabel)
       .addTo(layer);
 
     L.circleMarker([destination.lat, destination.lon], {
@@ -155,7 +161,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
       fillColor: "#38bdf8",
       fillOpacity: 1,
     })
-      .bindPopup(resortName)
+      .bindPopup(destinationLabel)
       .addTo(layer);
 
     map.fitBounds(bounds.pad(0.18), { animate: false });
@@ -177,7 +183,7 @@ export default function RoutePreview({ origin, destination, resortName }: RouteP
           </span>
           {route?.source === "fallback" ? (
             <span className="rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-amber-100">
-              geschätzt
+              Schätzung · keine Straßenroute
             </span>
           ) : null}
         </div>

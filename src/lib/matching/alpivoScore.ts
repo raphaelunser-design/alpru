@@ -256,7 +256,11 @@ export function calculateFestivalFitScore(resort: ResortInput, preferences: User
   return result.score;
 }
 
-export function calculateAlpivoMatchScore(resort: ResortInput, preferences: UserPreferences = {}): AlpivoScoreResult {
+export function calculateAlpivoMatchScore(
+  resort: ResortInput,
+  preferences: UserPreferences = {},
+  tripCostRange?: { totalMin: number; totalMax: number },
+): AlpivoScoreResult {
   const notes = missingNotes();
   const estimatedCosts = calculateEstimatedTripCost(resort, preferences);
   estimatedCosts.assumptions.forEach((assumption) => {
@@ -307,7 +311,7 @@ export function calculateAlpivoMatchScore(resort: ResortInput, preferences: User
     warnings: [],
     missingDataNotes: Array.from(notes),
   };
-  const explanations = generateMatchExplanations(baseResult, resort, preferences);
+  const explanations = generateMatchExplanations(baseResult, resort, preferences, tripCostRange);
   return {
     ...baseResult,
     recommendationType: determineRecommendationType(baseResult, preferences),

@@ -31,7 +31,8 @@ export function determineRecommendationType(result: Pick<AlpivoScoreResult, "cat
 export function generateMatchExplanations(
   partial: Pick<AlpivoScoreResult, "categoryScores" | "estimatedCosts" | "missingDataNotes">,
   resort: ResortInput,
-  preferences: UserPreferences = {}
+  preferences: UserPreferences = {},
+  tripCostRange?: { totalMin: number; totalMax: number },
 ) {
   const reasons: string[] = [];
   const warnings: string[] = [];
@@ -48,7 +49,7 @@ export function generateMatchExplanations(
     wantsQuiet: preferences.wantsQuiet,
   });
 
-  if (preferences.budgetPerPerson && scores.budget >= 70) {
+  if (!tripCostRange && preferences.budgetPerPerson && scores.budget >= 70) {
     reasons.push(`Passt gut zu deinem Budget: geschätzt ${formatEuro(costs.totalPerPerson)} p.P. bei ${formatEuro(preferences.budgetPerPerson)} Budget.`);
   }
   if (scores.distance >= 78 && preferences.tripType) {
@@ -81,7 +82,9 @@ export function generateMatchExplanations(
     reasons.push("Auch ein kleineres Skigebiet wird positiv bewertet, weil Reisetyp, Budget und Anreise gut zusammenpassen.");
   }
 
-  if (preferences.budgetPerPerson && costs.totalPerPerson > preferences.budgetPerPerson * 1.05) {
+  if (tripCostRange && preferences.budgetPerPerson && tripCostRange.totalMin > preferences.budgetPerPerson) {
+    warnings.push("Die geschätzten Reisekosten liegen über deinem Budget.");
+  } else if (!tripCostRange && preferences.budgetPerPerson && costs.totalPerPerson > preferences.budgetPerPerson * 1.05) {
     warnings.push(`Liegt ca. ${formatPercentDelta(costs.totalPerPerson, preferences.budgetPerPerson)}.`);
   }
   if (partial.missingDataNotes.some((note) => note.toLowerCase().includes("schnee") || note.toLowerCase().includes("wetter"))) {

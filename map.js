@@ -17,6 +17,8 @@ function startMap() {
           encoding: "terrarium", tileSize: 256, maxzoom: 14, attribution: "Terrain: Mapzen / AWS Open Data" },
         satellite: { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"],
           tileSize: 256, maxzoom: 14, attribution: "Sentinel-2 cloudless by EOX" },
+        snowmap: { type: "raster", tiles: ["https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png"],
+          tileSize: 256, maxzoom: 16, attribution: "© OpenSnowMap.org" },
         pistes: { type: "geojson", data: empty, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' },
         lifts: { type: "geojson", data: empty },
         stations: { type: "geojson", data: empty },
@@ -28,6 +30,7 @@ function startMap() {
           paint: { "raster-saturation": -0.85, "raster-opacity": 0.56, "raster-brightness-min": 0.48 } },
         { id: "relief", type: "hillshade", source: "dem",
           paint: { "hillshade-shadow-color": "#283f5e", "hillshade-highlight-color": "#f5fbff", "hillshade-exaggeration": 0.55 } },
+        { id: "ski-fallback", type: "raster", source: "snowmap" },
         { id: "piste-outline", type: "line", source: "pistes", layout: { "line-cap": "round", "line-join": "round" },
           paint: { "line-color": "#ffffff", "line-width": outlineWidth } },
         { id: "piste-lines", type: "line", source: "pistes", layout: { "line-cap": "round", "line-join": "round" },
@@ -116,9 +119,10 @@ function startMap() {
       map.getSource("pistes").setData({ ...empty, features: pistes });
       map.getSource("lifts").setData({ ...empty, features: lifts });
       map.getSource("stations").setData({ ...empty, features: stations });
+      map.setLayoutProperty("ski-fallback", "visibility", "none");
       status.textContent = "Piste oder Lift antippen für Details.";
     } catch {
-      status.textContent = "Pistendaten konnten nicht geladen werden.";
+      status.textContent = "Interaktive Details gerade nicht verfügbar.";
     }
   });
 }

@@ -82,7 +82,7 @@ function startMap() {
     new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(detail).addTo(map);
   });
 
-  map.once("load", async () => {
+  map.once("style.load", async () => {
     try {
       const bounds = "47.224,13.507,47.278,13.603";
       const query = `[out:json][timeout:12];(way["piste:type"="downhill"](${bounds});way["aerialway"](${bounds});node["aerialway"="station"](${bounds}););out geom;`;

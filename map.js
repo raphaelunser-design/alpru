@@ -1,5 +1,5 @@
 const status = document.getElementById("status");
-const camera = { center: [13.554, 47.251], zoom: 12.3, pitch: 52, bearing: -9 };
+const camera = { center: [13.554, 47.251], zoom: 12.85, pitch: 42, bearing: -9 };
 const pisteColor = ["match", ["get", "difficulty"], ["novice", "easy"], "#087bdd",
   "intermediate", "#cf2946", ["advanced", "expert", "freeride"], "#172234", "#6753a3"];
 const width = ["interpolate", ["linear"], ["zoom"], 10, 1.5, 13, 3, 16, 5];
@@ -15,21 +15,21 @@ function startMap() {
       sources: {
         dem: { type: "raster-dem", tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
           encoding: "terrarium", tileSize: 256, maxzoom: 14, attribution: "Terrain: Mapzen / AWS Open Data" },
-        satellite: { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"],
-          tileSize: 256, maxzoom: 14, attribution: "Sentinel-2 cloudless by EOX" },
+        satellite: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          tileSize: 256, maxzoom: 17, attribution: "Imagery © Esri, Maxar, Earthstar Geographics and GIS User Community" },
         snowmap: { type: "raster", tiles: ["https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png"],
           tileSize: 256, maxzoom: 16, attribution: "© OpenSnowMap.org" },
         pistes: { type: "geojson", data: empty, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' },
         lifts: { type: "geojson", data: empty },
         stations: { type: "geojson", data: empty },
       },
-      terrain: { source: "dem", exaggeration: 1.25 },
+      terrain: { source: "dem", exaggeration: 1.05 },
       layers: [
         { id: "background", type: "background", paint: { "background-color": "#e1edf8" } },
         { id: "satellite", type: "raster", source: "satellite",
-          paint: { "raster-saturation": -0.85, "raster-opacity": 0.56, "raster-brightness-min": 0.48 } },
+          paint: { "raster-saturation": -0.14, "raster-opacity": 1, "raster-brightness-min": 0.04 } },
         { id: "relief", type: "hillshade", source: "dem",
-          paint: { "hillshade-shadow-color": "#283f5e", "hillshade-highlight-color": "#f5fbff", "hillshade-exaggeration": 0.55 } },
+          paint: { "hillshade-shadow-color": "#283f5e", "hillshade-highlight-color": "#f5fbff", "hillshade-exaggeration": 0.18 } },
         { id: "ski-fallback", type: "raster", source: "snowmap" },
         { id: "piste-outline", type: "line", source: "pistes", layout: { "line-cap": "round", "line-join": "round" },
           paint: { "line-color": "#ffffff", "line-width": outlineWidth } },
@@ -50,9 +50,9 @@ function startMap() {
   map.addControl(new maplibregl.ScaleControl(), "bottom-left");
   document.getElementById("reset").addEventListener("click", () => map.easeTo({ ...camera, zoom: startZoom() }));
   bindToggle("winter", (on) => {
-    map.setPaintProperty("satellite", "raster-saturation", on ? -0.85 : 0);
-    map.setPaintProperty("satellite", "raster-opacity", on ? 0.56 : 1);
-    map.setPaintProperty("satellite", "raster-brightness-min", on ? 0.48 : 0);
+    map.setPaintProperty("satellite", "raster-saturation", on ? -0.65 : -0.14);
+    map.setPaintProperty("satellite", "raster-opacity", on ? 0.82 : 1);
+    map.setPaintProperty("satellite", "raster-brightness-min", on ? 0.24 : 0.04);
   });
   bindToggle("lifts", (on) => {
     for (const layer of ["lift-lines", "lift-stations"]) map.setLayoutProperty(layer, "visibility", on ? "visible" : "none");
@@ -120,15 +120,16 @@ function startMap() {
       map.getSource("lifts").setData({ ...empty, features: lifts });
       map.getSource("stations").setData({ ...empty, features: stations });
       map.setLayoutProperty("ski-fallback", "visibility", "none");
+      document.getElementById("lifts").hidden = false;
       status.textContent = "Piste oder Lift antippen für Details.";
     } catch {
-      status.textContent = "Interaktive Details gerade nicht verfügbar.";
+      status.textContent = "";
     }
   });
 }
 
 function startZoom() {
-  return innerWidth < 650 ? camera.zoom - 0.65 : camera.zoom;
+  return innerWidth < 650 ? camera.zoom - 0.4 : camera.zoom;
 }
 
 function bindToggle(id, update) {

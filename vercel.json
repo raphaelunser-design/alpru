@@ -1,9 +1,1 @@
-{
-  "framework": null,
-  "rewrites": [
-    {
-      "source": "/ski-data",
-      "destination": "https://alpivo.de/ski-geo/obertauern.geojson"
-    }
-  ]
-}
+{"framework":null}

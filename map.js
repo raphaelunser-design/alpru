@@ -84,14 +84,38 @@ function startMap() {
 
   map.once("load", async () => {
     try {
-      const response = await fetch("./ski-data", { signal: AbortSignal.timeout(15000) });
-      if (!response.ok) throw new Error("Geodaten nicht verfügbar");
-      const data = await response.json();
-      const pistes = data.cartographicRuns?.features?.length ? data.cartographicRuns : data.runs;
-      if (!pistes?.features?.length) throw new Error("Keine Pisten im Datensatz");
-      map.getSource("pistes").setData(pistes);
-      map.getSource("lifts").setData(data.cartographicLifts ?? data.lifts ?? empty);
-      map.getSource("stations").setData(data.stations ?? empty);
+      const bounds = "47.224,13.507,47.278,13.603";
+      const query = `[out:json][timeout:12];(way["piste:type"="downhill"](${bounds});way["aerialway"](${bounds});node["aerialway"="station"](${bounds}););out geom;`;
+      const sources = ["https://overpass.kumi.systems/api/interpreter", "https://overpass-api.de/api/interpreter"];
+      const elements = await Promise.any(sources.map(async (url) => {
+        const response = await fetch(`${url}?data=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(22000) });
+        if (!response.ok) throw new Error("Geodaten nicht verfügbar");
+        const data = await response.json();
+        if (!data.elements?.length) throw new Error("Leerer Datensatz");
+        return data.elements;
+      }));
+      const pistes = [];
+      const lifts = [];
+      const stations = [];
+      for (const element of elements) {
+        const tags = element.tags ?? {};
+        const properties = {
+          name: tags["piste:name"] ?? tags.name,
+          ref: tags["piste:ref"] ?? tags.ref,
+          difficulty: tags["piste:difficulty"],
+        };
+        if (element.type === "node") {
+          stations.push({ type: "Feature", properties, geometry: { type: "Point", coordinates: [element.lon, element.lat] } });
+        } else if (element.geometry?.length >= 2) {
+          const geometry = { type: "LineString", coordinates: element.geometry.map(({ lon, lat }) => [lon, lat]) };
+          const target = tags["piste:type"] === "downhill" ? pistes : lifts;
+          target.push({ type: "Feature", properties, geometry });
+        }
+      }
+      if (!pistes.length) throw new Error("Keine Pisten im Datensatz");
+      map.getSource("pistes").setData({ ...empty, features: pistes });
+      map.getSource("lifts").setData({ ...empty, features: lifts });
+      map.getSource("stations").setData({ ...empty, features: stations });
       status.textContent = "Piste oder Lift antippen für Details.";
     } catch {
       status.textContent = "Pistendaten konnten nicht geladen werden.";
